@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PyQt6 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtTest, QtWidgets
 
 # Support unittest discovery from both the repository root and gui/.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -79,6 +79,114 @@ class GuiTests(unittest.TestCase):
         self.addCleanup(dialog.close)
         return dialog
 
+    def wait_for_build(self, window):
+        timer = QtCore.QElapsedTimer()
+        timer.start()
+        while window._build_process is not None and timer.elapsed() < 10000:
+            QtTest.QTest.qWait(10)
+        self.assertIsNone(window._build_process, window.theoryBuildLog.toPlainText())
+
+    def test_build_uses_saved_settings_and_streams_process_errors(self):
+        settings = default_settings()
+        settings.update({"mysql/database": "gui_test", "mysql/password": "private dummy",
+                         "index/full_max_order": 21, "cache/character_database": "/tmp/custom chars.db"})
+        self.store.save(settings)
+        window = N2DatabaseWindow(self.store)
+        self.addCleanup(window.close)
+        window.theoriesInput.setPlainText("A1\nA1, C2")
+        window.buildCharacterCacheCheckBox.setChecked(True)
+        launches = []
+        script = """
+import json, sys
+r = json.loads(sys.stdin.readline())
+assert r['text'] == 'A1\\nA1, C2'
+assert r['build_cache'] is True
+assert r['settings']['mysql/database'] == 'gui_test'
+assert r['settings']['index/full_max_order'] == 21
+assert r['settings']['cache/character_database'] == '/tmp/custom chars.db'
+print(json.dumps({'log': 'Working on A1: candidates=2'}), flush=True)
+print('Error reason: ' + r['settings']['mysql/password'], file=sys.stderr, flush=True)
+sys.exit(1)
+"""
+
+        class FixtureProcess(QtCore.QProcess):
+            def start(self, program, arguments):
+                launches.append((program, arguments))
+                super().start(sys.executable, ["-B", "-u", "-c", script])
+
+        with patch("gui.n2_db.QtCore.QProcess", FixtureProcess):
+            window.buildTheoriesButton.click()
+            self.assertEqual(window.buildTheoriesButton.text(), "Stop")
+            self.assertTrue(window.theoriesInput.isReadOnly())
+            self.assertFalse(window.actionSettings.isEnabled())
+            self.wait_for_build(window)
+        log = window.theoryBuildLog.toPlainText()
+        self.assertIn("Working on A1", log)
+        self.assertIn("Error reason: [redacted]", log)
+        self.assertIn("exited with code 1", log)
+        self.assertNotIn("private dummy", log)
+        self.assertNotIn("private dummy", repr(launches))
+        self.assertEqual(launches[0][1], ["-python", "-B", "-u", "-m", "gui.theory_builder"])
+        self.assertEqual(window.buildTheoriesButton.text(), "Build")
+        self.assertFalse(window.theoriesInput.isReadOnly())
+        self.assertTrue(window.actionSettings.isEnabled())
+
+    def test_build_stop_and_close_wait_for_worker(self):
+        settings = default_settings()
+        settings["mysql/database"] = "gui_test"
+        self.store.save(settings)
+        window = N2DatabaseWindow(self.store)
+        self.addCleanup(window.close)
+        window.theoriesInput.setPlainText("A1")
+        script = """
+import json, sys
+json.loads(sys.stdin.readline())
+assert sys.stdin.readline().strip() == 'stop'
+print(json.dumps({'log': 'Build stopped; writes kept.'}), flush=True)
+"""
+
+        class FixtureProcess(QtCore.QProcess):
+            def start(self, program, arguments):
+                super().start(sys.executable, ["-B", "-u", "-c", script])
+
+        with patch("gui.n2_db.QtCore.QProcess", FixtureProcess):
+            window.buildTheoriesButton.click()
+            window.buildTheoriesButton.click()  # Stop even before the started signal.
+            self.assertFalse(window.buildTheoriesButton.isEnabled())
+            self.wait_for_build(window)
+            window.show()
+            window.buildTheoriesButton.click()
+            window.close()
+            self.assertIsNotNone(window._build_process)
+            self.wait_for_build(window)
+        self.assertFalse(window.isVisible())
+        self.assertIn("Build stopped; writes kept.", window.theoryBuildLog.toPlainText())
+
+    def test_build_startup_failures_are_logged_and_controls_recover(self):
+        window = N2DatabaseWindow(self.store)
+        self.addCleanup(window.close)
+        window.buildTheoriesButton.click()
+        self.assertIn("at least one gauge group", window.theoryBuildLog.toPlainText())
+        window.theoriesInput.setPlainText("A1")
+        window.buildTheoriesButton.click()
+        self.assertIn("MySQL database name", window.theoryBuildLog.toPlainText())
+        with patch.object(self.store, "load", side_effect=PasswordStorageError("Vault locked")):
+            window.buildTheoriesButton.click()
+        self.assertIn("Vault locked", window.theoryBuildLog.toPlainText())
+        settings = default_settings()
+        settings["mysql/database"] = "gui_test"
+        self.store.save(settings)
+
+        class MissingProcess(QtCore.QProcess):
+            def start(self, program, arguments):
+                super().start("/nonexistent/n2-build-worker", [])
+
+        with patch("gui.n2_db.QtCore.QProcess", MissingProcess):
+            window.buildTheoriesButton.click()
+            self.wait_for_build(window)
+        self.assertTrue(window.buildTheoriesButton.isEnabled())
+        self.assertIn("ERROR: Build process", window.theoryBuildLog.toPlainText())
+
     def test_defaults_match_current_backend(self):
         values = default_settings()
         mysql = keyword_defaults("common/n2_theory_db.py", "connect_database")
@@ -114,13 +222,14 @@ class GuiTests(unittest.TestCase):
             self.assertEqual(values[key], str(PROJECT_ROOT / filename))
         self.assertFalse(self.store.path.exists())
 
-    def test_empty_tabs_and_menu_opens_settings(self):
+    def test_anomaly_layout_and_menu_opens_settings(self):
         window = N2DatabaseWindow(self.store)
         self.addCleanup(window.close)
         self.assertEqual([window.tabs.tabText(i) for i in range(2)], ["anomaly", "index"])
         self.assertEqual(window.tabs.count(), 2)
-        for i in range(2):
-            self.assertEqual(window.tabs.widget(i).findChildren(QtWidgets.QWidget), [])
+        self.assertEqual(window.indexTab.findChildren(QtWidgets.QWidget), [])
+        self.assertFalse(window.theoriesInput.isReadOnly())
+        self.assertTrue(window.theoryBuildLog.isReadOnly())
         observed = []
 
         def close_dialog():
@@ -133,6 +242,73 @@ class GuiTests(unittest.TestCase):
         window.actionSettings.trigger()
         self.assertEqual(observed, [SettingsDialog])
         self.assertFalse(self.store.path.exists())
+
+    def test_load_theories_appends_files_and_can_undo_without_losing_edits(self):
+        window = N2DatabaseWindow(self.store)
+        self.addCleanup(window.close)
+        window.theoriesInput.insertPlainText("A1")
+        # A selection in the existing text must not be replaced by the load.
+        window.theoriesInput.selectAll()
+        first = Path(self.temp.name) / "이론 1.txt"
+        first.write_bytes(b"\xef\xbb\xbfA2\r\nA1, C2")
+        second = Path(self.temp.name) / "theories 2.txt"
+        second.write_text("E6\n\nG2\n", encoding="utf-8")
+        with patch.object(QtWidgets.QFileDialog, "getOpenFileNames",
+                          return_value=([str(first), str(second)], "")):
+            window.loadTheoriesButton.click()
+        expected = "A1\nA2\nA1, C2\nE6\n\nG2\n"
+        self.assertEqual(window.theoriesInput.toPlainText(), expected)
+        self.assertEqual(window.theoryBuildLog.toPlainText(), "")
+        self.assertFalse(self.store.path.exists())
+        window.theoriesInput.undo()
+        self.assertEqual(window.theoriesInput.toPlainText(), "A1")
+        window.theoriesInput.undo()
+        self.assertEqual(window.theoriesInput.toPlainText(), "")
+        window.theoriesInput.redo()
+        window.theoriesInput.redo()
+        self.assertEqual(window.theoriesInput.toPlainText(), expected)
+
+    def test_load_theories_cancel_empty_files_and_line_boundaries(self):
+        window = N2DatabaseWindow(self.store)
+        self.addCleanup(window.close)
+        empty = Path(self.temp.name) / "empty.txt"
+        empty.write_bytes(b"\xef\xbb\xbf")
+        theory = Path(self.temp.name) / "theory.txt"
+        theory.write_text("A2\n", encoding="utf-8")
+        for existing in ("", "A1", "A1\n"):
+            with self.subTest(existing=existing):
+                window.theoriesInput.setPlainText(existing)
+                for files in ([], [str(empty)]):
+                    with patch.object(QtWidgets.QFileDialog, "getOpenFileNames",
+                                      return_value=(files, "")):
+                        window.loadTheoriesButton.click()
+                    self.assertEqual(window.theoriesInput.toPlainText(), existing)
+                    self.assertFalse(window.theoriesInput.document().isUndoAvailable())
+                with patch.object(QtWidgets.QFileDialog, "getOpenFileNames",
+                                  return_value=([str(empty), str(theory), str(empty)], "")):
+                    window.loadTheoriesButton.click()
+                expected = "A2\n" if not existing else "A1\nA2\n"
+                self.assertEqual(window.theoriesInput.toPlainText(), expected)
+
+    def test_failed_theory_load_keeps_all_existing_text_and_undo_history(self):
+        window = N2DatabaseWindow(self.store)
+        self.addCleanup(window.close)
+        valid = Path(self.temp.name) / "valid.txt"
+        valid.write_text("A2", encoding="utf-8")
+        invalid = Path(self.temp.name) / "invalid.txt"
+        invalid.write_bytes(b"\xff\xfe")
+        for bad_file in (invalid, Path(self.temp.name) / "missing.txt"):
+            with self.subTest(bad_file=bad_file):
+                window.theoriesInput.insertPlainText("A1, C2")
+                with patch.object(QtWidgets.QFileDialog, "getOpenFileNames",
+                                  return_value=([str(valid), str(bad_file)], "")):
+                    with patch.object(QtWidgets.QMessageBox, "critical") as error:
+                        window.loadTheoriesButton.click()
+                error.assert_called_once()
+                self.assertIn(str(bad_file), error.call_args.args[2])
+                self.assertEqual(window.theoriesInput.toPlainText(), "A1, C2")
+                window.theoriesInput.undo()
+                self.assertEqual(window.theoriesInput.toPlainText(), "")
 
     def test_save_then_relaunch_in_fresh_process(self):
         window = N2DatabaseWindow(self.store)

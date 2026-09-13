@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import os
+import json
+import shutil
 from pathlib import Path
 import sys
 import tempfile
 import uuid
 
-from PyQt6 import QtCore, QtWidgets, uic
+from PyQt6 import QtCore, QtGui, QtWidgets, uic
 
 if not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -272,6 +274,172 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
         self.store = store if store is not None else SettingsStore()
         self.actionSettings.triggered.connect(self.open_settings)
         self.actionQuit.triggered.connect(self.close)
+        self.loadTheoriesButton.clicked.connect(self.load_theories)
+        self.buildTheoriesButton.clicked.connect(self.build_theories)
+        self._build_process = None
+        self._build_buffer = b""
+        self._build_password = ""
+        self._build_request = b""
+        self._close_after_build = False
+
+    def _log_build(self, message):
+        if self._build_password:
+            message = message.replace(self._build_password, "[redacted]")
+        self.theoryBuildLog.appendPlainText(message)
+
+    def _set_build_active(self, active):
+        self.theoriesInput.setReadOnly(active)
+        self.loadTheoriesButton.setEnabled(not active)
+        self.buildCharacterCacheCheckBox.setEnabled(not active)
+        self.actionSettings.setEnabled(not active)
+        self.buildTheoriesButton.setText("Stop" if active else "Build")
+        self.buildTheoriesButton.setEnabled(True)
+
+    def build_theories(self):
+        if self._build_process is not None:
+            self._stop_build()
+            return
+        text = self.theoriesInput.toPlainText()
+        if not text.strip():
+            self._log_build("ERROR: Enter at least one gauge group in the left area.")
+            return
+        try:
+            settings = self.store.load()
+            if not settings["mysql/database"].strip():
+                raise ValueError("Set the MySQL database name in Settings → Preferences.")
+            sibling_sage = Path(sys.executable).with_name("sage")
+            sage = str(sibling_sage) if sibling_sage.is_file() else shutil.which("sage")
+            if sage is None:
+                raise ValueError("Sage was not found. Launch the GUI from its Sage environment "
+                                 "or put the sage executable on PATH.")
+        except (OSError, ValueError) as exc:
+            self._log_build(f"ERROR: Cannot start build: {exc}")
+            return
+        self._build_password = settings["mysql/password"]
+        self._build_request = (json.dumps({
+            "text": text, "settings": settings,
+            "build_cache": self.buildCharacterCacheCheckBox.isChecked(),
+        }) + "\n").encode("utf-8")
+        self._build_buffer = b""
+        process = QtCore.QProcess(self)
+        self._build_process = process
+        process.setWorkingDirectory(str(PROJECT_ROOT))
+        process.setProcessChannelMode(QtCore.QProcess.ProcessChannelMode.MergedChannels)
+        environment = QtCore.QProcessEnvironment.systemEnvironment()
+        environment.insert("PYTHONDONTWRITEBYTECODE", "1")
+        process.setProcessEnvironment(environment)
+        process.started.connect(self._send_build_request)
+        process.readyReadStandardOutput.connect(self._read_build_output)
+        process.finished.connect(self._build_finished)
+        process.errorOccurred.connect(self._build_error)
+        self._set_build_active(True)
+        self._log_build("Starting theory build with the saved settings…")
+        # A separate main thread is needed for Sage and its spawned cache workers.
+        # Credentials travel through stdin, never command arguments or a file.
+        process.start(sage, ["-python", "-B", "-u", "-m", "gui.theory_builder"])
+
+    def _send_build_request(self):
+        if self._build_process is not None:
+            self._build_process.write(self._build_request)
+            self._build_request = b""
+
+    def _read_build_output(self, final=False):
+        if self._build_process is None:
+            return
+        self._build_buffer += bytes(self._build_process.readAllStandardOutput())
+        lines = self._build_buffer.split(b"\n")
+        self._build_buffer = lines.pop()
+        if final and self._build_buffer:
+            lines.append(self._build_buffer)
+            self._build_buffer = b""
+        for line in lines:
+            text = line.decode("utf-8", errors="replace")
+            try:
+                record = json.loads(text)
+            except ValueError:
+                record = None
+            self._log_build(record["log"] if isinstance(record, dict) and "log" in record else text)
+
+    def _stop_build(self):
+        if not self.buildTheoriesButton.isEnabled():
+            return
+        # The worker stops between candidates or after a committed cache order.
+        # Keep its pipe open until it exits so it can finish the current operation.
+        if self._build_request:
+            self._build_request += b"stop\n"
+        else:
+            self._build_process.write(b"stop\n")
+        self.buildTheoriesButton.setEnabled(False)
+        self._log_build("Stop requested; waiting for the current operation to finish…")
+
+    def _build_error(self, error):
+        if self._build_process is None:
+            return
+        self._log_build(f"ERROR: Build process: {self._build_process.errorString()}")
+        if error == QtCore.QProcess.ProcessError.FailedToStart:
+            self._build_finished(-1, QtCore.QProcess.ExitStatus.CrashExit)
+
+    def _build_finished(self, exit_code, exit_status):
+        if self._build_process is None:
+            return
+        self._read_build_output(final=True)
+        if exit_status == QtCore.QProcess.ExitStatus.CrashExit or exit_code != 0:
+            self._log_build(f"Build worker exited with code {exit_code}; see error details above.")
+        self._build_process.deleteLater()
+        self._build_process = None
+        self._build_request = b""
+        self._build_password = ""
+        self._set_build_active(False)
+        if self._close_after_build:
+            self.close()
+
+    def closeEvent(self, event):
+        if self._build_process is not None:
+            self._close_after_build = True
+            self._stop_build()
+            event.ignore()
+            return
+        super().closeEvent(event)
+
+    def load_theories(self) -> None:
+        """Append selected text files as one undoable edit, after all reads succeed."""
+        filenames, _ = QtWidgets.QFileDialog.getOpenFileNames(
+            self, "Load theories", str(PROJECT_ROOT),
+            "Text files (*.txt);;All files (*)",
+        )
+        parts = []
+        for filename in filenames:
+            try:
+                # Accept an optional UTF-8 BOM and normalize platform line endings.
+                text = Path(filename).read_text(encoding="utf-8-sig")
+            except UnicodeError:
+                QtWidgets.QMessageBox.critical(
+                    self, "Cannot load theories",
+                    f"{filename} is not valid UTF-8 text.\n"
+                    "Save the file as UTF-8 and try again.",
+                )
+                return
+            except OSError as exc:
+                QtWidgets.QMessageBox.critical(
+                    self, "Cannot load theories", f"Could not read {filename}:\n{exc}",
+                )
+                return
+            if text:
+                if parts and not parts[-1].endswith("\n"):
+                    parts.append("\n")
+                parts.append(text)
+        if not parts:
+            return
+        existing = self.theoriesInput.toPlainText()
+        separator = "\n" if existing and not existing.endswith("\n") else ""
+        cursor = self.theoriesInput.textCursor()
+        cursor.movePosition(QtGui.QTextCursor.MoveOperation.End)
+        cursor.beginEditBlock()
+        cursor.insertText(separator + "".join(parts))
+        cursor.endEditBlock()
+        self.theoriesInput.setTextCursor(cursor)
+        self.theoriesInput.setFocus()
+        self.theoriesInput.ensureCursorVisible()
 
     @property
     def settings(self) -> dict[str, str | int | float]:
