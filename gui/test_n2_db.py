@@ -1,6 +1,7 @@
 """Isolated GUI checks; no real credentials, databases or user settings are used."""
 
 import ast
+from datetime import datetime
 import json
 import os
 from pathlib import Path
@@ -86,7 +87,16 @@ class GuiTests(unittest.TestCase):
             QtTest.QTest.qWait(10)
         self.assertIsNone(window._build_process, window.theoryBuildLog.toPlainText())
 
+    def isolate_build_logs(self):
+        root = Path(self.temp.name) / "project"
+        root.mkdir()
+        override = patch("gui.n2_db.PROJECT_ROOT", root)
+        override.start()
+        self.addCleanup(override.stop)
+        return root
+
     def test_build_uses_saved_settings_and_streams_process_errors(self):
+        self.isolate_build_logs()
         settings = default_settings()
         settings.update({"mysql/database": "gui_test", "mysql/password": "private dummy",
                          "index/full_max_order": 21, "cache/character_database": "/tmp/custom chars.db"})
@@ -104,7 +114,10 @@ assert r['build_cache'] is True
 assert r['settings']['mysql/database'] == 'gui_test'
 assert r['settings']['index/full_max_order'] == 21
 assert r['settings']['cache/character_database'] == '/tmp/custom chars.db'
-print(json.dumps({'log': 'Working on A1: candidates=2'}), flush=True)
+print(json.dumps({'log': 'Working on A1: candidates=2', 'level': 'INFO',
+                  'timestamp': '2026-09-13 12:34:56.789+09:00'}), flush=True)
+print(json.dumps({'log': 'Candidate rejected', 'level': 'WARNING'}), flush=True)
+print(json.dumps({'log': 'Database unavailable', 'level': 'ERROR'}), flush=True)
 print('Error reason: ' + r['settings']['mysql/password'], file=sys.stderr, flush=True)
 sys.exit(1)
 """
@@ -122,6 +135,13 @@ sys.exit(1)
             self.wait_for_build(window)
         log = window.theoryBuildLog.toPlainText()
         self.assertIn("Working on A1", log)
+        timestamp = datetime.fromisoformat("2026-09-13 12:34:56.789+09:00").astimezone().isoformat(
+            sep=" ", timespec="milliseconds",
+        )
+        self.assertIn(f"[{timestamp}] [INFO] Working on A1: candidates=2", log)
+        self.assertIn("[WARNING] Candidate rejected", log)
+        self.assertIn("[ERROR] Database unavailable", log)
+        self.assertIn("[WARNING] Error reason: [redacted]", log)
         self.assertIn("Error reason: [redacted]", log)
         self.assertIn("exited with code 1", log)
         self.assertNotIn("private dummy", log)
@@ -130,8 +150,13 @@ sys.exit(1)
         self.assertEqual(window.buildTheoriesButton.text(), "Build")
         self.assertFalse(window.theoriesInput.isReadOnly())
         self.assertTrue(window.actionSettings.isEnabled())
+        self.assertIsNone(window._anomaly_log)
+        saved = window._anomaly_log_path.read_text(encoding="utf-8")
+        self.assertEqual(saved, log + "\n")
+        self.assertNotIn("private dummy", saved)
 
     def test_build_stop_and_close_wait_for_worker(self):
+        root = self.isolate_build_logs()
         settings = default_settings()
         settings["mysql/database"] = "gui_test"
         self.store.save(settings)
@@ -161,8 +186,15 @@ print(json.dumps({'log': 'Build stopped; writes kept.'}), flush=True)
             self.wait_for_build(window)
         self.assertFalse(window.isVisible())
         self.assertIn("Build stopped; writes kept.", window.theoryBuildLog.toPlainText())
+        files = list((root / "logs").glob("log_anomalies_*.log"))
+        self.assertEqual(len(files), 2)
+        for path in files:
+            saved = path.read_text(encoding="utf-8")
+            self.assertIn("Stop requested", saved)
+            self.assertIn("Build stopped; writes kept.", saved)
 
     def test_build_startup_failures_are_logged_and_controls_recover(self):
+        root = self.isolate_build_logs()
         window = N2DatabaseWindow(self.store)
         self.addCleanup(window.close)
         window.buildTheoriesButton.click()
@@ -185,7 +217,85 @@ print(json.dumps({'log': 'Build stopped; writes kept.'}), flush=True)
             window.buildTheoriesButton.click()
             self.wait_for_build(window)
         self.assertTrue(window.buildTheoriesButton.isEnabled())
-        self.assertIn("ERROR: Build process", window.theoryBuildLog.toPlainText())
+        self.assertIn("[ERROR] Build process", window.theoryBuildLog.toPlainText())
+        self.assertIsNone(window._anomaly_log)
+        files = sorted((root / "logs").glob("log_anomalies_*.log"))
+        self.assertEqual(len(files), 4)
+        for path, reason in zip(files, ("at least one gauge group", "MySQL database name",
+                                        "Vault locked", "[ERROR] Build process")):
+            self.assertIn(reason, path.read_text(encoding="utf-8"))
+
+    def test_anomaly_log_flushes_utf8_and_preserves_colliding_files(self):
+        root = self.isolate_build_logs()
+        window = N2DatabaseWindow(self.store)
+        self.addCleanup(window.close)
+        self.assertFalse((root / "logs").exists())
+        with patch("gui.n2_db.datetime") as clock:
+            clock.now.return_value = datetime(2026, 9, 13, 12, 34, 56, 789123)
+            window._start_anomaly_log()
+            first = window._anomaly_log_path
+            self.assertEqual(first.name, "log_anomalies_20260913_123456_789123.log")
+            stream = window._anomaly_log
+            window._build_password = "dummy secret"
+            window._log_build("진행: A1 — dummy secret\nvalid SCFTs=2")
+            expected = window.theoryBuildLog.toPlainText() + "\n"
+            stamp = clock.now.return_value.astimezone().isoformat(sep=" ", timespec="milliseconds")
+            self.assertIn(f"[{stamp}] [INFO] 진행: A1 — [redacted]\n"
+                          f"[{stamp}] [INFO] valid SCFTs=2", expected)
+            # Read while the stream is still open: messages must already be flushed.
+            self.assertEqual(first.read_text(encoding="utf-8"), expected)
+            self.assertNotIn("dummy secret", expected)
+            window._start_anomaly_log()
+        self.assertTrue(stream.closed)
+        second = window._anomaly_log_path
+        self.assertNotEqual(first, second)
+        self.assertEqual(first.read_text(encoding="utf-8"), expected)
+        second_stream = window._anomaly_log
+        window._log_build("Second attempt")
+        window.close()
+        self.assertTrue(second_stream.closed)
+        self.assertIn("Second attempt", second.read_text(encoding="utf-8"))
+        self.assertNotIn("Second attempt", first.read_text(encoding="utf-8"))
+
+    def test_anomaly_log_io_failures_keep_window_logging_available(self):
+        root = self.isolate_build_logs()
+        window = N2DatabaseWindow(self.store)
+        self.addCleanup(window.close)
+        # A regular file blocks creation of the required logs directory.
+        blocker = root / "logs"
+        blocker.write_text("existing file", encoding="utf-8")
+        window.buildTheoriesButton.click()
+        self.assertIn("Cannot create anomaly log", window.theoryBuildLog.toPlainText())
+        self.assertIn("at least one gauge group", window.theoryBuildLog.toPlainText())
+        self.assertEqual(blocker.read_text(encoding="utf-8"), "existing file")
+        blocker.unlink()
+        window._start_anomaly_log()
+        stream = window._anomaly_log
+        with patch.object(stream, "write", side_effect=OSError("disk full")):
+            window._log_build("Build progress")
+        self.assertTrue(stream.closed)
+        self.assertIsNone(window._anomaly_log)
+        window._log_build("Still working")
+        log = window.theoryBuildLog.toPlainText()
+        self.assertIn("Build progress", log)
+        self.assertIn("Cannot write anomaly log", log)
+        self.assertIn("disk full", log)
+        self.assertIn("Still working", log)
+        self.assertIn("[ERROR] Cannot write anomaly log", log)
+
+    def test_worker_emits_timestamp_and_error_level_for_startup_failure(self):
+        result = subprocess.run(
+            [sys.executable, "-B", "-m", "gui.theory_builder"],
+            input=json.dumps({"text": "", "settings": {}, "build_cache": False}) + "\n",
+            text=True, capture_output=True, cwd=PROJECT_ROOT, timeout=10,
+        )
+        self.assertEqual(result.returncode, 1, result.stderr)
+        records = [json.loads(line) for line in result.stdout.splitlines()]
+        self.assertEqual(len(records), 2)
+        for record in records:
+            self.assertEqual(record["level"], "ERROR")
+            self.assertIsNotNone(datetime.fromisoformat(record["timestamp"]).utcoffset())
+        self.assertIn("at least one gauge group", records[0]["log"])
 
     def test_defaults_match_current_backend(self):
         values = default_settings()

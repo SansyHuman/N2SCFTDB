@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 import os
 import json
 import shutil
@@ -278,14 +279,64 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
         self.buildTheoriesButton.clicked.connect(self.build_theories)
         self._build_process = None
         self._build_buffer = b""
+        self._build_error_buffer = b""
         self._build_password = ""
         self._build_request = b""
         self._close_after_build = False
+        self._anomaly_log = None
+        self._anomaly_log_path = None
 
-    def _log_build(self, message):
+    def _start_anomaly_log(self):
+        self._close_anomaly_log()
+        directory = PROJECT_ROOT / "logs"
+        self._anomaly_log_path = directory
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now()
+            while True:
+                self._anomaly_log_path = directory / f"log_anomalies_{timestamp:%Y%m%d_%H%M%S_%f}.log"
+                try:
+                    self._anomaly_log = self._anomaly_log_path.open(
+                        "x", encoding="utf-8", newline="\n",
+                    )
+                    break
+                except FileExistsError:
+                    # Concurrent windows or repeated timestamps must not overwrite logs.
+                    timestamp += timedelta(microseconds=1)
+        except OSError as exc:
+            self._log_build(f"Cannot create anomaly log at {self._anomaly_log_path}: {exc}", level="ERROR")
+            return
+        self._log_build(f"Saving anomaly log to {self._anomaly_log_path}")
+
+    def _close_anomaly_log(self):
+        stream, self._anomaly_log = self._anomaly_log, None
+        if stream is not None:
+            try:
+                stream.close()
+            except OSError as exc:
+                self._log_build(f"Cannot close anomaly log at {self._anomaly_log_path}: {exc}", level="ERROR")
+
+    def _log_build(self, message, level="INFO", timestamp=None):
+        message = str(message)
         if self._build_password:
             message = message.replace(self._build_password, "[redacted]")
-        self.theoryBuildLog.appendPlainText(message)
+        level = str(level).upper()
+        if level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
+            level = "INFO"
+        try:
+            moment = datetime.fromisoformat(timestamp) if timestamp else datetime.now().astimezone()
+        except (TypeError, ValueError):
+            moment = datetime.now().astimezone()
+        stamp = moment.astimezone().isoformat(sep=" ", timespec="milliseconds")
+        rendered = "\n".join(f"[{stamp}] [{level}] {line}" for line in (message.splitlines() or [""]))
+        self.theoryBuildLog.appendPlainText(rendered)
+        if self._anomaly_log is not None:
+            try:
+                self._anomaly_log.write(rendered + "\n")
+                self._anomaly_log.flush()
+            except (OSError, UnicodeError) as exc:
+                self._close_anomaly_log()
+                self._log_build(f"Cannot write anomaly log at {self._anomaly_log_path}: {exc}", level="ERROR")
 
     def _set_build_active(self, active):
         self.theoriesInput.setReadOnly(active)
@@ -299,9 +350,11 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
         if self._build_process is not None:
             self._stop_build()
             return
+        self._start_anomaly_log()
         text = self.theoriesInput.toPlainText()
         if not text.strip():
-            self._log_build("ERROR: Enter at least one gauge group in the left area.")
+            self._log_build("Enter at least one gauge group in the left area.", level="ERROR")
+            self._close_anomaly_log()
             return
         try:
             settings = self.store.load()
@@ -313,7 +366,8 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
                 raise ValueError("Sage was not found. Launch the GUI from its Sage environment "
                                  "or put the sage executable on PATH.")
         except (OSError, ValueError) as exc:
-            self._log_build(f"ERROR: Cannot start build: {exc}")
+            self._log_build(f"Cannot start build: {exc}", level="ERROR")
+            self._close_anomaly_log()
             return
         self._build_password = settings["mysql/password"]
         self._build_request = (json.dumps({
@@ -321,15 +375,17 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
             "build_cache": self.buildCharacterCacheCheckBox.isChecked(),
         }) + "\n").encode("utf-8")
         self._build_buffer = b""
+        self._build_error_buffer = b""
         process = QtCore.QProcess(self)
         self._build_process = process
         process.setWorkingDirectory(str(PROJECT_ROOT))
-        process.setProcessChannelMode(QtCore.QProcess.ProcessChannelMode.MergedChannels)
+        process.setProcessChannelMode(QtCore.QProcess.ProcessChannelMode.SeparateChannels)
         environment = QtCore.QProcessEnvironment.systemEnvironment()
         environment.insert("PYTHONDONTWRITEBYTECODE", "1")
         process.setProcessEnvironment(environment)
         process.started.connect(self._send_build_request)
         process.readyReadStandardOutput.connect(self._read_build_output)
+        process.readyReadStandardError.connect(lambda: self._read_build_output(stderr=True))
         process.finished.connect(self._build_finished)
         process.errorOccurred.connect(self._build_error)
         self._set_build_active(True)
@@ -343,22 +399,30 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
             self._build_process.write(self._build_request)
             self._build_request = b""
 
-    def _read_build_output(self, final=False):
+    def _read_build_output(self, final=False, *, stderr=False):
         if self._build_process is None:
             return
-        self._build_buffer += bytes(self._build_process.readAllStandardOutput())
-        lines = self._build_buffer.split(b"\n")
-        self._build_buffer = lines.pop()
-        if final and self._build_buffer:
-            lines.append(self._build_buffer)
-            self._build_buffer = b""
+        buffer_name = "_build_error_buffer" if stderr else "_build_buffer"
+        read = (self._build_process.readAllStandardError if stderr
+                else self._build_process.readAllStandardOutput)
+        lines = (getattr(self, buffer_name) + bytes(read())).split(b"\n")
+        remaining = lines.pop()
+        if final and remaining:
+            lines.append(remaining)
+            remaining = b""
+        setattr(self, buffer_name, remaining)
         for line in lines:
             text = line.decode("utf-8", errors="replace")
             try:
-                record = json.loads(text)
+                record = json.loads(text) if not stderr else None
             except ValueError:
                 record = None
-            self._log_build(record["log"] if isinstance(record, dict) and "log" in record else text)
+            if isinstance(record, dict) and "log" in record:
+                self._log_build(record["log"], level=record.get("level", "INFO"),
+                                timestamp=record.get("timestamp"))
+            else:
+                # Unstructured diagnostics have no declared severity.
+                self._log_build(text, level="WARNING" if stderr else "INFO")
 
     def _stop_build(self):
         if not self.buildTheoriesButton.isEnabled():
@@ -375,7 +439,7 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
     def _build_error(self, error):
         if self._build_process is None:
             return
-        self._log_build(f"ERROR: Build process: {self._build_process.errorString()}")
+        self._log_build(f"Build process: {self._build_process.errorString()}", level="ERROR")
         if error == QtCore.QProcess.ProcessError.FailedToStart:
             self._build_finished(-1, QtCore.QProcess.ExitStatus.CrashExit)
 
@@ -383,11 +447,13 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
         if self._build_process is None:
             return
         self._read_build_output(final=True)
+        self._read_build_output(final=True, stderr=True)
         if exit_status == QtCore.QProcess.ExitStatus.CrashExit or exit_code != 0:
-            self._log_build(f"Build worker exited with code {exit_code}; see error details above.")
+            self._log_build(f"Build worker exited with code {exit_code}; see error details above.", level="ERROR")
         self._build_process.deleteLater()
         self._build_process = None
         self._build_request = b""
+        self._close_anomaly_log()
         self._build_password = ""
         self._set_build_active(False)
         if self._close_after_build:
@@ -399,6 +465,7 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
             self._stop_build()
             event.ignore()
             return
+        self._close_anomaly_log()
         super().closeEvent(event)
 
     def load_theories(self) -> None:

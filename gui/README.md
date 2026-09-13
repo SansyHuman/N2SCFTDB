@@ -57,6 +57,25 @@ theories. A failed group or candidate is logged and later work continues when
 possible. Repeated input lines are processed again and normally count as existing
 records after their first insertion.
 
+Each **Build** attempt automatically creates a UTF-8 text log under the project
+root's `logs/` directory, named `log_anomalies_YYYYMMDD_HHMMSS_ffffff.log` using
+local time (the last six digits are microseconds). The log window shows the
+file's full path. Progress, error reasons, counts and Stop messages are written
+and flushed as they arrive, including errors that prevent a build from starting.
+Each attempt gets a separate file; existing logs are never overwritten. The
+file closes when the attempt finishes, fails or stops. Passwords are redacted
+before messages reach either the window or the file. File creation/write errors
+are shown in the window, and the build continues with on-screen logging.
+Generated logs are ignored by Git.
+
+Both the file and GUI use `[YYYY-MM-DD HH:MM:SS.mmm±HH:MM] [LEVEL] message`,
+with local time, milliseconds and a UTC offset. Worker messages retain their
+emission time; GUI messages use the time they are logged. Every line of a
+multi-line message carries the same prefix. Progress uses `INFO`, rejected
+theories and summaries with errors use `WARNING`, and failures use `ERROR`.
+Unstructured stdout is logged as `INFO` and stderr diagnostics as `WARNING`;
+worker crashes and nonzero exits are reported separately as `ERROR`.
+
 When **Build character decomposition cache** is selected, the worker collects
 the distinct `(Cartan type, Dynkin labels)` pairs across all valid theories,
 including existing records and valid candidates whose database insertion failed.

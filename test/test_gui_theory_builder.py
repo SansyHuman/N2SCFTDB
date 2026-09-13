@@ -42,6 +42,11 @@ class TheoryBuilderTests(unittest.TestCase):
 
         self.store.side_effect = store
         self.logs = []
+        self.records = []
+
+    def record_log(self, message, level="INFO"):
+        self.logs.append(message)
+        self.records.append((message, level))
 
     def test_real_simple_and_product_enumeration_and_repeat_counts(self):
         with patch.object(theories, "enumerate_simple_theory_candidates",
@@ -50,7 +55,7 @@ class TheoryBuilderTests(unittest.TestCase):
                           wraps=theories.enumerate_product_theory_candidates) as product, \
              patch.object(properties, "_calculate_superconformal_index") as index, \
              patch.object(cache, "build_decomposition_cache") as build:
-            result = run_build(" A1 \n\n A1, A1 \nA1", self.settings, False, self.logs.append)
+            result = run_build(" A1 \n\n A1, A1 \nA1", self.settings, False, self.record_log)
         self.assertEqual((simple.call_count, product.call_count), (2, 1))
         self.assertEqual(product.call_args.args, (("A1", "A1"),))
         self.assertEqual(result["candidates"], 12)
@@ -77,13 +82,17 @@ class TheoryBuilderTests(unittest.TestCase):
         ]
         self.store.side_effect = [RuntimeError("database unavailable"), SimpleNamespace(inserted=True, theory_id=9)]
         with patch.object(theories, "enumerate_simple_theory_candidates", return_value=candidates):
-            result = run_build("A1", self.settings, False, self.logs.append)
+            result = run_build("A1", self.settings, False, self.record_log)
         self.assertEqual((result["valid"], result["invalid"], result["added"], result["db_failed"]), (2, 3, 1, 1))
         self.assertEqual(result["status"], "completed with errors")
         self.assertIn("b0=4", "\n".join(self.logs))
         self.assertIn("Witten anomaly parity=1", "\n".join(self.logs))
         self.assertIn("database unavailable", "\n".join(self.logs))
         self.assertEqual(self.store.call_count, 2)
+        self.assertTrue(all(level == "WARNING" for message, level in self.records if "INVALID" in message))
+        self.assertTrue(any("database unavailable" in message and level == "ERROR"
+                            for message, level in self.records))
+        self.assertEqual(self.records[-1][1], "WARNING")
 
     def test_bad_groups_and_enumeration_failure_do_not_block_later_groups(self):
         original = theories.enumerate_simple_theory_candidates
@@ -94,7 +103,7 @@ class TheoryBuilderTests(unittest.TestCase):
             return original(group)
 
         with patch.object(theories, "enumerate_simple_theory_candidates", side_effect=enumerate_group):
-            result = run_build("A1,\nnot-a-group\nA2\nA1", self.settings, False, self.logs.append)
+            result = run_build("A1,\nnot-a-group\nA2\nA1", self.settings, False, self.record_log)
         self.assertEqual(result["valid"], 2)
         self.assertEqual(result["errors"], 3)
         self.assertIn("line 1", "\n".join(self.logs))
@@ -105,7 +114,7 @@ class TheoryBuilderTests(unittest.TestCase):
         # Existing records and failed insertions still contribute valid representations.
         self.store.side_effect = lambda *_: SimpleNamespace(inserted=False, theory_id=1)
         with patch.object(cache, "build_decomposition_cache") as build:
-            result = run_build("A2\nA1, A1\nA2", self.settings, True, self.logs.append)
+            result = run_build("A2\nA1, A1\nA2", self.settings, True, self.record_log)
         expected = set()
         for candidate in theories.enumerate_simple_theory_candidates("A2") + theories.enumerate_product_theory_candidates(["A1", "A1"]):
             expected.update(theory_representations(check_input_data(candidate)))
@@ -128,9 +137,9 @@ class TheoryBuilderTests(unittest.TestCase):
             return original(*args, **kwargs, processes=1)
 
         with patch.object(cache, "build_decomposition_cache", side_effect=serial):
-            cold = run_build("A1", self.settings, True, self.logs.append)
+            cold = run_build("A1", self.settings, True, self.record_log)
             self.logs.clear()
-            warm = run_build("A1", self.settings, True, self.logs.append)
+            warm = run_build("A1", self.settings, True, self.record_log)
         self.assertEqual(cold["errors"], 0)
         self.assertEqual(warm["errors"], 0)
         self.assertEqual(cold["cache_built"], 2)
@@ -143,36 +152,37 @@ class TheoryBuilderTests(unittest.TestCase):
     def test_cache_failure_preserves_counts_and_continues(self):
         self.store.side_effect = RuntimeError("insert failed")
         with patch.object(cache, "build_decomposition_cache", side_effect=[RuntimeError("LiE timed out"), {1: 1}]):
-            result = run_build("A1", self.settings, True, self.logs.append)
+            result = run_build("A1", self.settings, True, self.record_log)
         self.assertEqual((result["valid"], result["db_failed"], result["cache_built"]), (2, 2, 1))
         self.assertIn("LiE timed out", "\n".join(self.logs))
 
     def test_zero_adams_bound_and_stop_between_candidates(self):
         self.settings["index/full_max_order"] = 1
         with patch.object(cache, "build_decomposition_cache") as build:
-            result = run_build("A1", self.settings, True, self.logs.append)
+            result = run_build("A1", self.settings, True, self.record_log)
         self.assertEqual(result["valid"], 2)
         build.assert_not_called()
         self.assertIn("is zero", "\n".join(self.logs))
         self.store.reset_mock()
-        result = run_build("A1", self.settings, False, self.logs.append,
+        result = run_build("A1", self.settings, False, self.record_log,
                            cancelled=lambda: self.store.call_count == 1)
         self.assertEqual(result["status"], "stopped")
         self.assertEqual(result["valid"], 1)
 
     def test_missing_settings_connection_failure_and_check_errors(self):
         self.settings["mysql/database"] = ""
-        result = run_build("A1", self.settings, False, self.logs.append)
+        result = run_build("A1", self.settings, False, self.record_log)
         self.assertEqual(result["status"], "failed")
         self.connect.assert_not_called()
+        self.assertEqual(self.records[-1][1], "ERROR")
         self.settings["mysql/database"] = "isolated_test"
         self.connect.side_effect = RuntimeError("access denied")
-        result = run_build("A1", self.settings, False, self.logs.append)
+        result = run_build("A1", self.settings, False, self.record_log)
         self.assertEqual(result["status"], "failed")
         self.assertIn("access denied", "\n".join(self.logs))
         self.connect.side_effect = None
         with patch.object(properties, "calculate_n2_theory_properties", side_effect=RuntimeError("computation failed")):
-            result = run_build("A1", self.settings, False, self.logs.append)
+            result = run_build("A1", self.settings, False, self.record_log)
         self.assertEqual((result["check_failed"], result["invalid"]), (2, 0))
 
 

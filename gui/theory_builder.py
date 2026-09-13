@@ -7,6 +7,7 @@ cooperative cancellation. Stdout carries flushed JSON log messages only.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from datetime import datetime
 import json
 import os
 from pathlib import Path
@@ -78,7 +79,7 @@ def rejection_reason(anomaly):
 
 
 def run_build(text, settings, build_cache, log, cancelled=lambda: False):
-    """Enumerate, check, store, then prebuild the union of valid representations."""
+    """Build theories, reporting through ``log(message, level="INFO")``."""
     counts = Counts()
     representations = set()
     errors = 0
@@ -93,7 +94,7 @@ def run_build(text, settings, build_cache, log, cancelled=lambda: False):
     def error(context, exc):
         nonlocal errors
         errors += 1
-        log(f"ERROR — {context}: {type(exc).__name__}: {exc}")
+        log(f"{context}: {type(exc).__name__}: {exc}", level="ERROR")
 
     try:
         rows = [(i, line.strip()) for i, line in enumerate(text.splitlines(), 1) if line.strip()]
@@ -151,11 +152,11 @@ def run_build(text, settings, build_cache, log, cancelled=lambda: False):
                         properties = calculate_n2_theory_properties(candidate)
                         if not properties["lagrangian_scft_candidate"]:
                             group_counts.invalid += 1
-                            log(f"{context}: INVALID — {rejection_reason(check_input_data(candidate))}")
+                            log(f"{context}: INVALID — {rejection_reason(check_input_data(candidate))}", level="WARNING")
                             continue
                     except ValueError as exc:
                         group_counts.invalid += 1
-                        log(f"{context}: INVALID — {exc}")
+                        log(f"{context}: INVALID — {exc}", level="WARNING")
                         continue
                     except Exception as exc:
                         group_counts.check_failed += 1
@@ -235,8 +236,9 @@ def run_build(text, settings, build_cache, log, cancelled=lambda: False):
                 error("closing database connection", exc)
                 if status == "completed":
                     status = "completed with errors"
+    summary_level = "ERROR" if status == "failed" else "WARNING" if errors else "INFO"
     log(f"Build {status}. Total: {counts.describe()}; errors={errors}; "
-        f"cached representations={cache_built}/{len(representations)}.")
+        f"cached representations={cache_built}/{len(representations)}.", level=summary_level)
     return dict(status=status, **asdict(counts), errors=errors,
                 cache_built=cache_built, cache_total=len(representations))
 
@@ -270,10 +272,13 @@ def main():
 
     Thread(target=watch_input, daemon=True).start()
 
-    def log(message):
+    def log(message, level="INFO"):
         if password:
             message = message.replace(password, "[redacted]")
-        print(json.dumps({"log": message}, ensure_ascii=True), flush=True)
+        print(json.dumps({
+            "log": message, "level": level,
+            "timestamp": datetime.now().astimezone().isoformat(sep=" ", timespec="milliseconds"),
+        }, ensure_ascii=True), flush=True)
 
     result = run_build(request["text"], request["settings"], request["build_cache"], log, stopped.is_set)
     return 1 if result["errors"] else 0
