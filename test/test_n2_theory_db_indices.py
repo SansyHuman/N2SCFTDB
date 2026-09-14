@@ -323,10 +323,14 @@ class IndexUpdateMySQLTests(unittest.TestCase):
         self.assertEqual(json.loads(self.row()["coulomb_branch_index_max_dimension_json"]), {"numerator": 30, "denominator": 1})
 
     def test_cli_runs_worker_and_reports_summary(self):
-        output = StringIO()
+        output, error_output = StringIO(), StringIO()
         with tempfile.TemporaryDirectory() as cache, redirect_stdout(output), patch.multiple(
             properties, INDEX_CACHE_DIRECTORY=Path(cache), DEFAULT_PROCESS_COUNT=1,
-        ):
+        ), patch.dict(os.environ, {
+            # The CLI uses N2_DB_*; this fixture uses N2_TEST_MYSQL_*.
+            "N2_DB_PASSWORD": self.settings["password"],
+            "N2_DB_UNIX_SOCKET": self.settings["unix_socket"] or "",
+        }), redirect_stderr(error_output):
             code = worker.main([
                 MYSQL_TEST_DATABASE, "--user", self.settings["user"],
                 "--host", self.settings["host"], "--port", str(self.settings["port"]),
@@ -334,7 +338,7 @@ class IndexUpdateMySQLTests(unittest.TestCase):
                 "--index-order", "0", "--coulomb-max-dimension", "0",
                 "--cache-directory", cache, "--processes", "1",
             ])
-        self.assertEqual(code, 0)
+        self.assertEqual(code, 0, error_output.getvalue())
         self.assertEqual(json.loads(output.getvalue().splitlines()[-1]), {"processed": 1, "failed": 0})
 
 

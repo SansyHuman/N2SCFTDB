@@ -46,8 +46,28 @@ and unsupported groups are reported with their line numbers. A single factor
 uses `enumerate_simple_theory_candidates`; comma-separated factors use
 `enumerate_product_theory_candidates`. Each candidate is checked with
 `calculate_n2_theory_properties`, and valid SCFTs are inserted through
-`store_lagrangian_theory`. Imports initialize/migrate the database as usual and
-store basic properties; index and Coulomb-spectrum calculations remain separate.
+`store_lagrangian_theory`. The coordinator initializes/migrates the database
+before dispatching candidates. Imports store basic properties; index and
+Coulomb-spectrum calculations remain separate.
+
+For each gauge group, **CPU cores** controls the worker count, capped at the
+number of candidates. Enumeration itself runs once in the coordinator, then
+spawned processes check candidates and insert valid theories in parallel.
+Candidates are dispatched individually as workers become available, with at
+most twice the worker count queued or running. This balances variable checking
+costs without copying the full candidate list into every worker. `1` uses the
+serial path. A group's workers finish before the next group starts.
+
+Each worker owns its Sage state and one MySQL connection, reused for its tasks
+and closed when the worker exits. No connection or cursor is shared between
+threads or processes. Worker connections and imports use
+`initialize_schema=False` after the coordinator completes schema setup. Each
+theory is inserted in its own InnoDB transaction. Concurrent equivalent imports
+use the existing unique keys: the losing transaction rolls back and reports
+the committed theory as already present. Deadlocks and lock timeouts retry the
+entire rolled-back transaction at most twice. Other database failures are logged;
+an uncertain commit is not retried automatically. Counters, the representation
+union, and log output are updated only by the coordinator from worker results.
 
 The log reports the current group, candidate count, valid/invalid theories,
 new additions and existing records, with group and overall totals. Invalid
@@ -82,17 +102,21 @@ including existing records and valid candidates whose database insertion failed.
 It includes vector adjoints, factor singlets and full-hyper conjugates. After
 processing the theory list, it calls `build_decomposition_cache` for each pair
 through `index/full_max_order // 2`, using the saved character-cache filename,
-LiE executable and LiE/FORM timeout. A zero bound skips prebuilding. Progress
-reports computed/reused products at each Adams order; existing cache rows are
-reused. The backend's default process count is used. The FORM-cache path,
-FORM executable and Coulomb cutoff apply to index calculations, not this action.
+LiE executable, LiE/FORM timeout and CPU core count. A zero bound skips
+prebuilding. Progress reports computed/reused products at each Adams order;
+existing cache rows are reused. The FORM-cache path, FORM executable and Coulomb
+cutoff apply to index calculations, not this action.
 
 Build runs in a separate process, using `sage -python` beside the GUI's Python
 interpreter or the `sage` executable on PATH. This requires the project's Sage,
 OR-Tools and MySQL dependencies; cache generation also needs LiE. The window
 stays responsive. Settings and inputs are fixed for the duration of a build.
-**Stop** requests cancellation between candidates or after the current cache
-order is committed; an active enumeration or backend call must finish first.
+**Stop** stops candidate submission, cancels queued tasks where possible, and
+signals workers to stop before their next check or insert. Active calls finish
+and return their results before the final totals are logged, preserving counts
+for committed inserts. An active enumeration must finish first; character-cache
+generation stops after the current cache order is committed. Candidate workers
+exit before character-cache workers start, so their process counts do not multiply.
 Closing the window requests the same stop and closes once the worker exits.
 Previously committed database/cache work is retained. Credentials are passed
 through the worker's stdin pipe and are redacted from displayed error messages.
@@ -157,6 +181,15 @@ Defaults mirror `index/char_decomposition_cache.py`,
 | LiE executable | `lie` (resolved through PATH) |
 | FORM executable | `form` (resolved through PATH) |
 | LiE / FORM timeout | `600` seconds per invocation |
+| CPU cores | `-1` (all system cores) |
+
+**CPU cores** in **Computation tools** is saved as `tools/processes`. The default
+`-1` uses the system's logical CPU count (`os.cpu_count()`, falling back to one
+if unavailable), resolved when each build starts. A positive integer limits the
+number of worker processes; `1` runs serially and `0` is not allowed. This setting
+controls candidate checking, database insertion and character-cache generation
+in the anomaly build. Theory enumeration remains serial. Older settings files
+default to `-1` until saved.
 
 The **Index truncation** section saves both inclusive cutoffs. Full-index order
 is a nonnegative integer; the Coulomb cutoff accepts nonnegative integers or

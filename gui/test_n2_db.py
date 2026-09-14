@@ -99,7 +99,8 @@ class GuiTests(unittest.TestCase):
         self.isolate_build_logs()
         settings = default_settings()
         settings.update({"mysql/database": "gui_test", "mysql/password": "private dummy",
-                         "index/full_max_order": 21, "cache/character_database": "/tmp/custom chars.db"})
+                         "index/full_max_order": 21, "cache/character_database": "/tmp/custom chars.db",
+                         "tools/processes": 3})
         self.store.save(settings)
         window = N2DatabaseWindow(self.store)
         self.addCleanup(window.close)
@@ -114,6 +115,7 @@ assert r['build_cache'] is True
 assert r['settings']['mysql/database'] == 'gui_test'
 assert r['settings']['index/full_max_order'] == 21
 assert r['settings']['cache/character_database'] == '/tmp/custom chars.db'
+assert r['settings']['tools/processes'] == 3
 print(json.dumps({'log': 'Working on A1: candidates=2', 'level': 'INFO',
                   'timestamp': '2026-09-13 12:34:56.789+09:00'}), flush=True)
 print(json.dumps({'log': 'Candidate rejected', 'level': 'WARNING'}), flush=True)
@@ -317,6 +319,8 @@ print(json.dumps({'log': 'Build stopped; writes kept.'}), flush=True)
         dialog = self.dialog()
         self.assertEqual(dialog.fullIndexOrderSpin.value(), cutoffs["INDEX_MAX_ORDER"])
         self.assertEqual(dialog.coulombMaxDimensionEdit.text(), str(cutoffs["C_INDEX_MAX_ORDER"]))
+        self.assertEqual(values["tools/processes"], -1)
+        self.assertEqual(dialog.coresSpin.value(), -1)
         self.assertEqual(values["mysql/database"], "")
         for key, module, constant in (
             ("cache/character_database", "char_decomposition_cache", "DEFAULT_CHAR_CACHE_DATABASE"),
@@ -432,6 +436,7 @@ print(json.dumps({'log': 'Build stopped; writes kept.'}), flush=True)
             "mysql/password": " fake secret = ; # 한글 ", "mysql/connect_timeout": 17,
             "tools/lie_executable": "/example tools/lie",
             "tools/form_executable": "/example tools/form", "tools/timeout": 123.75,
+            "tools/processes": 3,
         }
         for key, field in dialog.text_fields.items():
             field.setText(values[key])
@@ -484,6 +489,7 @@ window.close()
         dialog.passwordEdit.setText("also discarded")
         dialog.fullIndexOrderSpin.setValue(30)
         dialog.coulombMaxDimensionEdit.setText("120")
+        dialog.coresSpin.setValue(2)
         dialog.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Cancel).click()
         self.assertEqual(self.store.path.read_bytes(), original)
         self.assertEqual(self.store.load()["mysql/database"], "")
@@ -498,8 +504,28 @@ window.close()
         self.assertEqual(dialog.databaseEdit.text(), "existing_database")
         self.assertEqual(dialog.fullIndexOrderSpin.value(), 18)
         self.assertEqual(dialog.coulombMaxDimensionEdit.text(), "90")
+        self.assertEqual(dialog.coresSpin.value(), -1)
         dialog.reject()
         self.assertEqual(self.store.path.read_bytes(), before)
+
+    def test_cpu_cores_reject_zero_and_save_serial_or_automatic(self):
+        self.store.save(default_settings())
+        before = self.store.path.read_bytes()
+        dialog = self.dialog()
+        dialog.coresSpin.setValue(0)
+        with patch.object(QtWidgets.QMessageBox, "warning") as warning:
+            dialog.accept()
+        warning.assert_called_once()
+        self.assertIn("positive integer", warning.call_args.args[2])
+        self.assertNotEqual(dialog.result(), QtWidgets.QDialog.DialogCode.Accepted)
+        self.assertEqual(self.store.path.read_bytes(), before)
+        for value in (1, -1):
+            with self.subTest(value=value):
+                dialog = self.dialog()
+                dialog.coresSpin.setValue(value)
+                dialog.accept()
+                self.assertEqual(dialog.result(), QtWidgets.QDialog.DialogCode.Accepted)
+                self.assertEqual(self.store.load()["tools/processes"], value)
 
     def test_coulomb_cutoff_validation_and_exact_saving(self):
         self.store.save(default_settings())

@@ -769,6 +769,80 @@ class TheoryDatabaseUnitTests(unittest.TestCase):
         connection.rollback.assert_called_once_with()
         connection.commit.assert_not_called()
 
+    def test_concurrent_duplicate_returns_winner_after_rollback(self):
+        winner = {"theory_id": 41, "realization_id": 42, "name": "winner", "gauge_group": "E6"}
+        for attached in (None, 41, 99):
+            with self.subTest(theory_id=attached):
+                connection = MagicMock()
+                with patch.object(database, "initialize_database") as initialize, \
+                     patch.object(database, "_fetchone", side_effect=[None, winner]), \
+                     patch.object(database, "_insert_theory", side_effect=database.pymysql.IntegrityError(1062, "duplicate")):
+                    if attached == 99:
+                        with self.assertRaisesRegex(ValueError, "already attached"):
+                            database.store_lagrangian_theory(connection, E6_SCFT, theory_id=attached, initialize_schema=False)
+                    else:
+                        stored = database.store_lagrangian_theory(connection, E6_SCFT, theory_id=attached, initialize_schema=False)
+                        self.assertFalse(stored.inserted)
+                        self.assertEqual((stored.theory_id, stored.lagrangian_realization_id), (41, 42))
+                    initialize.assert_not_called()
+                connection.rollback.assert_called_once()
+                connection.commit.assert_not_called()
+
+    def test_deadlock_and_lock_timeout_retry_only_rolled_back_transactions(self):
+        connection = MagicMock()
+        with patch.object(database, "_find_stored_realization", return_value=None), \
+             patch.object(database, "_checked_results", wraps=database._checked_results) as checked, \
+             patch.object(database, "_insert_theory", side_effect=[
+                 database.pymysql.OperationalError(1213, "deadlock"),
+                 database.pymysql.OperationalError(1205, "lock timeout"), 11,
+             ]), \
+             patch.object(database, "_insert_shared_properties"), \
+             patch.object(database, "_insert_realization", return_value=12), \
+             patch.object(database, "_execute"), \
+             patch.object(database, "_fetchone", return_value={"name": "winner"}), \
+             patch.object(database.time, "sleep"):
+            stored = database.store_lagrangian_theory(connection, E6_SCFT, initialize_schema=False)
+        self.assertTrue(stored.inserted)
+        checked.assert_called_once()
+        self.assertEqual(connection.begin.call_count, 3)
+        self.assertEqual(connection.rollback.call_count, 2)
+        connection.commit.assert_called_once()
+
+    def test_retry_is_bounded_and_unrelated_or_ambiguous_failures_propagate(self):
+        for exc, attempts in ((database.pymysql.OperationalError(1213, "deadlock"), 3),
+                              (database.pymysql.OperationalError(2006, "connection lost"), 1),
+                              (database.pymysql.IntegrityError(1062, "unrelated unique key"), 1)):
+            with self.subTest(error=exc):
+                connection = MagicMock()
+                with patch.object(database, "_find_stored_realization", return_value=None), \
+                     patch.object(database, "_insert_theory", side_effect=exc), \
+                     patch.object(database.time, "sleep"):
+                    with self.assertRaises(type(exc)):
+                        database.store_lagrangian_theory(connection, E6_SCFT, initialize_schema=False)
+                self.assertEqual(connection.begin.call_count, attempts)
+                self.assertEqual(connection.rollback.call_count, attempts)
+                connection.commit.assert_not_called()
+
+    def test_worker_connection_skips_schema_initialization(self):
+        with patch.object(database.pymysql, "connect") as connect, \
+             patch.object(database, "initialize_database") as initialize:
+            self.assertIs(database.connect_database("n2_test", initialize_schema=False), connect.return_value)
+        initialize.assert_not_called()
+
+    def test_ambiguous_commit_is_not_replayed_and_keeps_original_error(self):
+        connection = MagicMock()
+        connection.commit.side_effect = database.pymysql.OperationalError(2013, "connection lost during commit")
+        connection.rollback.side_effect = database.pymysql.InterfaceError(0, "connection closed")
+        with patch.object(database, "_find_stored_realization", return_value=None), \
+             patch.object(database, "_insert_theory", return_value=11), \
+             patch.object(database, "_insert_shared_properties"), \
+             patch.object(database, "_insert_realization", return_value=12), \
+             patch.object(database, "_execute"):
+            with self.assertRaisesRegex(RuntimeError, "connection lost during commit.*rollback failed"):
+                database.store_lagrangian_theory(connection, E6_SCFT, initialize_schema=False)
+        connection.begin.assert_called_once()
+        connection.commit.assert_called_once()
+
     def test_rejects_anomalous_theory_before_transaction(self):
         connection = MagicMock()
         data = {

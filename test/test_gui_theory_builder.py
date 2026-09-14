@@ -13,6 +13,7 @@ from common import n2_theory_db as database
 from common import n2_theory_iter as theories
 from common import n2_theory_properties as properties
 from gui.theory_builder import run_build, theory_representations
+from gui.candidate_workers import process_candidates
 from index import char_decomposition_cache as cache
 
 
@@ -27,6 +28,7 @@ class TheoryBuilderTests(unittest.TestCase):
             "mysql/connect_timeout": 17, "index/full_max_order": 4,
             "cache/character_database": str(self.cache_path),
             "tools/lie_executable": "/usr/bin/lie", "tools/timeout": 31.0,
+            "tools/processes": 1,
         }
         self.connection = MagicMock()
         self.connect = patch.object(database, "connect_database", return_value=self.connection).start()
@@ -34,13 +36,18 @@ class TheoryBuilderTests(unittest.TestCase):
         self.addCleanup(patch.stopall)
         self.seen = set()
 
-        def store(connection, candidate):
+        def store(connection, candidate, **kwargs):
             key = json.dumps(candidate, sort_keys=True)
             inserted = key not in self.seen
             self.seen.add(key)
             return SimpleNamespace(inserted=inserted, theory_id=len(self.seen))
 
         self.store.side_effect = store
+        # These orchestration fixtures use in-memory storage. Real spawned
+        # workers and concurrent MySQL imports are covered in candidate tests.
+        def serial_dispatch(candidates, label, processes, *args):
+            return process_candidates(candidates, label, 1, *args)
+        self.dispatch = patch("gui.theory_builder.process_candidates", side_effect=serial_dispatch).start()
         self.logs = []
         self.records = []
 
@@ -111,8 +118,9 @@ class TheoryBuilderTests(unittest.TestCase):
 
     def test_cache_unions_all_valid_theories_and_passes_settings(self):
         self.settings["index/full_max_order"] = 19
+        self.settings["tools/processes"] = 3
         # Existing records and failed insertions still contribute valid representations.
-        self.store.side_effect = lambda *_: SimpleNamespace(inserted=False, theory_id=1)
+        self.store.side_effect = lambda *_, **kwargs: SimpleNamespace(inserted=False, theory_id=1)
         with patch.object(cache, "build_decomposition_cache") as build:
             result = run_build("A2\nA1, A1\nA2", self.settings, True, self.record_log)
         expected = set()
@@ -128,18 +136,44 @@ class TheoryBuilderTests(unittest.TestCase):
             self.assertEqual(call.kwargs["database_path"], self.cache_path)
             self.assertEqual(call.kwargs["lie_executable"], "/usr/bin/lie")
             self.assertEqual(call.kwargs["timeout"], 31.0)
+            self.assertEqual(call.kwargs["processes"], 3)
         self.assertEqual(result["cache_built"], len(expected))
+        self.assertTrue(all(call.args[2] == 3 for call in self.dispatch.call_args_list))
+
+    def test_automatic_cores_resolve_at_build_start_including_legacy_settings(self):
+        for configured, detected, expected in ((-1, 6, 6), (-1, None, 1), (None, 4, 4)):
+            with self.subTest(configured=configured, detected=detected):
+                if configured is None:
+                    self.settings.pop("tools/processes")
+                else:
+                    self.settings["tools/processes"] = configured
+                self.logs.clear()
+                with patch("gui.theory_builder.os.cpu_count", return_value=detected), \
+                     patch.object(cache, "build_decomposition_cache") as build:
+                    result = run_build("A1", self.settings, True, self.record_log)
+                self.assertEqual(result["errors"], 0)
+                self.assertEqual(build.call_count, 2)
+                for call in build.call_args_list:
+                    self.assertEqual(call.kwargs["processes"], expected)
+                self.assertIn(f"using up to {expected} worker processes", "\n".join(self.logs))
+
+    def test_invalid_cores_fail_before_database_access_and_log_reason(self):
+        for value in (0, -2, 1.5, True):
+            with self.subTest(value=value):
+                self.settings["tools/processes"] = value
+                self.records.clear()
+                result = run_build("A1", self.settings, True, self.record_log)
+                self.assertEqual(result["status"], "failed")
+                self.connect.assert_not_called()
+                self.assertTrue(any("CPU core count must be" in message and level == "ERROR"
+                                    for message, level in self.records))
 
     def test_real_cache_build_and_warm_reuse(self):
-        original = cache.build_decomposition_cache
-
-        def serial(*args, **kwargs):
-            return original(*args, **kwargs, processes=1)
-
-        with patch.object(cache, "build_decomposition_cache", side_effect=serial):
+        with patch.object(cache, "build_decomposition_cache", wraps=cache.build_decomposition_cache) as build:
             cold = run_build("A1", self.settings, True, self.record_log)
             self.logs.clear()
             warm = run_build("A1", self.settings, True, self.record_log)
+        self.assertTrue(all(call.kwargs["processes"] == 1 for call in build.call_args_list))
         self.assertEqual(cold["errors"], 0)
         self.assertEqual(warm["errors"], 0)
         self.assertEqual(cold["cache_built"], 2)

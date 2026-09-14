@@ -22,6 +22,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import time
 from typing import Any
 
 import pymysql
@@ -497,8 +498,13 @@ def connect_database(
     password: str = "",
     unix_socket: str | None = None,
     connect_timeout: int = 10,
+    initialize_schema: bool = True,
 ) -> Connection:
-    """Connect to an existing MySQL database and initialize its tables."""
+    """Open a connection owned by the calling thread/process.
+
+    Set initialize_schema=False only after a coordinator has initialized the
+    schema, before starting concurrent workers. Never share this connection.
+    """
     connection = pymysql.connect(
         host=host,
         port=port,
@@ -512,7 +518,8 @@ def connect_database(
         connect_timeout=connect_timeout,
     )
     try:
-        initialize_database(connection)
+        if initialize_schema:
+            initialize_database(connection)
     except BaseException:
         connection.close()
         raise
@@ -1048,26 +1055,8 @@ def _insert_hyper_representation(
     )
 
 
-def store_lagrangian_theory(
-    connection: Connection,
-    data: dict[str, Any],
-    *,
-    name: str | None = None,
-    theory_id: int | None = None,
-) -> StoredTheory:
-    """Check a theory and atomically store basic properties and its realization.
-
-    Both indices, their cutoffs, and the Coulomb spectrum start as SQL NULL.
-    No index or spectrum calculation occurs during insertion or reimport.
-
-    Reimporting the same normalized Lagrangian realization is idempotent.  Set
-    theory_id to attach a new realization, such as a dual description, to an
-    existing shared theory record.
-    """
-    initialize_database(connection)
-    anomaly_result, properties = _checked_results(data)
-    canonical_hash = _canonical_hash(anomaly_result)
-
+def _find_stored_realization(connection, canonical_hash, theory_id):
+    """Read a committed duplicate, including one inserted by a concurrent client."""
     existing = _fetchone(
         connection,
         """
@@ -1096,40 +1085,85 @@ def store_lagrangian_theory(
             gauge_group=str(existing["gauge_group"]),
             canonical_hash=canonical_hash,
         )
+    return None
+
+
+def store_lagrangian_theory(
+    connection: Connection,
+    data: dict[str, Any],
+    *,
+    name: str | None = None,
+    theory_id: int | None = None,
+    initialize_schema: bool = True,
+) -> StoredTheory:
+    """Check a theory and atomically store basic properties and its realization.
+
+    Both indices, their cutoffs, and the Coulomb spectrum start as SQL NULL.
+    No index or spectrum calculation occurs during insertion or reimport.
+
+    Reimporting the same normalized Lagrangian realization is idempotent, even
+    across concurrent connections. A unique-key race rolls back the losing
+    transaction and returns the committed winner with inserted=False. Deadlocks
+    and lock timeouts retry the whole rolled-back transaction up to two times.
+    Other failures, including ambiguous connection/commit failures, propagate.
+
+    Set theory_id to attach a new realization to an existing shared theory.
+    Use initialize_schema=False in workers after serial schema initialization.
+    The connection must belong exclusively to this caller, without an active
+    caller transaction; schema changes must finish before concurrent imports.
+    """
+    if initialize_schema:
+        initialize_database(connection)
+    anomaly_result, properties = _checked_results(data)
+    canonical_hash = _canonical_hash(anomaly_result)
 
     theory_name = (
         name.strip()
         if name is not None and name.strip()
         else f"{anomaly_result['group']} Lagrangian SCFT"
     )
-    connection.begin()
-    try:
-        stored_theory_id = _insert_theory(
-            connection, canonical_hash, theory_name, theory_id
-        )
-        _insert_shared_properties(connection, stored_theory_id, properties)
-        realization_id = _insert_realization(
-            connection,
-            stored_theory_id,
-            canonical_hash,
-            data,
-            anomaly_result,
-            properties,
-        )
-        _execute(
-            connection,
-            """
-            UPDATE theories
-            SET updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-            """,
-            (stored_theory_id,),
-        )
-    except BaseException:
-        connection.rollback()
-        raise
-    else:
-        connection.commit()
+    for attempt in range(3):
+        existing = _find_stored_realization(connection, canonical_hash, theory_id)
+        if existing is not None:
+            return existing
+        connection.begin()
+        try:
+            stored_theory_id = _insert_theory(
+                connection, canonical_hash, theory_name, theory_id
+            )
+            _insert_shared_properties(connection, stored_theory_id, properties)
+            realization_id = _insert_realization(
+                connection, stored_theory_id, canonical_hash, data,
+                anomaly_result, properties,
+            )
+            _execute(
+                connection,
+                """
+                UPDATE theories
+                SET updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                """,
+                (stored_theory_id,),
+            )
+            connection.commit()
+            break
+        except BaseException as exc:
+            try:
+                connection.rollback()
+            except Exception as rollback_error:
+                raise RuntimeError(
+                    f"{type(exc).__name__}: {exc}; rollback failed: "
+                    f"{type(rollback_error).__name__}: {rollback_error}"
+                ) from exc
+            code = exc.args[0] if exc.args else None
+            if isinstance(exc, pymysql.IntegrityError) and code == 1062:
+                existing = _find_stored_realization(connection, canonical_hash, theory_id)
+                if existing is not None:
+                    return existing
+            if isinstance(exc, pymysql.OperationalError) and code in (1205, 1213) and attempt < 2:
+                time.sleep(0.05 * (2 ** attempt))
+                continue
+            raise
 
     stored_row = _fetchone(
         connection,

@@ -51,6 +51,7 @@ def default_settings() -> dict[str, str | int | float]:
         "tools/lie_executable": "lie",
         "tools/form_executable": "form",
         "tools/timeout": 600.0,
+        "tools/processes": -1,
     }
 
 
@@ -191,6 +192,7 @@ class SettingsDialog(QtWidgets.QDialog):
             "mysql/port": self.portSpin,
             "mysql/connect_timeout": self.connectTimeoutSpin,
             "tools/timeout": self.timeoutSpin,
+            "tools/processes": self.coresSpin,
         }
         values = store.load()
         for key, field in self.text_fields.items():
@@ -229,6 +231,14 @@ class SettingsDialog(QtWidgets.QDialog):
     def accept(self) -> None:
         values = {key: field.text() for key, field in self.text_fields.items()}
         values.update({key: field.value() for key, field in self.number_fields.items()})
+        if values["tools/processes"] == 0:
+            QtWidgets.QMessageBox.warning(
+                self, "Invalid CPU core count",
+                "Enter -1 to use all system cores, or a positive integer.",
+            )
+            self.coresSpin.setFocus()
+            self.coresSpin.selectAll()
+            return
         try:
             values["index/coulomb_max_dimension"] = str(as_nonnegative_fraction(
                 values["index/coulomb_max_dimension"], "Coulomb index maximum dimension"
