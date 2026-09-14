@@ -1,0 +1,247 @@
+% Shared GUI and concurrent-import implementation, inspected 14 September 2026.
+% Keep displays unnumbered so the existing mathematical equations stay stable.
+\subsection{Editable input, saved settings and portable launch}
+The PyQt6 window loads \code{gui/n2_db.ui} and \code{gui/settings.ui} directly.
+The anomaly tab has two side-by-side areas: editable multiline gauge input and
+\textbf{Load theories...} on the left; a character-cache checkbox, read-only
+progress log and \textbf{Build}/\textbf{Stop} controls on the right. The index
+tab remains empty; the separate database index worker remains available.
+
+Enter one gauge-group specification per nonempty line, separating factors by
+commas. These are instructions to enumerate matter contents, not complete
+Lagrangian JSON inputs. For example:
+\begin{lstlisting}
+A1
+A1, C2
+G2
+\end{lstlisting}
+The loader appends one or more UTF-8 files in selection order, accepting a BOM
+and Windows line endings. It preserves existing text, inserts line boundaries,
+and makes the complete load one undoable edit. Cancel and empty files make no
+change. If any file cannot be read or decoded, the entire load is rejected with
+the filename and reason; the previous input remains editable and unchanged.
+
+\textbf{Settings / Preferences} persists the following new fields alongside
+the existing database, cache and executable settings:
+\begin{tabularx}{\textwidth}{@{}p{39mm}p{17mm}Y@{}}
+\toprule Setting & Default & Contract / saved key\\\midrule
+Full-index maximum order & $18$ & Inclusive nonnegative integer;
+\code{index/full_max_order}, matching \code{INDEX_MAX_ORDER}.\\
+Coulomb maximum dimension & $90$ & Inclusive nonnegative exact rational;
+\code{index/coulomb_max_dimension}, matching \code{C_INDEX_MAX_ORDER}.
+Fractions such as \code{6/5} are reduced and stored as strings.\\
+CPU cores & $-1$ & \code{tools/processes}; all logical CPUs via
+\code{os.cpu_count()}, or one if unavailable. Positive values bound workers;
+$1$ is serial and $0$ is invalid.\\\bottomrule
+\end{tabularx}
+Older settings files receive these defaults until saved. OK saves immediately;
+Cancel discards edits. A build uses a fixed settings/input snapshot. Existing
+QSettings persistence and native keyring credential handling are retained.
+
+Activate any Sage environment providing the GUI requirements, then run from
+the project root:
+\begin{lstlisting}[language=bash]
+sage -python -m pip install -r gui/requirements.txt
+sage -python -B gui/n2_db.py
+\end{lstlisting}
+The command contains no machine-specific installation path. Python's optional
+\code{-B} suppresses bytecode writes (\code{.pyc}/\code{__pycache__}); it does
+not change the calculation or disable the project's SQLite caches.
+
+\clearpage
+\subsection{Enumeration, SCFT checks and character-cache preparation}
+\code{gui/theory_builder.py} runs in a separate Sage process managed by the GUI.
+Credentials and settings arrive through stdin; the worker emits structured
+JSON log messages. The window remains responsive. The coordinator validates
+Cartan types, reports bad factors with their input line numbers, and initializes
+the MySQL schema before dispatching any candidate workers.
+
+For each usable line, \code{enumerate_simple_theory_candidates} handles one
+factor and \code{enumerate_product_theory_candidates} handles multiple factors.
+Both come from \code{common.n2_theory_iter}; enumeration runs once in the
+coordinator, using the existing backend defaults. Its finite search omits free
+all-singlet matter. Results are subsequently checked by
+\code{calculate_n2_theory_properties} in \code{common.n2_theory_properties}.
+The candidate flag includes anomaly and conformality checks; enumeration alone
+does not establish that flag. Invalid candidates include their rejection reason.
+Unexpected checking failures are counted separately.
+
+Valid candidates go through \code{store_lagrangian_theory} in
+\code{common.n2_theory_db}. It revalidates and atomically saves basic properties
+and a realization. New rows still have no computed indices or Coulomb spectrum.
+The log reports candidate totals, valid/invalid counts, additions, existing
+records, checking errors and database errors per group and overall. A valid
+candidate with a failed insert remains valid and also increments database
+errors; it is not relabeled physically invalid. Duplicate input lines run again
+and normally find the earlier records.
+
+If \textbf{Build character decomposition cache} is enabled, collect the union
+of distinct pairs of Cartan type and Dynkin labels across all valid
+candidates, including those already stored or whose insertion failed. This
+includes every vector adjoint, matter factor, factor singlet and the conjugate
+orientation for a full hyper. After all gauge groups finish, call
+\code{index.char_decomposition_cache.build_decomposition_cache} for each pair
+with maximum weighted Adams order, where $N$ is \code{index/full_max_order}:
+\[
+ K=\left\lfloor\frac{N}{2}\right\rfloor.
+\]
+Thus the default $N=18$ gives $K=9$. A zero bound skips prebuilding. Existing
+decompositions are reused; each completed order reports total, computed and
+reused products. The cutoff follows the full-index letter grading explained in
+the cache chapter and is not a Hall--Littlewood cutoff rule.
+
+This action uses the saved character-cache file, LiE executable, invocation
+timeout and CPU count. It does not calculate an index: the Coulomb cutoff,
+FORM executable and FORM-cache path are saved for index calculations but are
+not consumed by the anomaly build. Candidate pools finish before cache pools
+start, so their configured process counts do not multiply.
+
+The existing group naming convention remains algebra-based:
+$B_r$ is displayed as $\mathrm{Spin}(2r+1)$ and $D_r$ as
+$\mathrm{Spin}(2r)$. No global-form migration was made in this session.
+Quotient groups, allowed line operators and discrete theta data are not stored
+by this implementation; changing the displayed name alone would not add them.
+
+\clearpage
+\subsection{Parallel ownership, cancellation and durable logs}
+\code{gui/candidate_workers.py} uses spawned processes. With $C$ candidates
+and a resolved CPU limit $P$, a group's pool has $\min(P,C)$ workers and at most
+twice that many submitted tasks. Each task contains one candidate. Available
+workers receive subsequent tasks dynamically; groups are completed in input
+order. Enumeration itself is serial and materializes the candidate list.
+
+Each worker owns its Sage state and a lazily opened MySQL connection, reuses
+that connection and closes it during normal pool shutdown. Connections and
+cursors are never shared across threads or processes. Worker imports use
+\code{initialize_schema=False} after serial schema setup. Only the coordinator
+combines counters, representation sets and logs. A failed database connection
+is closed so later tasks can open another; an uncertain write is not replayed.
+
+\textbf{Stop} stops new submissions, cancels queued work where possible, and
+signals workers before subsequent checks or imports. Already active calls
+finish and their results are drained before final totals are reported, retaining
+counts for committed inserts. Enumeration must finish before it observes Stop;
+cache generation stops after the current order commits. Closing the window
+requests the same cooperative stop. Previously committed rows remain available.
+A crashed pool is reported, including potentially unknown database outcomes;
+remaining candidates are not silently retried after the crash.
+
+Every Build attempt creates a separate UTF-8 file under \code{logs/} at the
+project root, including attempts that fail validation before work starts:
+\begin{lstlisting}
+logs/log_anomalies_YYYYMMDD_HHMMSS_ffffff.log
+[2026-09-14 14:00:43.455+09:00] [INFO] message
+\end{lstlisting}
+The filename uses local time with microseconds and exclusive creation, so an
+existing file is not overwritten. Both GUI and file show local timestamps with
+milliseconds and UTC offset, plus \code{INFO}, \code{WARNING} or \code{ERROR}.
+Each line of a multiline message receives the same prefix. The GUI retains
+timestamps supplied by the build process; candidate-pool results are timestamped
+when the coordinator emits them. GUI-origin messages use their logging time.
+
+Progress is INFO, rejected candidates are WARNING, and failures are ERROR.
+Unstructured stdout is INFO and stderr is WARNING; abnormal process exits are
+also reported as ERROR. Passwords are redacted before display and file output.
+Messages are flushed as they arrive, and logs close on completion, failure or
+Stop. File errors are shown in the GUI, which continues logging on screen.
+Generated logs are ignored by Git.
+
+\textbf{Implementation sources:} \code{gui/n2_db.py},
+\code{gui/theory_builder.py}, \code{gui/candidate_workers.py}, the editable UI
+files, and \code{gui/README.md}. The configured worker limit also applies to
+character-cache generation; it is not a guarantee of proportional speedup.
+
+\clearpage
+\subsection{Concurrent imports: deadlock fix and bounded retries}
+Each theory import is one explicit InnoDB transaction. Equivalent concurrent
+imports are resolved by existing unique keys: a losing duplicate-key transaction
+rolls back and returns the committed winner with \code{inserted=False}.
+Neither schema version 7 nor the server isolation level changes in this fix.
+
+The former fresh-import path selected a properties row before inserting it:
+\begin{lstlisting}[language=SQL]
+SELECT properties_json FROM theory_properties
+WHERE theory_id = %s FOR UPDATE
+\end{lstlisting}
+The parent theory was newly inserted, so the properties row could not yet
+exist. Under REPEATABLE READ, the absent-row lookup could lock an index gap.
+Independent transactions could hold compatible gap locks, then each wait for
+the other's lock when inserting. The local MySQL deadlock report identified
+this cycle in the \code{theory_properties} primary index. See the
+\href{https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html}{MySQL 8.0
+manual, InnoDB Locking: gap and insert-intention locks} (checked 14 September
+2026) for the lock semantics.
+
+The fix passes \code{new_theory=True} to \code{_insert_shared_properties} only
+when this transaction inserted a new parent. It inserts the properties directly
+and skips the missing-row locking read. Attaching a realization to an existing
+theory keeps the locking read for comparison and enrichment. Atomic rollback,
+duplicate detection and existing index preservation remain in place.
+
+For a residual deadlock (1213) or lock timeout (1205), the importer explicitly
+rolls back and retries the whole transaction at most twice: three total attempts,
+with 50 ms and 100 ms waits. Exhaustion propagates to the candidate log and
+database-error count. Other failures, including uncertain connection/commit
+outcomes, propagate without automatic replay. A rollback failure is reported
+with the original error. A later Build can recover missing imports while
+recognizing already committed realizations.
+
+\begin{tabularx}{\textwidth}{@{}Yrr@{}}
+\toprule Controlled check, 14 September 2026 & Before & After\\\midrule
+256 distinct valid candidates, 8 workers: failed inserts & 93 & 0\\
+Same run: successfully inserted theories & 163 & 256\\
+Synchronized pair: transaction rollbacks & 1 & 0\\\bottomrule
+\end{tabularx}
+The fixture used $A_1$ with four full fundamentals and 1--256 free full singlets
+to produce distinct valid inputs without increasing gauge-algebra complexity.
+It exercises checking/storage directly; the standard enumerator excludes these
+free singlets. The fixed pair and stress runs added zero InnoDB deadlocks.
+These are local observations on a disposable MySQL 8.0.46 instance, not a
+promise that every workload is deadlock-free. Regression tests retain both
+the synchronized pair and the 256-candidate case.
+
+\clearpage
+\subsection{Test-harness repairs and validation evidence}
+The session also corrected test assumptions exposed by password-protected
+MySQL and unrelated active clients. The index-worker CLI test now forwards the
+configured test password and Unix socket through the application's
+\code{N2_DB_PASSWORD} and \code{N2_DB_UNIX_SOCKET} conventions, restoring the
+environment afterward and including stderr in failures. Parallel cleanup
+checks track only connections opened by that test, including spawned workers,
+and wait for those IDs to disappear. Unrelated connections are left alone.
+A negative regression confirms that an owned connection leak is still detected.
+
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{46mm}Y@{}}
+\toprule Validation & Result and scope\\\midrule
+Backend, after deadlock fix & 268 tests passed in 33.518 s, no skips; actual
+Sage/FORM/LiE and password-protected disposable MySQL 8.0.46.\\
+Focused concurrency/unit run & 37 tests passed, including the synchronized
+pair, 256 candidates and existing database unit regressions.\\
+GUI, documentation refresh & 32 offscreen tests passed in 0.869 s; temporary
+settings and credential test doubles, not the personal desktop vault.\\\bottomrule
+\end{tabularx}
+The backend result was recorded immediately before this documentation update;
+the GUI suite was rerun during it. Earlier 238-test database and 209-test cache
+results remain historical snapshots. No production database was used for this
+validation, and the isolated server was shut down afterward.
+
+Reproduce with Sage and an explicitly disposable test database. Set
+\code{N2_TEST_MYSQL_DATABASE}, \code{N2_TEST_MYSQL_HOST},
+\code{N2_TEST_MYSQL_PORT}, \code{N2_TEST_MYSQL_USER},
+\code{N2_TEST_MYSQL_PASSWORD}, and optionally
+\code{N2_TEST_MYSQL_UNIX_SOCKET} for that instance before running:
+\begin{lstlisting}[language=bash]
+PYTHONDONTWRITEBYTECODE=1 sage -python -B \
+  -m unittest discover -s test -p 'test_*.py' -v
+QT_QPA_PLATFORM=offscreen PYTHONDONTWRITEBYTECODE=1 \
+  sage -python -B -m unittest discover -s gui -p 'test_*.py' -v
+\end{lstlisting}
+Live database tests reset their configured test tables. Omitting
+\code{N2_TEST_MYSQL_DATABASE} skips those integrations. The repository's
+\code{all_test.sh} currently supplies local connection values; this session
+fixed the test harness, not that script's configuration.
+
+\textbf{Regression sources:} \code{gui/test_n2_db.py},
+\code{test/test_gui_theory_builder.py},
+\code{test/test_gui_candidate_workers.py}, \code{test/test_n2_theory_db.py},
+and the CLI environment regression in \code{test/test_n2_theory_db_indices.py}.

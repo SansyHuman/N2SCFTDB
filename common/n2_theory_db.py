@@ -731,15 +731,23 @@ def _insert_shared_properties(
     connection: Connection,
     theory_id: int,
     properties: dict[str, Any],
+    *,
+    new_theory: bool = False,
 ) -> None:
     shared = _shared_properties(properties)
     serialized = _json_text(shared, canonical=True)
     normalized_shared = json.loads(serialized)
-    existing = _fetchone(
-        connection,
-        "SELECT properties_json FROM theory_properties WHERE theory_id = %s FOR UPDATE",
-        (theory_id,),
-    )
+    # A parent inserted by this transaction cannot already have properties.
+    # A locking read for that absent row takes a gap lock under REPEATABLE
+    # READ; concurrent fresh IDs can lock the same gap and deadlock on INSERT.
+    # Existing theories still need the row lock for comparison and enrichment.
+    existing = None
+    if not new_theory:
+        existing = _fetchone(
+            connection,
+            "SELECT properties_json FROM theory_properties WHERE theory_id = %s FOR UPDATE",
+            (theory_id,),
+        )
     if existing is not None:
         existing_properties = existing["properties_json"]
         if isinstance(existing_properties, str):
@@ -1101,6 +1109,10 @@ def store_lagrangian_theory(
     Both indices, their cutoffs, and the Coulomb spectrum start as SQL NULL.
     No index or spectrum calculation occurs during insertion or reimport.
 
+    Fresh theories insert their properties directly, avoiding missing-row gap
+    locks between independent imports. Existing shared properties remain locked
+    while comparing or merging data for an attached realization.
+
     Reimporting the same normalized Lagrangian realization is idempotent, even
     across concurrent connections. A unique-key race rolls back the losing
     transaction and returns the committed winner with inserted=False. Deadlocks
@@ -1131,7 +1143,9 @@ def store_lagrangian_theory(
             stored_theory_id = _insert_theory(
                 connection, canonical_hash, theory_name, theory_id
             )
-            _insert_shared_properties(connection, stored_theory_id, properties)
+            _insert_shared_properties(
+                connection, stored_theory_id, properties, new_theory=theory_id is None,
+            )
             realization_id = _insert_realization(
                 connection, stored_theory_id, canonical_hash, data,
                 anomaly_result, properties,

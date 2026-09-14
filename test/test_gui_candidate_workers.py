@@ -196,6 +196,28 @@ def _record_connections(connection_ids):
     return patch.object(database, "connect_database", side_effect=connect)
 
 
+def _synchronized_new_import(database_name, options, candidate, barrier):
+    """Align fresh property inserts to expose missing-row gap-lock cycles."""
+    connection = database.connect_database(database_name, **options, initialize_schema=False)
+    original = database._execute
+    first_insert = True
+
+    def execute(connection, statement, parameters=()):
+        nonlocal first_insert
+        if first_insert and "INSERT INTO theory_properties(" in statement:
+            first_insert = False
+            barrier.wait(timeout=30)
+        return original(connection, statement, parameters)
+
+    try:
+        with patch.object(database, "_execute", side_effect=execute), \
+             patch.object(connection, "rollback", wraps=connection.rollback) as rollback:
+            stored = database.store_lagrangian_theory(connection, candidate, initialize_schema=False)
+        return asdict(stored), rollback.call_count, connection.thread_id()
+    finally:
+        connection.close()
+
+
 def _initialize_tracked_worker(database_name, options, stopped, connection_ids):
     # Spawn does not inherit the coordinator's mocks. Record real connection
     # IDs in the child while retaining the production initializer/finalizer.
@@ -301,6 +323,27 @@ class ParallelMySQLTests(unittest.TestCase):
             self.assertEqual(self.count(table), 1, table)
         self.assert_workers_disconnected()
 
+    def test_distinct_new_theories_do_not_deadlock_on_missing_properties(self):
+        candidates = [{"algebra": "A1", "hypermultiplets": [
+            {"dynkin_labels": [1], "number": 4, "kind": "full"},
+            {"dynkin_labels": [0], "number": n, "kind": "full"},
+        ]} for n in (1, 2)]
+        spawn = get_context("spawn")
+        with spawn.Manager() as manager:
+            barrier = manager.Barrier(2)
+            with ProcessPoolExecutor(max_workers=2, mp_context=spawn) as executor:
+                futures = [executor.submit(_synchronized_new_import, MYSQL_TEST_DATABASE,
+                                           self.options, candidate, barrier)
+                           for candidate in candidates]
+                results = [future.result(timeout=60) for future in futures]
+        self.connection_ids.extend([connection_id for _, _, connection_id in results])
+        self.assertTrue(all(stored["inserted"] for stored, _, _ in results))
+        self.assertEqual(sum(rollbacks for _, rollbacks, _ in results), 0,
+                         "Independent fresh inserts should not need deadlock retries")
+        self.assertEqual(self.count("theories"), 2)
+        self.assertEqual(self.count("theory_properties"), 2)
+        self.assert_workers_disconnected()
+
     def test_parallel_build_matches_serial_counts_and_cache_union_then_reuses_db(self):
         settings = {f"mysql/{key}": value for key, value in self.options.items()}
         settings.update({"mysql/database": MYSQL_TEST_DATABASE, "index/full_max_order": 4,
@@ -384,6 +427,27 @@ class ParallelMySQLTests(unittest.TestCase):
         self.assertLessEqual(counts.valid, 6)
         self.assertEqual((counts.invalid, counts.check_failed, counts.db_failed), (0, 0, 0))
         self.assertEqual(self.count("theories"), counts.added)
+        self.assert_workers_disconnected()
+
+    def test_hundreds_of_distinct_candidates_are_all_inserted_in_parallel(self):
+        candidates = [{"algebra": "A1", "hypermultiplets": [
+            {"dynkin_labels": [1], "number": 4, "kind": "full"},
+            {"dynkin_labels": [0], "number": n, "kind": "full"},
+        ]} for n in range(1, 257)]
+        results = []
+        workers.process_candidates(candidates, "A1", 8, MYSQL_TEST_DATABASE,
+                                   self.options, self.connection, False, results.append,
+                                   lambda *args: None, lambda: False)
+        counts = workers.Counts()
+        for result in results:
+            counts.include(result.counts)
+        errors = [message for result in results for message, level in result.messages if level == "ERROR"]
+        self.assertEqual(counts.db_failed, 0, errors[:5])
+        self.assertEqual((counts.valid, counts.invalid, counts.added, counts.existing), (256, 0, 256, 0))
+        self.assertEqual(counts.check_failed, 0)
+        self.assertEqual(self.count("theories"), 256)
+        self.assertEqual(self.count("theory_properties"), 256)
+        self.assertEqual(self.count("lagrangian_realizations"), 256)
         self.assert_workers_disconnected()
 
 

@@ -62,8 +62,12 @@ Each worker owns its Sage state and one MySQL connection, reused for its tasks
 and closed when the worker exits. No connection or cursor is shared between
 threads or processes. Worker connections and imports use
 `initialize_schema=False` after the coordinator completes schema setup. Each
-theory is inserted in its own InnoDB transaction. Concurrent equivalent imports
-use the existing unique keys: the losing transaction rolls back and reports
+theory is inserted in its own InnoDB transaction. Fresh theories insert their
+properties directly: locking a properties row that does not yet exist would
+take a gap lock and can deadlock concurrent inserts of different theories.
+Attaching to an existing theory still locks its shared properties for comparison
+and merging. Concurrent equivalent imports use the existing unique keys:
+the losing transaction rolls back and reports
 the committed theory as already present. Deadlocks and lock timeouts retry the
 entire rolled-back transaction at most twice. Other database failures are logged;
 an uncertain commit is not retried automatically. Counters, the representation

@@ -35,7 +35,7 @@
 {\large N2SCFTDB / \texttt{n2\_theory\_index.py}}\par
 FORM and LiE computation of four-dimensional $\mathcal N=2$ indices\\
 Simple and semisimple product gauge groups\par
-\textbf{Property/database revision: 12 September 2026}
+\textbf{Index-package reference: 14 September 2026}
 \end{center}
 \vspace{3mm}
 \textbf{Purpose.} The canonical implementation computes the flavor-unrefined right
@@ -47,9 +47,10 @@ parsed FORM expansions, decompositions and final singlet coefficients. Sage supp
 data, the dual-label convention and the exact returned polynomial ring.
 
 The index/cache chapters describe commit \code{04bbe21} and its dated
-measurements. This revision adds separate property/index calculations, the
-schema-7 database worker and independent precision upgrades. The mathematical
-equations are retained; the companion reference gives package-wide context.
+measurements. This guide covers the index-package algorithms and their
+validation. Property orchestration, MySQL persistence and GUI workflows are
+documented in the companion \emph{Mathematical background and implementation
+reference}. Mathematical equations are unchanged.
 
 \section*{Contents}
 \begin{tabularx}{\textwidth}{@{}Yr@{}}
@@ -64,8 +65,7 @@ equations are retained; the companion reference gives package-wide context.
 9 Python functions and their mathematical roles & \pageref{sec:functions}\\
 10 JSON examples and command-line use & \pageref{sec:json}\\
 11 Validation and representative performance & \pageref{sec:validation}\\
-12 Property calculation and staged database updates & \pageref{sec:propertydb}\\
-13 Interpretation and limitations & \pageref{sec:limits}\\
+12 Interpretation and limitations & \pageref{sec:limits}\\
 References & \pageref{sec:refs}\\
 \end{tabularx}
 \clearpage
@@ -454,37 +454,6 @@ Evidence and reproduction commands are in
 remaining cost is an intermediate full decomposition, not the final sparse pairing.
 
 \input{cache_session_validation.tex}
-
-\clearpage
-\section{Property calculation and staged database updates}\label{sec:propertydb}
-The direct \code{index.n2_theory_index.calculate_index(data, order, ...)} API
-still computes a formal gauge projection; it is distinct from the SCFT-gated
-property layer and the database importer. Their workflow is now split:
-\begin{itemize}
-\item \code{calculate_n2_theory_properties(data)} returns group/candidate flags,
-flavor symmetry, marginal gauge couplings, conformal-manifold dimension and
-exact central charges. It omits both indices and the Coulomb spectrum.
-\item \code{calculate_n2_theory_indices(data, order=18, max_dimension=90)}
-separately returns the full index, Coulomb index and complete spectrum, plus
-\code{superconformal_index_order} and
-\code{coulomb_branch_index_max_dimension}. Both index values are strings;
-the spectrum contains exact rational dimensions with repetitions.
-\end{itemize}
-Malformed input raises an error. For valid non-SCFT candidates the basic layer
-retains flavor metadata, but the separate index layer returns None for all
-five index-related fields. The basic CLI is unchanged in name; \code{--indices}
-selects the new calculation stage, with optional \code{--index-order} and
-\code{--coulomb-max-dimension}.
-
-The Coulomb index is computed directly from the gauge-invariant degrees,
-independently of the full-index cutoff. In the project convention the Coulomb
-ray is $t^{2\Delta}u^{2\Delta}=x^\Delta$; a full index known through $t^{18}$
-can therefore justify Coulomb terms only through dimension nine. The separate
-calculation through dimension 90 does not extract extra information from that
-truncated full index.
-
-\clearpage
-\input{property_database_workflow.tex}
 
 \clearpage
 \section{Interpretation and limitations}\label{sec:limits}

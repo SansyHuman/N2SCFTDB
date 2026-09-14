@@ -1,6 +1,46 @@
 # N2SCFTDB Project Handoff
 
-Last updated: **2026-09-12 (Asia/Seoul)**.
+Last updated: **2026-09-14 (Asia/Seoul)**.
+
+## Current session: anomaly GUI and concurrent imports (14 September 2026)
+
+The anomaly tab is now functional. This section and the current GUI, MySQL,
+Tests and Documentation sections supersede the older shell/empty-tab and Git
+snapshots below. The index tab remains empty; the separate backend index worker
+is implemented. The session added:
+
+- Saved full-index order (default `18`), exact Coulomb cutoff (default `90`),
+  and CPU limit (`-1`, all logical system cores), with persistence and validation.
+- The two-column anomaly layout, editable gauge lists, multi-file UTF-8 loading,
+  simple/product enumeration, SCFT checks, database insertion and optional
+  character-cache preparation through `full_max_order // 2`.
+- A responsive Sage build process, cooperative Stop, per-group/overall counts,
+  error reasons, password redaction, and timestamped/leveled GUI and file logs
+  under project-root `logs/log_anomalies_{datetime}.log`.
+- Spawned candidate workers with dynamically bounded scheduling, separate
+  MySQL connections, serial schema setup, atomic imports, duplicate-race handling
+  and bounded transaction retries.
+- Test-harness fixes for the configured CLI password/socket and connection
+  cleanup checks that ignore unrelated clients while detecting owned leaks.
+- A database deadlock fix: fresh theories insert properties directly instead
+  of locking a missing properties row; existing-theory attachments retain locks.
+
+The final implementation run passed **268 backend tests in 33.518 seconds,
+without skips**, against a password-protected disposable MySQL 8.0.46 server
+with actual Sage/FORM/LiE. The fixed synchronized-pair and 256-candidate,
+eight-worker checks added zero InnoDB deadlocks. Before the fix, the controlled
+256-candidate run exhausted retries on 93 inserts; afterward all 256 inserted.
+During this documentation refresh, **32 GUI tests passed in 0.869 seconds**
+offscreen. No production database or personal keyring was used for validation.
+The temporary server was shut down after the backend run.
+
+Both summary PDFs and their retained sources are refreshed for this
+session; see Documentation and `output/pdf/BUILD.md` for the final artifacts.
+The implementation reference owns the property/database and GUI explanations;
+the index guide is restricted to index-package algorithms and validation.
+The B/D-to-Spin naming discussion did not change global-form support or migrate
+stored groups. No new index-tab actions, HL/Higgs calculation or global quotient
+data model were implemented.
 
 ## Two-stage database workflow (12 September 2026)
 
@@ -31,10 +71,11 @@ The project and GitHub repository are named **N2SCFTDB**. The repository URL is
 `https://github.com/SansyHuman/N2SCFTDB` and the local checkout is
 `/home/subo-lee/PycharmProjects/N2SCFTDB`.
 
-The code is now committed through `f96b16c` (GUI shell). The `gui/` directory
+At that snapshot, code was committed through `f96b16c` (GUI shell). The `gui/` directory
 contains the editable `n2_db.ui` and `settings.ui` forms, a PyQt6 launcher,
-per-user settings, and native keyring password storage. The anomaly and index
-tabs are empty. The GUI has 18 passing isolated regressions and a passing
+per-user settings, and native keyring password storage. Both tabs were empty
+then; the anomaly tab is now functional as described above. That GUI had
+18 passing isolated regressions and a passing
 disposable Linux Secret Service integration check from the GUI implementation
 session; these counts are separate from the backend suite below.
 
@@ -53,9 +94,9 @@ Older implementation narratives, benchmarks, and PDF descriptions retain their
 explicitly dated snapshots; the later PDF update described under Documentation revises the property/database
 chapters while retaining dated benchmarks.
 
-## Where this session stopped
+## Retained index/cache session snapshot (10 September 2026)
 
-The current code is committed through `04bbe21`. This session added three
+That code snapshot was committed through `04bbe21`. That session added three
 changes to the FORM/LiE index pipeline:
 
 1. `index/form_expansion_cache.py` serializes exact `IndexFormTerm` lists in
@@ -117,12 +158,14 @@ properties, superconformal/Coulomb-index calculation, Coulomb-generator
 dimensions, bounded irrep enumeration, simple- and product-group conformal matter
 enumeration, and MySQL persistence.
 
-HEAD is on `master` at `04bbe21` (complete decomposition-cache builder), after
-`a0165a2` (cached-factor planning) and `666a974` (FORM expansion cache).
-The current documentation update revises this handoff, both canonical PDFs,
-and their LaTeX/build inputs. No commit, staging change or remote fetch was
-performed for this update. Pre-existing staged/untracked `__pycache__` files
-were left alone. Generated SQLite caches and bytecode are not source changes.
+At the 14 September documentation refresh, HEAD is `fc34ab4` (parallel SCFT
+candidate checks), following the GUI/build/log commits. The fresh-properties
+deadlock fix and its regressions are local changes on top of that commit.
+Recheck Git before using this snapshot as current state. This documentation
+update revises the handoff, both canonical PDFs and their LaTeX/build inputs;
+it performs no commit, staging change or remote fetch. Pre-existing `main.py`,
+gauge-list files and staged/untracked bytecode are left alone. Generated SQLite
+caches, logs and bytecode are not source changes.
 
 ## Runtime dependencies
 
@@ -981,6 +1024,120 @@ Verified examples from the session:
 - Repeated dimensions retain their multiplicity.
 - `PE[2*x^2 - x^4]` returns signed PL `2*x^2 - x^4`; the free-spectrum API rejects it.
 
+## GUI anomaly workflow (14 September 2026)
+
+Sources: `gui/n2_db.ui`, `gui/settings.ui`, `gui/n2_db.py`,
+`gui/theory_builder.py`, `gui/candidate_workers.py`, and `gui/README.md`.
+PyQt6 loads the editable forms directly; no UI code-generation step is needed.
+The anomaly tab has editable multiline input and **Load theories...** on the
+left, and the cache checkbox, read-only log and **Build**/**Stop** on the right.
+
+### Input and persistent settings
+
+One nonempty line requests a gauge-group enumeration; commas separate product
+factors, for example `A1, C2`. Inputs use supported Cartan types. Blank factors
+or unsupported types are logged with line numbers; other usable lines continue.
+Load accepts multiple UTF-8 files, including BOM and Windows line endings,
+appends them in selection order with line boundaries, and preserves existing
+text. The whole load is one undoable edit. Any read/decode failure rejects the
+entire load with its filename and reason. Cancel and empty files do nothing.
+
+New Preferences fields match backend defaults and persist through QSettings:
+
+| Saved key | Default | Contract |
+| --- | --- | --- |
+| `index/full_max_order` | `18` | Inclusive nonnegative integer full-index order |
+| `index/coulomb_max_dimension` | `90` | Inclusive exact nonnegative rational; reduced string, e.g. `6/5` |
+| `tools/processes` | `-1` | `os.cpu_count() or 1`; positive values limit workers, `1` is serial, `0` invalid |
+
+Older settings files receive these defaults. OK saves; Cancel discards edits.
+Existing native keyring password storage and configuration-path compatibility
+remain in place. Build uses a snapshot of saved settings and input. The portable
+launch command, with the user's Sage environment active and `sage` on PATH, is:
+
+```bash
+sage -python -m pip install -r gui/requirements.txt
+sage -python -B gui/n2_db.py
+```
+
+`-B` is optional: it suppresses Python bytecode writes, not mathematical
+calculations or SQLite cache use. The GUI shell can run in ordinary Python,
+but Build locates Sage beside that interpreter or on PATH and needs the backend
+dependencies. Cache preparation also requires LiE.
+
+### Build, parallel ownership and cache bounds
+
+The GUI starts `gui.theory_builder` in a separate Sage process and sends
+credentials/settings through stdin. The coordinator validates the gauge lines,
+initializes/migrates MySQL once, and enumerates each group serially using
+`enumerate_simple_theory_candidates` or `enumerate_product_theory_candidates`
+from `common.n2_theory_iter`, with their existing defaults. Candidate lists are
+materialized; free all-singlet matter is omitted by the enumerator.
+
+For each group, `gui.candidate_workers.process_candidates` starts at most
+`min(resolved CPU count, candidate count)` spawned workers. It sends one
+candidate per task, keeping at most twice the worker count submitted/running.
+Workers receive new tasks dynamically. A group's pool finishes before the next
+group starts. One worker uses the serial path.
+
+`calculate_n2_theory_properties` checks each candidate. Invalid theories log
+their reason; unexpected checking failures count as `check_failed`. Valid
+theories are revalidated and stored by `store_lagrangian_theory`; only basic
+properties are inserted. Each spawned worker owns/reuses its own MySQL
+connection and Sage state, closes its connection on normal shutdown, and uses
+`initialize_schema=False`. No connection/cursor is shared across threads or
+processes. A connection that failed an import is closed before later tasks.
+Only the coordinator combines results, counters, representations and logs.
+
+The log reports each group, its candidate count, and per-group/overall
+`valid`, `invalid`, `added`, `existing`, `check_failed` and `db_failed` totals.
+A valid theory with a failed insert remains valid and increments `db_failed`.
+Repeated input lines normally become existing records on later occurrences.
+Failures include exception type and reason; later work continues when possible.
+
+If cache building is enabled, collect all distinct `(Cartan type, Dynkin labels)`
+pairs from valid theories across all groups, including existing records and
+valid theories whose insertion failed. Include vector adjoints, factor singlets,
+matter orientations and full-hyper conjugates. After the candidate pools finish,
+call `index.char_decomposition_cache.build_decomposition_cache` for each pair
+through weighted Adams order `index/full_max_order // 2` (default 9). A zero
+bound skips prebuilding. Use the saved character-cache filename, LiE executable,
+invocation timeout and CPU limit. Reuse existing rows and report computed/reused
+products per order. The saved Coulomb cutoff, FORM executable and FORM-cache
+file are not consumed by this action because no indices are calculated.
+
+Stop halts submissions, cancels queued work where possible and signals workers
+before further checks/inserts. Active calls finish and their results are drained
+before totals are reported, preserving committed-insert counts. Enumeration must
+finish first; cache generation stops after the current order commits. Closing
+the window requests the same stop. A broken process pool is reported with
+potentially unknown database outcomes; it does not silently replay writes.
+
+### File and GUI log contract
+
+Every Build attempt creates a UTF-8 file, including attempts that fail before
+backend startup: `logs/log_anomalies_YYYYMMDD_HHMMSS_ffffff.log` under the
+project root. Local-time microseconds and exclusive creation avoid overwrites.
+The GUI shows the full path. Both destinations use
+`[YYYY-MM-DD HH:MM:SS.mmm+HH:MM] [LEVEL] message`, with the actual local UTC
+offset (positive or negative). Every line of a multiline message gets the same
+prefix. The GUI preserves timestamps supplied by the build process; candidate
+pool results receive timestamps when the coordinator emits them.
+
+Progress uses INFO, rejected theories use WARNING, and failures use ERROR.
+Unstructured stdout uses INFO and stderr WARNING; nonzero exits/crashes are
+also reported as ERROR. Passwords are redacted before output. Logs flush on
+arrival and close on completion, failure or Stop. File errors appear in the
+GUI and on-screen logging continues. Generated `logs/` output is ignored by Git.
+
+### Spin naming scope
+
+The existing `anomalies/lie_algebra.py` convention displays B and D algebras
+as `Spin(2r+1)` and `Spin(2r)`. This session did not change that convention or
+migrate stored group names. The input/model does not separately encode a global
+quotient, line-operator spectrum or discrete theta data; renaming Spin to SO
+would not implement those choices.
+
 ## MySQL database
 
 File: `common/n2_theory_db.py`
@@ -1147,7 +1304,41 @@ rolls back the insertion.
 
 New data insertion uses one explicit InnoDB transaction. A failure rolls back
 the theory-related DML, although schema initialization and migration occur
-before that transaction.
+before that transaction. Workers disable schema initialization after the
+coordinator finishes it; they never run concurrent DDL for a build.
+
+### Parallel insertion and deadlock repair (14 September 2026)
+
+Concurrent equivalent imports use unique-key conflict handling: MySQL error
+1062 rolls back the losing transaction, then looks up and returns the committed
+winner as `inserted=False`. The duplicate path preserves existing names, indices
+and timestamps. A failed physical-property comparison still rolls back.
+
+Previously `_insert_shared_properties` always ran a missing-row
+`SELECT ... FOR UPDATE` before a fresh properties insert. Under REPEATABLE READ,
+distinct new IDs could share a primary-index gap, hold compatible gap locks and
+then block one another's INSERTs. The isolated MySQL deadlock report confirmed
+that cycle in `theory_properties`. The importer now passes `new_theory=True`
+only when it inserted a fresh parent in the same transaction, skipping that
+unnecessary lookup. Existing-theory attachments retain the locking read for
+comparison/enrichment. No schema or isolation-level change is required. See
+[MySQL InnoDB locking](https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html)
+for gap and insert-intention lock semantics.
+
+Deadlock 1213 and lock timeout 1205 still trigger explicit rollback and at most
+two retries of the whole transaction (three attempts total), waiting 50 ms then
+100 ms. After exhaustion, the error is logged and `db_failed` increments;
+other candidates continue. Other failures, including uncertain commit/connection
+outcomes, are not automatically replayed. Rollback failures include the original
+error. A later Build can retry missing theories and recognize committed records.
+
+The regression fixture uses A1 with four full fundamentals plus 1--256 free full
+singlets, producing distinct valid inputs for direct checking/storage tests.
+These free singlets are not produced by normal enumeration. Eight workers
+previously left 93 of the 256 inserts failed after retries; the fixed run inserted
+all 256. The synchronized two-worker regression previously required one rollback
+and now needs none. The two fixed runs added zero server deadlocks. This is a
+controlled local result, not a guarantee against every possible deadlock.
 
 CLI example:
 
@@ -1162,6 +1353,47 @@ sage -python common/n2_theory_db.py \
 ```
 
 ## Tests
+
+### Current validation and harness fixes (14 September 2026)
+
+The final backend run after the missing-properties-lock fix reported:
+
+```text
+Ran 268 tests in 33.518s
+OK
+```
+
+All live MySQL tests ran against a password-protected disposable MySQL 8.0.46
+instance, using actual Sage/FORM/LiE. The earlier focused run passed 37 tests,
+including the synchronized pair, 256-candidate parallel stress fixture and
+database unit regressions. During documentation refresh, the isolated offscreen
+GUI suite passed all 32 tests in 0.869 seconds. These results supersede the
+older totals below; timings are local observations, not performance guarantees.
+
+`test/test_n2_theory_db_indices.py` now supplies the configured test password
+and Unix socket through `N2_DB_PASSWORD` and `N2_DB_UNIX_SOCKET` when invoking
+the CLI entry point, restores the environment afterward and reports stderr on
+failure. `test/test_gui_candidate_workers.py` records test-owned MySQL connection
+IDs, including spawned workers, and waits up to five seconds for their closure.
+It ignores unrelated clients and includes a negative check for an owned leak.
+The new database regressions cover direct fresh-properties insertion, retained
+attachment locking, a synchronized concurrent pair and 256 distinct candidates.
+
+Run with Sage and explicit disposable `N2_TEST_MYSQL_*` connection values:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 sage -python -B \
+  -m unittest discover -s test -p 'test_*.py' -v
+QT_QPA_PLATFORM=offscreen PYTHONDONTWRITEBYTECODE=1 sage -python -B \
+  -m unittest discover -s gui -p 'test_*.py' -v
+```
+
+Live tests reset the configured test tables; never point them at production.
+Omit `N2_TEST_MYSQL_DATABASE` to skip live integrations. `all_test.sh` still
+contains local connection settings; these repairs changed the tests, not that
+script. The GUI tests use temporary settings and a credential test double.
+
+### Retained backend coverage and historical snapshots
 
 The suite includes anomaly, property, index, Coulomb, database, enumeration,
 Lie-algebra and math-utility tests, plus dedicated modules:
@@ -1224,15 +1456,62 @@ The test database name must contain `test`.
 
 ## Documentation
 
+### PDF package scope correction (14 September 2026)
+
+At the user's request, the index guide's former chapter 12 (property calculation
+and staged database updates) and chapter 13 (anomaly GUI and concurrent imports)
+are removed. Their shared sources remain included by the implementation
+reference only. The removed chapter 12 overview already appears in the
+reference's basic/index-property APIs and Coulomb-precision explanation; its
+direct-index versus SCFT-wrapper boundary is now explicit in the property API
+section. No duplicate chapter was added to the reference.
+
+The index guide's contents and opening scope are updated, and Interpretation
+and limitations becomes chapter 12. Both retain their existing index equations,
+cache descriptions and dated benchmarks. Build/source dependencies are recorded
+in `output/pdf/BUILD.md`. No application code or tests changed in this edit.
+
+Current outputs are the **44-page implementation reference** and **20-page
+index guide**. Both were rebuilt and visually checked. The guide's former
+chapters occupied nine pages; its retained index chapters, mathematical
+equations and embedded pages are preserved. The reference gained the API
+boundary clarification in its existing property section, rather than a second
+copy of either chapter. Older page counts below are historical snapshots.
+
+### GUI and concurrency PDF revision (14 September 2026)
+
+The initial revision included in both canonical PDFs the shared source
+`output/pdf/gui_anomaly_workflow.tex`. It documents the complete anomaly tab,
+saved cutoffs and CPU count, portable launch, file loading, candidate scheduling,
+connection ownership, cache representation union/bound, cooperative Stop,
+timestamped file/GUI logs, test-harness repairs and missing-row deadlock fix.
+It records the 268-test backend run, fresh 32-test GUI run and controlled
+before/after stress evidence, while retaining older dated measurements.
+
+`output/pdf/n2_implementation_reference_summary.pdf` is the package reference;
+`index/n2_theory_index_Mathematical_Background.pdf` is the index guide. Their
+existing mathematical equation blocks and the embedded original guide pages
+are retained. `output/pdf/BUILD.md` records source inputs, rebuild commands and
+the final page/layout verification. This refresh changes documentation only;
+application changes from earlier in the session are preserved.
+
+That initial revision had a **44-page reference** and **29-page index guide**. All
+pages were rendered and visually reviewed, including reading-size checks of
+the new sections. Builds have no unresolved references/citations or overfull
+boxes. All 48 reference and 15 guide equation/align blocks match their previous
+sources; embedded guide pages 2-4 have identical extracted text. The new shared
+GUI chapter was reference section 5 and guide section 13; the later scope
+correction above removes it from the guide.
+
 ### Property and database PDF revision (12 September 2026)
 
-Both canonical PDFs now describe the separate basic/index-property APIs,
+That revision added the separate basic/index-property APIs to both PDFs,
 schema 7, the deferred worker, independent cutoff comparisons, unknown legacy
 precision, atomic writes, and component-level retries. They include worker CLI
 examples and the previously recorded 238-test result. This PDF edit did not
 rerun those tests or benchmarks.
 
-The rebuilt implementation reference has **39 pages**; the index guide has
+That revision's implementation reference had **39 pages**; the index guide had
 **24 pages**. Every page was rendered and visually reviewed, with changed pages
 also checked at reading size. There are no unresolved references/citations or
 overfull boxes. All 48 reference and 15 guide authored equation/align blocks
@@ -1491,14 +1770,16 @@ Temporary copies of the first paper were downloaded as
   any pre-existing duplicate theory rows during that migration.
 - Implement HL/Higgs calculations if requested, following the qualifications
   and reuse opportunities above; flavor refinement remains optional.
-- Handle database spectrum backfill explicitly for duplicate realizations or
-  with a dedicated migration/backfill operation.
+- The separate index worker now fills missing spectra and indices; the GUI
+  index tab still needs actions if requested.
 - Add non-Lagrangian theory support beyond the placeholder table.
 - Avoid the duplicate anomaly-check call in the database/property path.
-- Move duplicate detection before expensive index calculation.
+- Imports no longer calculate indices. A future optimization could avoid
+  repeated basic checks on the duplicate path while preserving validation.
 - Make the canonical hash invariant under product-factor permutations.
 - Add automatic or assisted identification of dual Lagrangian realizations.
-- Run and strengthen live MySQL integration tests.
+- Live MySQL concurrency tests now run on an isolated server; expand workload
+  coverage when new storage behavior or unexplained contention justifies it.
 - Consider storing index monomials structurally if database-level coefficient
   queries become necessary.
 - Retain the source cutoff when using truncated indices; generated Coulomb
@@ -1508,5 +1789,6 @@ Temporary copies of the first paper were downloaded as
   expected output plus a recognized tree-space notice. This is a tool-version
   compatibility concern, not a demonstrated incorrect result.
 
-`main.py` is currently a six-line stub that prints `sys.version`. OR-Tools is
-used by the live Frobenius solver in `common/math_utils.py`, not by this stub.
+The GUI entry point is `gui/n2_db.py`. `main.py` is a user-edited helper and is
+not the GUI launcher; consult its current contents before running it. OR-Tools
+is used by the live Frobenius solver in `common/math_utils.py`.

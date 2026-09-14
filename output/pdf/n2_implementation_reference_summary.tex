@@ -34,7 +34,7 @@
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[L]{\small\sffamily\color{muted}N2SCFTDB / REFERENCE}
-\fancyhead[R]{\small\sffamily\color{muted}12 September 2026}
+\fancyhead[R]{\small\sffamily\color{muted}14 September 2026}
 \fancyfoot[L]{\footnotesize\color{muted}Mathematics \& implementation \enspace | \enspace consolidated edition}
 \fancyfoot[R]{\small\thepage}
 \renewcommand{\headrulewidth}{0.3pt}
@@ -78,21 +78,22 @@ Exact Lie-algebra data, anomaly checks, superconformal indices,\par
 Coulomb-branch indices and spectra, theory properties,\par
 database persistence, and the planned Higgs-branch extension.
 \vspace{11mm}
-\begin{note}{Property and database update: two separate stages}
-Anomaly-checked imports now store basic properties first. A separate worker
-fills indices and Coulomb spectra, or upgrades each index only at a higher
-recorded cutoff. Schema 7 preserves legacy results with unknown precision.
-The index/cache algorithms and dated benchmarks remain documented alongside
-the 238-test database implementation validation.
+\begin{note}{Anomaly GUI and concurrent database imports}
+Saved index cutoffs and CPU limits drive the working anomaly builder, with
+editable gauge lists, parallel checks/imports, character-cache preparation and
+timestamped logs. Fresh imports avoid missing-row gap-lock deadlocks.
+Validation includes 268 backend tests and 32 GUI tests. Separate index
+calculation and schema-7 precision rules remain in place.
 \end{note}
 \vfill
 \begin{tabularx}{\textwidth}{@{}p{31mm}Y@{}}
 Snapshot & Base reference: 8 September 2026. Database and validation update:
-9 September 2026. Index/cache update: 10 September 2026; \code{04bbe21}. Property/database workflow: 12 September 2026.\\
+9 September 2026. Index/cache update: 10 September 2026; \code{04bbe21}.
+Property/database: 12 September. GUI/concurrency: 14 September 2026.\\
 Consolidates & \code{index/n2_theory_index_Mathematical_Background.pdf}\newline
 and the previous \code{output/pdf/n2_implementation_reference_summary.pdf}.\\
-Status & Basic properties separated from index calculation; schema 7, deferred
-worker, independent precision upgrades and legacy handling documented.
+Status & Anomaly GUI, parallel imports, logs and deadlock repair documented;
+basic properties and index calculation remain separate.
 Unrelated mathematics and benchmark chapters retain their dated snapshots.
 Higgs/Hall--Littlewood material is explicitly marked as proposed, not implemented.\\
 Editing scope & Documentation only. The companion index-background PDF is also
@@ -111,6 +112,8 @@ local and conventional mod-two gauge anomalies. & \S\ref{sec:anomalies}\\
 full-index projection; future Higgs/flavor refinement. & \S\ref{sec:index}\\
 \code{common} & Property orchestration, flavor blocks, central charges, exact-number
 and FORM helpers, JSON and MySQL persistence. & \S\ref{sec:common}\\
+\code{gui} & Editable settings and gauge lists, parallel SCFT imports,
+cache preparation and persistent logs. & \S\ref{sec:gui}\\
 \code{test} & Unit and backend regression tests, precision and serialization checks,
 optional live database integration. & \S\ref{sec:test}\\\bottomrule
 \end{tabularx}
@@ -1166,6 +1169,10 @@ checks before inserting its theory data.
 
 \clearpage
 \subsubsection{Separate index-related properties}
+The direct \code{index.n2_theory_index.calculate_index} API computes a formal
+gauge projection without imposing the SCFT-candidate gate. The following
+\code{common} wrappers enforce that gate before calculating index properties.
+
 \code{calculate_n2_theory_indices(data, order=18, max_dimension=90)} validates
 once, then computes the full index, the gauge-degree Coulomb index and the
 complete spectrum. Full order $N$ and Coulomb dimension $D$ are independent,
@@ -1444,6 +1451,10 @@ requires matching basic shared properties.
 \input{property_database_workflow.tex}
 
 \clearpage
+\section{Package \texttt{gui}: anomaly-building workflow}\label{sec:gui}
+\input{gui_anomaly_workflow.tex}
+
+\clearpage
 \section{Package \texttt{test} and reproducible use}\label{sec:test}
 \begingroup\small
 {\small
@@ -1471,18 +1482,21 @@ base identities and consistent serial/parallel dependency planning.\\
 calls, parallel batches, resume and CLI contracts.\\\bottomrule
 \end{tabularx}}
 
-\subsection{Validation snapshot}
-The two-stage database implementation was validated on 12 September 2026:
-\textbf{238 tests passed in 21.920 s, with no skips}. The run used actual
-Sage/FORM/LiE and a disposable MySQL 8.0.46 server. Migration, race protection,
-rollback, partial retries and real stored indices were exercised without
-altering the user's database. This is recorded implementation evidence; the
-present PDF edit rebuilds and visually checks documents, not the test suite.
+\subsection{Validation snapshots}
+The 14 September deadlock-fix run passed \textbf{268 backend tests in 33.518 s,
+with no skips}, using Sage/FORM/LiE and password-protected disposable MySQL
+8.0.46. The GUI documentation-time rerun passed \textbf{32 tests in 0.869 s}.
+Section~\ref{sec:gui} records the test-harness repairs and real parallel stress
+checks. Neither run used the user's production database or personal vault.
+
+The earlier two-stage database implementation passed 238 tests in 21.920 s on
+12 September, including migrations, concurrent upgrades, rollback, partial
+retries and real stored indices. That result is retained as historical evidence.
 
 The 10 September cache-documentation rerun was 209 tests in 19.658 s:
 207 passed and two MySQL tests were skipped. Earlier 134- and 170-test figures
 also describe older snapshots. Keep those dated measurements distinct from
-the current 238-test validation; cache benchmarks were not rerun here.
+the current 268-test backend validation; cache benchmarks were not rerun here.
 
 \clearpage
 \subsection{Commands and dependencies}

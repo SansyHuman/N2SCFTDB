@@ -736,7 +736,7 @@ class TheoryDatabaseUnitTests(unittest.TestCase):
                 side_effect=[None, {"name": "E6 test"}],
             ),
             patch.object(database, "_insert_theory", return_value=11),
-            patch.object(database, "_insert_shared_properties"),
+            patch.object(database, "_insert_shared_properties") as shared,
             patch.object(database, "_insert_realization", return_value=12),
             patch.object(database, "_execute"),
         ):
@@ -749,6 +749,26 @@ class TheoryDatabaseUnitTests(unittest.TestCase):
         connection.begin.assert_called_once_with()
         connection.commit.assert_called_once_with()
         connection.rollback.assert_not_called()
+        shared.assert_called_once()
+        self.assertTrue(shared.call_args.kwargs["new_theory"])
+
+    def test_new_theory_properties_skip_missing_row_lock(self):
+        _, properties = database._checked_results(E6_SCFT)
+        connection = _RecordingConnection()
+        with patch.object(database, "_fetchone", side_effect=AssertionError("unnecessary properties lookup")):
+            database._insert_shared_properties(connection, 3, properties, new_theory=True)
+        self.assertTrue(any("INSERT INTO theory_properties" in sql for sql, _ in connection.statements))
+
+    def test_attaching_a_realization_still_locks_existing_shared_properties(self):
+        _, properties = database._checked_results(E6_SCFT)
+        connection = _RecordingConnection(select_rows=[{
+            "properties_json": database._json_text(database._shared_properties(properties)),
+        }])
+        database._insert_shared_properties(connection, 3, properties)
+        self.assertEqual(len(connection.statements), 1)
+        sql, parameters = connection.statements[0]
+        self.assertIn("FOR UPDATE", sql)
+        self.assertEqual(parameters, (3,))
 
     def test_store_rolls_back_failed_transaction(self):
         connection = MagicMock()
