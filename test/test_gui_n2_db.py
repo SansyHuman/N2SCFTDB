@@ -16,7 +16,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PyQt6 import QtCore, QtTest, QtWidgets
 
-# Support unittest discovery from both the repository root and gui/.
+# Support unittest discovery and direct execution from test/.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from gui.n2_db import (
     N2DatabaseWindow, PROJECT_ROOT, SettingsDialog, SettingsStore, default_settings,
@@ -83,9 +83,9 @@ class GuiTests(unittest.TestCase):
     def wait_for_build(self, window):
         timer = QtCore.QElapsedTimer()
         timer.start()
-        while window._build_process is not None and timer.elapsed() < 10000:
+        while window.anomaly_tab.process is not None and timer.elapsed() < 10000:
             QtTest.QTest.qWait(10)
-        self.assertIsNone(window._build_process, window.theoryBuildLog.toPlainText())
+        self.assertIsNone(window.anomaly_tab.process, window.theoryBuildLog.toPlainText())
 
     def isolate_build_logs(self):
         root = Path(self.temp.name) / "project"
@@ -129,11 +129,14 @@ sys.exit(1)
                 launches.append((program, arguments))
                 super().start(sys.executable, ["-B", "-u", "-c", script])
 
-        with patch("gui.n2_db.QtCore.QProcess", FixtureProcess):
+        with patch("gui.anomaly_tab.QtCore.QProcess", FixtureProcess):
             window.buildTheoriesButton.click()
             self.assertEqual(window.buildTheoriesButton.text(), "Stop")
             self.assertTrue(window.theoriesInput.isReadOnly())
             self.assertFalse(window.actionSettings.isEnabled())
+            self.assertFalse(window.searchEmptyIndicesButton.isEnabled())
+            window.index_tab.search()
+            self.assertIsNone(window.index_tab.process)
             self.wait_for_build(window)
         log = window.theoryBuildLog.toPlainText()
         self.assertIn("Working on A1", log)
@@ -152,8 +155,9 @@ sys.exit(1)
         self.assertEqual(window.buildTheoriesButton.text(), "Build")
         self.assertFalse(window.theoriesInput.isReadOnly())
         self.assertTrue(window.actionSettings.isEnabled())
-        self.assertIsNone(window._anomaly_log)
-        saved = window._anomaly_log_path.read_text(encoding="utf-8")
+        self.assertTrue(window.searchEmptyIndicesButton.isEnabled())
+        self.assertIsNone(window.anomaly_tab.logger._stream)
+        saved = window.anomaly_tab.logger.path.read_text(encoding="utf-8")
         self.assertEqual(saved, log + "\n")
         self.assertNotIn("private dummy", saved)
 
@@ -176,7 +180,7 @@ print(json.dumps({'log': 'Build stopped; writes kept.'}), flush=True)
             def start(self, program, arguments):
                 super().start(sys.executable, ["-B", "-u", "-c", script])
 
-        with patch("gui.n2_db.QtCore.QProcess", FixtureProcess):
+        with patch("gui.anomaly_tab.QtCore.QProcess", FixtureProcess):
             window.buildTheoriesButton.click()
             window.buildTheoriesButton.click()  # Stop even before the started signal.
             self.assertFalse(window.buildTheoriesButton.isEnabled())
@@ -184,7 +188,7 @@ print(json.dumps({'log': 'Build stopped; writes kept.'}), flush=True)
             window.show()
             window.buildTheoriesButton.click()
             window.close()
-            self.assertIsNotNone(window._build_process)
+            self.assertIsNotNone(window.anomaly_tab.process)
             self.wait_for_build(window)
         self.assertFalse(window.isVisible())
         self.assertIn("Build stopped; writes kept.", window.theoryBuildLog.toPlainText())
@@ -215,12 +219,12 @@ print(json.dumps({'log': 'Build stopped; writes kept.'}), flush=True)
             def start(self, program, arguments):
                 super().start("/nonexistent/n2-build-worker", [])
 
-        with patch("gui.n2_db.QtCore.QProcess", MissingProcess):
+        with patch("gui.anomaly_tab.QtCore.QProcess", MissingProcess):
             window.buildTheoriesButton.click()
             self.wait_for_build(window)
         self.assertTrue(window.buildTheoriesButton.isEnabled())
         self.assertIn("[ERROR] Build process", window.theoryBuildLog.toPlainText())
-        self.assertIsNone(window._anomaly_log)
+        self.assertIsNone(window.anomaly_tab.logger._stream)
         files = sorted((root / "logs").glob("log_anomalies_*.log"))
         self.assertEqual(len(files), 4)
         for path, reason in zip(files, ("at least one gauge group", "MySQL database name",
@@ -232,14 +236,14 @@ print(json.dumps({'log': 'Build stopped; writes kept.'}), flush=True)
         window = N2DatabaseWindow(self.store)
         self.addCleanup(window.close)
         self.assertFalse((root / "logs").exists())
-        with patch("gui.n2_db.datetime") as clock:
+        with patch("gui.logging_utils.datetime") as clock:
             clock.now.return_value = datetime(2026, 9, 13, 12, 34, 56, 789123)
-            window._start_anomaly_log()
-            first = window._anomaly_log_path
+            window.anomaly_tab.start_log()
+            first = window.anomaly_tab.logger.path
             self.assertEqual(first.name, "log_anomalies_20260913_123456_789123.log")
-            stream = window._anomaly_log
-            window._build_password = "dummy secret"
-            window._log_build("진행: A1 — dummy secret\nvalid SCFTs=2")
+            stream = window.anomaly_tab.logger._stream
+            window.anomaly_tab.logger.set_secrets("dummy secret")
+            window.anomaly_tab.logger.log("진행: A1 — dummy secret\nvalid SCFTs=2")
             expected = window.theoryBuildLog.toPlainText() + "\n"
             stamp = clock.now.return_value.astimezone().isoformat(sep=" ", timespec="milliseconds")
             self.assertIn(f"[{stamp}] [INFO] 진행: A1 — [redacted]\n"
@@ -247,13 +251,13 @@ print(json.dumps({'log': 'Build stopped; writes kept.'}), flush=True)
             # Read while the stream is still open: messages must already be flushed.
             self.assertEqual(first.read_text(encoding="utf-8"), expected)
             self.assertNotIn("dummy secret", expected)
-            window._start_anomaly_log()
+            window.anomaly_tab.start_log()
         self.assertTrue(stream.closed)
-        second = window._anomaly_log_path
+        second = window.anomaly_tab.logger.path
         self.assertNotEqual(first, second)
         self.assertEqual(first.read_text(encoding="utf-8"), expected)
-        second_stream = window._anomaly_log
-        window._log_build("Second attempt")
+        second_stream = window.anomaly_tab.logger._stream
+        window.anomaly_tab.logger.log("Second attempt")
         window.close()
         self.assertTrue(second_stream.closed)
         self.assertIn("Second attempt", second.read_text(encoding="utf-8"))
@@ -271,13 +275,13 @@ print(json.dumps({'log': 'Build stopped; writes kept.'}), flush=True)
         self.assertIn("at least one gauge group", window.theoryBuildLog.toPlainText())
         self.assertEqual(blocker.read_text(encoding="utf-8"), "existing file")
         blocker.unlink()
-        window._start_anomaly_log()
-        stream = window._anomaly_log
+        window.anomaly_tab.start_log()
+        stream = window.anomaly_tab.logger._stream
         with patch.object(stream, "write", side_effect=OSError("disk full")):
-            window._log_build("Build progress")
+            window.anomaly_tab.logger.log("Build progress")
         self.assertTrue(stream.closed)
-        self.assertIsNone(window._anomaly_log)
-        window._log_build("Still working")
+        self.assertIsNone(window.anomaly_tab.logger._stream)
+        window.anomaly_tab.logger.log("Still working")
         log = window.theoryBuildLog.toPlainText()
         self.assertIn("Build progress", log)
         self.assertIn("Cannot write anomaly log", log)
@@ -341,7 +345,9 @@ print(json.dumps({'log': 'Build stopped; writes kept.'}), flush=True)
         self.addCleanup(window.close)
         self.assertEqual([window.tabs.tabText(i) for i in range(2)], ["anomaly", "index"])
         self.assertEqual(window.tabs.count(), 2)
-        self.assertEqual(window.indexTab.findChildren(QtWidgets.QWidget), [])
+        self.assertEqual(window.indexSplitter.count(), 2)
+        self.assertEqual(window.emptyIndexGaugeGroupsList.count(), 0)
+        self.assertTrue(window.indexCalculationLog.isReadOnly())
         self.assertFalse(window.theoriesInput.isReadOnly())
         self.assertTrue(window.theoryBuildLog.isReadOnly())
         observed = []
@@ -451,7 +457,7 @@ import json, sys
 sys.path.insert(0, sys.argv[1])
 from PyQt6 import QtWidgets
 from gui.n2_db import N2DatabaseWindow, SettingsDialog, SettingsStore
-from gui.test_n2_db import MemoryVault
+from test.test_gui_n2_db import MemoryVault
 app = QtWidgets.QApplication([])
 fixture = json.load(sys.stdin)
 vault = MemoryVault()

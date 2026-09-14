@@ -2,6 +2,21 @@
 
 Last updated: **2026-09-14 (Asia/Seoul)**.
 
+## Test layout update (14 September 2026)
+
+All new test code belongs in `test/`, including GUI tests and test helpers.
+The former GUI test modules are now `test/test_gui_n2_db.py`,
+`test/test_gui_index_tab.py`, and `test/test_gui_logging_utils.py`.
+The opt-in keyring check is `test/check_secret_service.py`. Test discovery
+under `test/` now includes the GUI suite; `all_test.sh` already uses that path.
+See `test/README.md` for combined and focused commands. Older validation counts
+below remain dated snapshots from before this test consolidation.
+
+After relocation, combined discovery ran **316 tests in 21.616 seconds**:
+**292 passed and 24 live-MySQL tests skipped** with no test database configured.
+The relocated opt-in Secret Service check also passed using its private D-Bus
+session and disposable keyring.
+
 ## Current session: anomaly GUI and concurrent imports (14 September 2026)
 
 The anomaly tab is now functional. This section and the current GUI, MySQL,
@@ -1385,7 +1400,8 @@ Run with Sage and explicit disposable `N2_TEST_MYSQL_*` connection values:
 PYTHONDONTWRITEBYTECODE=1 sage -python -B \
   -m unittest discover -s test -p 'test_*.py' -v
 QT_QPA_PLATFORM=offscreen PYTHONDONTWRITEBYTECODE=1 sage -python -B \
-  -m unittest discover -s gui -p 'test_*.py' -v
+  -m unittest test.test_gui_n2_db test.test_gui_index_tab \
+  test.test_gui_logging_utils -v
 ```
 
 Live tests reset the configured test tables; never point them at production.

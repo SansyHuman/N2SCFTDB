@@ -7,7 +7,6 @@ cooperative cancellation. Stdout carries flushed JSON log messages only.
 from __future__ import annotations
 
 from dataclasses import asdict
-from datetime import datetime
 import json
 import os
 from pathlib import Path
@@ -15,6 +14,7 @@ import sys
 from threading import Event, Thread
 
 from common.number_utils import as_integer, as_nonnegative_int
+from gui.logging_utils import make_log_record
 from gui.candidate_workers import (
     BuildCancelled, Counts, process_candidates, theory_representations,
 )
@@ -198,12 +198,7 @@ def main():
     Thread(target=watch_input, daemon=True).start()
 
     def log(message, level="INFO"):
-        if password:
-            message = message.replace(password, "[redacted]")
-        print(json.dumps({
-            "log": message, "level": level,
-            "timestamp": datetime.now().astimezone().isoformat(sep=" ", timespec="milliseconds"),
-        }, ensure_ascii=True), flush=True)
+        print(json.dumps(make_log_record(message, level, secrets=(password,))), flush=True)
 
     result = run_build(request["text"], request["settings"], request["build_cache"], log, stopped.is_set)
     return 1 if result["errors"] else 0

@@ -2,16 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 import os
-import json
-import shutil
 from pathlib import Path
 import sys
 import tempfile
 import uuid
 
-from PyQt6 import QtCore, QtGui, QtWidgets, uic
+from PyQt6 import QtCore, QtWidgets, uic
 
 if not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -19,8 +16,12 @@ if not __package__:
 from common.number_utils import as_nonnegative_fraction
 
 if __package__:
+    from .anomaly_tab import AnomalyTabController
+    from .index_tab import IndexTabController
     from .password_store import PasswordStorageError, PasswordVault
 else:
+    from anomaly_tab import AnomalyTabController
+    from index_tab import IndexTabController
     from password_store import PasswordStorageError, PasswordVault
 
 
@@ -285,238 +286,32 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
         self.store = store if store is not None else SettingsStore()
         self.actionSettings.triggered.connect(self.open_settings)
         self.actionQuit.triggered.connect(self.close)
-        self.loadTheoriesButton.clicked.connect(self.load_theories)
-        self.buildTheoriesButton.clicked.connect(self.build_theories)
-        self._build_process = None
-        self._build_buffer = b""
-        self._build_error_buffer = b""
-        self._build_password = ""
-        self._build_request = b""
-        self._close_after_build = False
-        self._anomaly_log = None
-        self._anomaly_log_path = None
+        self._close_requested = False
+        self.anomaly_tab = AnomalyTabController(self, self.store, project_root=PROJECT_ROOT)
+        self.index_tab = IndexTabController(self, self.store, project_root=PROJECT_ROOT)
+        self.anomaly_tab.activeChanged.connect(self._sync_tab_availability)
+        self.index_tab.activeChanged.connect(self._sync_tab_availability)
+        self._sync_tab_availability()
 
-    def _start_anomaly_log(self):
-        self._close_anomaly_log()
-        directory = PROJECT_ROOT / "logs"
-        self._anomaly_log_path = directory
-        try:
-            directory.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.now()
-            while True:
-                self._anomaly_log_path = directory / f"log_anomalies_{timestamp:%Y%m%d_%H%M%S_%f}.log"
-                try:
-                    self._anomaly_log = self._anomaly_log_path.open(
-                        "x", encoding="utf-8", newline="\n",
-                    )
-                    break
-                except FileExistsError:
-                    # Concurrent windows or repeated timestamps must not overwrite logs.
-                    timestamp += timedelta(microseconds=1)
-        except OSError as exc:
-            self._log_build(f"Cannot create anomaly log at {self._anomaly_log_path}: {exc}", level="ERROR")
-            return
-        self._log_build(f"Saving anomaly log to {self._anomaly_log_path}")
-
-    def _close_anomaly_log(self):
-        stream, self._anomaly_log = self._anomaly_log, None
-        if stream is not None:
-            try:
-                stream.close()
-            except OSError as exc:
-                self._log_build(f"Cannot close anomaly log at {self._anomaly_log_path}: {exc}", level="ERROR")
-
-    def _log_build(self, message, level="INFO", timestamp=None):
-        message = str(message)
-        if self._build_password:
-            message = message.replace(self._build_password, "[redacted]")
-        level = str(level).upper()
-        if level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
-            level = "INFO"
-        try:
-            moment = datetime.fromisoformat(timestamp) if timestamp else datetime.now().astimezone()
-        except (TypeError, ValueError):
-            moment = datetime.now().astimezone()
-        stamp = moment.astimezone().isoformat(sep=" ", timespec="milliseconds")
-        rendered = "\n".join(f"[{stamp}] [{level}] {line}" for line in (message.splitlines() or [""]))
-        self.theoryBuildLog.appendPlainText(rendered)
-        if self._anomaly_log is not None:
-            try:
-                self._anomaly_log.write(rendered + "\n")
-                self._anomaly_log.flush()
-            except (OSError, UnicodeError) as exc:
-                self._close_anomaly_log()
-                self._log_build(f"Cannot write anomaly log at {self._anomaly_log_path}: {exc}", level="ERROR")
-
-    def _set_build_active(self, active):
-        self.theoriesInput.setReadOnly(active)
-        self.loadTheoriesButton.setEnabled(not active)
-        self.buildCharacterCacheCheckBox.setEnabled(not active)
-        self.actionSettings.setEnabled(not active)
-        self.buildTheoriesButton.setText("Stop" if active else "Build")
-        self.buildTheoriesButton.setEnabled(True)
-
-    def build_theories(self):
-        if self._build_process is not None:
-            self._stop_build()
-            return
-        self._start_anomaly_log()
-        text = self.theoriesInput.toPlainText()
-        if not text.strip():
-            self._log_build("Enter at least one gauge group in the left area.", level="ERROR")
-            self._close_anomaly_log()
-            return
-        try:
-            settings = self.store.load()
-            if not settings["mysql/database"].strip():
-                raise ValueError("Set the MySQL database name in Settings → Preferences.")
-            sibling_sage = Path(sys.executable).with_name("sage")
-            sage = str(sibling_sage) if sibling_sage.is_file() else shutil.which("sage")
-            if sage is None:
-                raise ValueError("Sage was not found. Launch the GUI from its Sage environment "
-                                 "or put the sage executable on PATH.")
-        except (OSError, ValueError) as exc:
-            self._log_build(f"Cannot start build: {exc}", level="ERROR")
-            self._close_anomaly_log()
-            return
-        self._build_password = settings["mysql/password"]
-        self._build_request = (json.dumps({
-            "text": text, "settings": settings,
-            "build_cache": self.buildCharacterCacheCheckBox.isChecked(),
-        }) + "\n").encode("utf-8")
-        self._build_buffer = b""
-        self._build_error_buffer = b""
-        process = QtCore.QProcess(self)
-        self._build_process = process
-        process.setWorkingDirectory(str(PROJECT_ROOT))
-        process.setProcessChannelMode(QtCore.QProcess.ProcessChannelMode.SeparateChannels)
-        environment = QtCore.QProcessEnvironment.systemEnvironment()
-        environment.insert("PYTHONDONTWRITEBYTECODE", "1")
-        process.setProcessEnvironment(environment)
-        process.started.connect(self._send_build_request)
-        process.readyReadStandardOutput.connect(self._read_build_output)
-        process.readyReadStandardError.connect(lambda: self._read_build_output(stderr=True))
-        process.finished.connect(self._build_finished)
-        process.errorOccurred.connect(self._build_error)
-        self._set_build_active(True)
-        self._log_build("Starting theory build with the saved settings…")
-        # A separate main thread is needed for Sage and its spawned cache workers.
-        # Credentials travel through stdin, never command arguments or a file.
-        process.start(sage, ["-python", "-B", "-u", "-m", "gui.theory_builder"])
-
-    def _send_build_request(self):
-        if self._build_process is not None:
-            self._build_process.write(self._build_request)
-            self._build_request = b""
-
-    def _read_build_output(self, final=False, *, stderr=False):
-        if self._build_process is None:
-            return
-        buffer_name = "_build_error_buffer" if stderr else "_build_buffer"
-        read = (self._build_process.readAllStandardError if stderr
-                else self._build_process.readAllStandardOutput)
-        lines = (getattr(self, buffer_name) + bytes(read())).split(b"\n")
-        remaining = lines.pop()
-        if final and remaining:
-            lines.append(remaining)
-            remaining = b""
-        setattr(self, buffer_name, remaining)
-        for line in lines:
-            text = line.decode("utf-8", errors="replace")
-            try:
-                record = json.loads(text) if not stderr else None
-            except ValueError:
-                record = None
-            if isinstance(record, dict) and "log" in record:
-                self._log_build(record["log"], level=record.get("level", "INFO"),
-                                timestamp=record.get("timestamp"))
-            else:
-                # Unstructured diagnostics have no declared severity.
-                self._log_build(text, level="WARNING" if stderr else "INFO")
-
-    def _stop_build(self):
-        if not self.buildTheoriesButton.isEnabled():
-            return
-        # The worker stops between candidates or after a committed cache order.
-        # Keep its pipe open until it exits so it can finish the current operation.
-        if self._build_request:
-            self._build_request += b"stop\n"
-        else:
-            self._build_process.write(b"stop\n")
-        self.buildTheoriesButton.setEnabled(False)
-        self._log_build("Stop requested; waiting for the current operation to finish…")
-
-    def _build_error(self, error):
-        if self._build_process is None:
-            return
-        self._log_build(f"Build process: {self._build_process.errorString()}", level="ERROR")
-        if error == QtCore.QProcess.ProcessError.FailedToStart:
-            self._build_finished(-1, QtCore.QProcess.ExitStatus.CrashExit)
-
-    def _build_finished(self, exit_code, exit_status):
-        if self._build_process is None:
-            return
-        self._read_build_output(final=True)
-        self._read_build_output(final=True, stderr=True)
-        if exit_status == QtCore.QProcess.ExitStatus.CrashExit or exit_code != 0:
-            self._log_build(f"Build worker exited with code {exit_code}; see error details above.", level="ERROR")
-        self._build_process.deleteLater()
-        self._build_process = None
-        self._build_request = b""
-        self._close_anomaly_log()
-        self._build_password = ""
-        self._set_build_active(False)
-        if self._close_after_build:
+    def _sync_tab_availability(self, *_):
+        anomaly_active = self.anomaly_tab.process is not None
+        index_active = self.index_tab.process is not None
+        self.anomaly_tab.set_available(not index_active)
+        self.index_tab.set_available(not anomaly_active)
+        self.actionSettings.setEnabled(not (anomaly_active or index_active))
+        if self._close_requested and not (anomaly_active or index_active):
             self.close()
 
     def closeEvent(self, event):
-        if self._build_process is not None:
-            self._close_after_build = True
-            self._stop_build()
+        if self.anomaly_tab.process is not None or self.index_tab.process is not None:
+            self._close_requested = True
+            self.anomaly_tab.stop()
+            self.index_tab.cancel_for_close()
             event.ignore()
             return
-        self._close_anomaly_log()
+        self.anomaly_tab.logger.close_file()
+        self.index_tab.logger.close_file()
         super().closeEvent(event)
-
-    def load_theories(self) -> None:
-        """Append selected text files as one undoable edit, after all reads succeed."""
-        filenames, _ = QtWidgets.QFileDialog.getOpenFileNames(
-            self, "Load theories", str(PROJECT_ROOT),
-            "Text files (*.txt);;All files (*)",
-        )
-        parts = []
-        for filename in filenames:
-            try:
-                # Accept an optional UTF-8 BOM and normalize platform line endings.
-                text = Path(filename).read_text(encoding="utf-8-sig")
-            except UnicodeError:
-                QtWidgets.QMessageBox.critical(
-                    self, "Cannot load theories",
-                    f"{filename} is not valid UTF-8 text.\n"
-                    "Save the file as UTF-8 and try again.",
-                )
-                return
-            except OSError as exc:
-                QtWidgets.QMessageBox.critical(
-                    self, "Cannot load theories", f"Could not read {filename}:\n{exc}",
-                )
-                return
-            if text:
-                if parts and not parts[-1].endswith("\n"):
-                    parts.append("\n")
-                parts.append(text)
-        if not parts:
-            return
-        existing = self.theoriesInput.toPlainText()
-        separator = "\n" if existing and not existing.endswith("\n") else ""
-        cursor = self.theoriesInput.textCursor()
-        cursor.movePosition(QtGui.QTextCursor.MoveOperation.End)
-        cursor.beginEditBlock()
-        cursor.insertText(separator + "".join(parts))
-        cursor.endEditBlock()
-        self.theoriesInput.setTextCursor(cursor)
-        self.theoriesInput.setFocus()
-        self.theoriesInput.ensureCursorVisible()
 
     @property
     def settings(self) -> dict[str, str | int | float]:
@@ -529,7 +324,11 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
         except OSError as exc:
             QtWidgets.QMessageBox.critical(self, "Cannot load settings", str(exc))
             return
-        dialog.exec()
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            try:
+                self.index_tab.invalidate_if_database_changed(self.store.load())
+            except OSError as exc:
+                QtWidgets.QMessageBox.critical(self, "Cannot load settings", str(exc))
 
 
 def main() -> int:

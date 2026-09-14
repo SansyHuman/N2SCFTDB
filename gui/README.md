@@ -25,10 +25,51 @@ The shell itself does not require Sage, FORM, LiE or a
 MySQL connection. It also works with `python -m gui.n2_db` from the project root.
 
 Open `n2_db.ui` and `settings.ui` in Qt Creator / Qt Widgets Designer to edit
-their layouts. The main window contains the `anomaly` tab and an empty `index`
-tab. Choose **Settings → Preferences…** (Ctrl+,) for settings; **File → Quit**
+their layouts. The main window contains the `anomaly` and `index`
+tabs. Choose **Settings → Preferences…** (Ctrl+,) for settings; **File → Quit**
 (Ctrl+Q) closes the program. Python loads both UI files directly, so no code
 generation step is needed.
+
+In the **index** tab, **Search theories with empty indices** uses the saved
+MySQL settings and the existing `iter_lagrangian_index_jobs` iterator. A theory
+is listed if its full index, Coulomb index **or** Coulomb spectrum is missing
+(SQL NULL or JSON null). A complete result of lower or unknown precision is
+not selected for an upgrade by this search. One stored Lagrangian realization
+is retrieved per shared theory, then grouped by its gauge factors, with a
+theory count beside each checkbox. Product-factor order follows the database.
+Groups initially start unchecked. **Select all** checks or clears every group;
+checking individual groups also updates **Select all**.
+
+Search runs in a separate Sage process so the window stays responsive. It opens
+an existing initialized database without schema migration and performs no index
+calculation or database writes. It uses the saved host, port, user, password and
+connection timeout, plus `N2_DB_UNIX_SOCKET` when set. Errors and search progress
+appear in the right-hand log with the anomaly log's timestamp/level format and
+password redaction. Build and Preferences are unavailable while searching;
+search is unavailable during an anomaly build. Worker timestamps are retained.
+Closing cancels the read-only search process and waits asynchronously for it to exit.
+
+A successful search retains the complete job inputs, theory and realization
+IDs, missing fields and unknown-precision metadata in memory for the lifetime
+of the window. `window.index_tab.retrieved_jobs` returns all retained jobs and
+`window.index_tab.selected_jobs` returns those in checked groups, without another
+database search. `window.index_tab.database` identifies their source without a
+password. These accessors return copies. A successful refresh replaces the
+snapshot and preserves checks for groups still present; an empty successful
+search clears the list. Failed/incomplete searches keep the previous snapshot.
+Changing the source database in Preferences clears it; changing calculation
+cutoffs does not. Results are not saved across application restarts. A future
+calculation action must use this source and the existing write-time index
+rechecks to handle changes committed since the search.
+
+**Calculate index** remains unwired; this change implements only search and
+selection. Every search attempt also creates
+`logs/log_index_YYYYMMDD_HHMMSS_ffffff.log` under the project root, with the path
+shown in the GUI. The file contains the same timestamped, password-redacted
+messages as the search log, flushed as they arrive, including errors before
+the worker starts. Each attempt gets a new file; it closes after success,
+failure or cancellation. File errors appear in the GUI and search continues
+with on-screen logging.
 
 In the **anomaly** tab, enter gauge groups in the left text field, one theory
 per line. Separate product-group factors with commas, for example `A1, C2`.
@@ -211,19 +252,68 @@ accept a command on PATH or an absolute path. Save does not open cache databases
 connect to MySQL, or execute computation tools. Build reads a snapshot of
 `N2DatabaseWindow.settings` when it starts.
 
-To run the GUI regression checks without opening desktop windows:
+## Controllers and shared logging
+
+`N2DatabaseWindow` loads the forms, opens Preferences and coordinates tab
+availability and window shutdown. Anomaly actions live in
+`gui/anomaly_tab.py::AnomalyTabController`, exposed as `window.anomaly_tab`.
+It owns `load_theories()`, `build_theories()`, cooperative `stop()`, the build
+process and its log lifecycle. Index actions remain in
+`gui/index_tab.py::IndexTabController`, exposed as `window.index_tab`.
+Both expose `process` and emit `activeChanged`; the window prevents overlapping
+operations through each controller's `set_available()` method. Neither
+controller accesses the other controller's process internals.
+
+`gui/logging_utils.py` provides the common logging API without importing Qt or
+Sage. `make_log_record(message, level="INFO", timestamp=None, secrets=())`
+creates a JSON-compatible worker record; `format_log_message(...)` formats
+every line with its timestamp and level. Timestamps are ISO strings, rendered
+in local time with milliseconds and UTC offset. Invalid timestamps fall back
+to the current time, and unrecognized levels become INFO. Both workers use
+these records, and both controllers use `GuiLogger` for GUI output.
+
+Each controller exposes its own `logger`. The logger redacts configured
+secrets and can write identical, immediately flushed UTF-8 messages to an
+optional file. `start_file()` creates an exclusive timestamped filename and
+preserves existing files; file failures are reported in the widget while GUI
+logging continues. Anomaly builds retain the existing `log_anomalies_...log`
+files; index searches use `log_index_...log`. Future index calculations
+can use the same logger and file API:
+
+```python
+logger = window.index_tab.logger
+logger.set_secrets(password)
+logger.start_file(PROJECT_ROOT / "logs", prefix="log_index", label="index log")
+try:
+    logger.log("Starting index calculation", level="INFO")
+    # Route worker messages through logger.log(message, level, timestamp).
+finally:
+    logger.close_file()
+    logger.set_secrets()
+```
+
+Call `GuiLogger` on the GUI thread, for example from a QProcess output handler.
+Worker processes should print JSON from `make_log_record()` instead of touching
+widgets. File closure precedes clearing secrets so close errors are redacted.
+
+## Validation
+
+All GUI test code lives in `test/`; add new tests there as well. See
+`test/README.md` for the combined suite. To run just the GUI and logging
+regressions without opening desktop windows:
 
 ```bash
 QT_QPA_PLATFORM=offscreen PYTHONDONTWRITEBYTECODE=1 \
   sage -python -B \
-  -m unittest discover -s gui -p 'test_*.py' -v
+  -m unittest test.test_gui_n2_db test.test_gui_index_tab \
+  test.test_gui_logging_utils -v
 ```
 
 These tests use an in-memory credential test double, never your desktop vault.
 For an additional real Linux Secret Service check, run:
 
 ```bash
-sage -python -B gui/check_secret_service.py
+sage -python -B test/check_secret_service.py
 ```
 
 This opt-in check requires `dbus-run-session` and `gnome-keyring-daemon`. It

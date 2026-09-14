@@ -269,6 +269,73 @@ class IndexUpdateMySQLTests(unittest.TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(len(list(db.iter_lagrangian_index_jobs(self.connection, order=0, max_dimension=0))), 1)
 
+    def test_gui_search_retains_missing_components_and_never_writes(self):
+        from copy import deepcopy
+        from gui.index_search import search_index_jobs
+
+        records = []
+        for singlets in range(1, 5):
+            data = deepcopy(SU2)
+            data["hypermultiplets"].append({"dynkin_labels": [0], "number": singlets})
+            records.append(db.store_lagrangian_theory(self.connection, data))
+        # Partial full-only result; a JSON-null spectrum; complete known and
+        # unknown-precision results. Only the first two should be retrieved.
+        db.update_lagrangian_indices(self.connection, records[0].lagrangian_realization_id, {
+            "superconformal_index": "1", "superconformal_index_order": 0,
+        })
+        for stored in records[1:]:
+            db.update_lagrangian_indices(self.connection, stored.lagrangian_realization_id,
+                                         index_payload(order=0, maximum=0))
+        db._execute(self.connection, """
+            UPDATE theory_properties SET coulomb_branch_spectrum_json = 'null'
+            WHERE theory_id = %s
+        """, (records[1].theory_id,))
+        db._execute(self.connection, """
+            UPDATE theory_properties SET superconformal_index_order = NULL,
+                coulomb_branch_index_max_dimension_json = NULL WHERE theory_id = %s
+        """, (records[3].theory_id,))
+        product_input = {
+            "gauge_groups": [{"id": "left", "algebra": "A1"}, {"id": "right", "algebra": "A1"}],
+            "hypermultiplets": [{"representations": {"left": [1], "right": [1]}, "number": 2}],
+        }
+        product = db.store_lagrangian_theory(self.connection, product_input)
+        db._execute(self.connection, """
+            INSERT INTO lagrangian_realizations (
+                theory_id, canonical_hash, gauge_group, gauge_factor_count,
+                perturbative_gauge_anomaly_free, global_gauge_anomaly_free,
+                anomaly_free, one_loop_beta_vanishes, lagrangian_scft_candidate,
+                input_json, anomaly_result_json, exactly_marginal_couplings_json
+            ) SELECT theory_id, %s, gauge_group, gauge_factor_count,
+                perturbative_gauge_anomaly_free, global_gauge_anomaly_free,
+                anomaly_free, one_loop_beta_vanishes, lagrangian_scft_candidate,
+                input_json, anomaly_result_json, exactly_marginal_couplings_json
+            FROM lagrangian_realizations WHERE id = %s
+        """, ("f" * 64, self.rid))
+
+        def snapshot():
+            with self.connection.cursor() as cursor:
+                cursor.execute("SELECT * FROM theory_properties ORDER BY theory_id")
+                return cursor.fetchall()
+
+        before = snapshot()
+        settings = {f"mysql/{key}": value for key, value in self.settings.items()}
+        settings.update({"mysql/database": MYSQL_TEST_DATABASE, "mysql/connect_timeout": 10})
+        found = []
+        with patch.object(db, "initialize_database", side_effect=AssertionError("search must not migrate")), \
+             patch.object(db, "update_lagrangian_indices", side_effect=AssertionError("search must not write")), \
+             patch.object(properties, "calculate_n2_theory_indices", side_effect=AssertionError("search must not calculate")):
+            count = search_index_jobs(settings, lambda group, job: found.append((group, job)), lambda _: None)
+        self.assertEqual(count, 4)
+        self.assertEqual([job["theory_id"] for _, job in found], [
+            self.stored.theory_id, records[0].theory_id, records[1].theory_id, product.theory_id,
+        ])
+        self.assertEqual(found[0][1]["lagrangian_realization_id"], self.rid)
+        self.assertEqual(found[1][1]["needed_fields"], ["coulomb_branch_index", "coulomb_branch_spectrum"])
+        self.assertEqual(found[2][1]["needed_fields"], ["coulomb_branch_spectrum"])
+        self.assertEqual(found[3][0], {"algebras": ["A1", "A1"], "label": "SU(2) × SU(2)"})
+        self.assertEqual(found[3][1]["input"], product_input)
+        self.assertEqual(snapshot(), before)
+
     def test_legacy_migration_preserves_data_and_precision_can_be_recorded(self):
         self.save(order=12, maximum=20)
         before = self.row()

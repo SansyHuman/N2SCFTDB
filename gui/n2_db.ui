@@ -96,6 +96,69 @@ Number already in the database</string></property>
       </widget>
       <widget class="QWidget" name="indexTab">
        <attribute name="title"><string>index</string></attribute>
+       <layout class="QVBoxLayout" name="indexLayout">
+        <item>
+         <widget class="QSplitter" name="indexSplitter">
+          <property name="orientation"><enum>Qt::Horizontal</enum></property>
+          <property name="handleWidth"><number>8</number></property>
+          <property name="childrenCollapsible"><bool>false</bool></property>
+          <widget class="QWidget" name="indexSearchPanel">
+           <property name="sizePolicy"><sizepolicy hsizetype="Expanding" vsizetype="Expanding"><horstretch>1</horstretch><verstretch>1</verstretch></sizepolicy></property>
+           <layout class="QVBoxLayout" name="indexSearchLayout">
+            <property name="spacing"><number>8</number></property>
+            <property name="leftMargin"><number>0</number></property>
+            <property name="topMargin"><number>0</number></property>
+            <property name="rightMargin"><number>0</number></property>
+            <property name="bottomMargin"><number>0</number></property>
+            <item>
+             <widget class="QPushButton" name="searchEmptyIndicesButton">
+              <property name="text"><string>Search theories with empty indices</string></property>
+              <property name="toolTip"><string>Search the database for theories whose indices have not been calculated.</string></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="selectAllIndexGroupsCheckBox">
+              <property name="text"><string>Select all</string></property>
+              <property name="toolTip"><string>Select or clear all listed gauge groups.</string></property>
+              <property name="checked"><bool>false</bool></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QListWidget" name="emptyIndexGaugeGroupsList">
+              <property name="accessibleName"><string>Gauge groups of theories with empty indices</string></property>
+              <property name="toolTip"><string>Gauge groups with theories awaiting index calculation will be listed here with checkboxes.</string></property>
+              <property name="editTriggers"><set>QAbstractItemView::NoEditTriggers</set></property>
+              <property name="selectionMode"><enum>QAbstractItemView::NoSelection</enum></property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+          <widget class="QWidget" name="indexCalculationPanel">
+           <property name="sizePolicy"><sizepolicy hsizetype="Expanding" vsizetype="Expanding"><horstretch>1</horstretch><verstretch>1</verstretch></sizepolicy></property>
+           <layout class="QVBoxLayout" name="indexCalculationLayout">
+            <property name="spacing"><number>8</number></property>
+            <property name="leftMargin"><number>0</number></property>
+            <property name="topMargin"><number>0</number></property>
+            <property name="rightMargin"><number>0</number></property>
+            <property name="bottomMargin"><number>0</number></property>
+            <item>
+             <widget class="QPlainTextEdit" name="indexCalculationLog">
+              <property name="accessibleName"><string>Index calculation log</string></property>
+              <property name="readOnly"><bool>true</bool></property>
+              <property name="placeholderText"><string>Index calculation progress will appear here.</string></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="calculateIndexButton">
+              <property name="text"><string>Calculate index</string></property>
+              <property name="toolTip"><string>Calculate full indices, Coulomb branch indices and spectra for theories in the checked gauge groups.</string></property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+       </layout>
       </widget>
      </widget>
     </item>
@@ -129,6 +192,11 @@ Number already in the database</string></property>
   <tabstop>buildCharacterCacheCheckBox</tabstop>
   <tabstop>theoryBuildLog</tabstop>
   <tabstop>buildTheoriesButton</tabstop>
+  <tabstop>searchEmptyIndicesButton</tabstop>
+  <tabstop>selectAllIndexGroupsCheckBox</tabstop>
+  <tabstop>emptyIndexGaugeGroupsList</tabstop>
+  <tabstop>indexCalculationLog</tabstop>
+  <tabstop>calculateIndexButton</tabstop>
  </tabstops>
  <resources/>
  <connections/>

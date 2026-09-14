@@ -234,14 +234,15 @@ Reproduce with Sage and an explicitly disposable test database. Set
 PYTHONDONTWRITEBYTECODE=1 sage -python -B \
   -m unittest discover -s test -p 'test_*.py' -v
 QT_QPA_PLATFORM=offscreen PYTHONDONTWRITEBYTECODE=1 \
-  sage -python -B -m unittest discover -s gui -p 'test_*.py' -v
+  sage -python -B -m unittest test.test_gui_n2_db \
+  test.test_gui_index_tab test.test_gui_logging_utils -v
 \end{lstlisting}
 Live database tests reset their configured test tables. Omitting
 \code{N2_TEST_MYSQL_DATABASE} skips those integrations. The repository's
 \code{all_test.sh} currently supplies local connection values; this session
 fixed the test harness, not that script's configuration.
 
-\textbf{Regression sources:} \code{gui/test_n2_db.py},
+\textbf{Regression sources:} \code{test/test_gui_n2_db.py},
 \code{test/test_gui_theory_builder.py},
 \code{test/test_gui_candidate_workers.py}, \code{test/test_n2_theory_db.py},
 and the CLI environment regression in \code{test/test_n2_theory_db_indices.py}.
