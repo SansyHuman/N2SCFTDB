@@ -47,7 +47,7 @@ def main():
         with closing(sqlite3.connect(Path(prior["character_database"]).as_uri() + "?mode=ro", uri=True)) as source:
             with closing(sqlite3.connect(character_path)) as target:
                 source.backup(target)
-        options = dict(database_path=character_path, processes=1,
+        options = dict(char_cache_database_path=character_path, processes=1,
                        lie_executable="LiE-must-not-run", timeout=600)
         with patch.object(idx, "CharacterDecompositionCache", warm_only):
             for program, cases in groups.items():

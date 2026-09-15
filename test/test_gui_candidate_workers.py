@@ -180,7 +180,7 @@ def _race_import(database_name, options, candidate, barrier):
         connection.close()
 
 
-def _record_connections(connection_ids):
+def _record_connections(connection_ids, rollbacks=None):
     """Instrument only this process's database API; keep other clients out."""
     original = database.connect_database
 
@@ -188,6 +188,16 @@ def _record_connections(connection_ids):
         connection = original(*args, **kwargs)
         try:
             connection_ids.append(connection.thread_id())
+            if rollbacks is not None:
+                original_rollback = connection.rollback
+
+                def rollback():
+                    # Record even a retry that subsequently succeeds. This
+                    # needs no server-wide PROCESS/INNODB_METRICS privilege.
+                    rollbacks.append(connection.thread_id())
+                    return original_rollback()
+
+                connection.rollback = rollback
         except BaseException:
             connection.close()
             raise

@@ -58,6 +58,20 @@ class TheoryPropertyTests(unittest.TestCase):
             {"a": Fraction(29, 12), "c": Fraction(17, 6)},
         )
 
+    def test_index_character_database_default_and_override(self):
+        data = {"algebra": "A2", "hypermultiplets": [
+            {"representation": "fundamental", "number": 6},
+        ]}
+        with patch.object(properties, "CHAR_CACHE_DATABASE_PATH", Path("default.sqlite")):
+            for options, expected in (({}, Path("default.sqlite")),
+                                      ({"char_cache_database_path": "custom.sqlite"}, "custom.sqlite")):
+                with self.subTest(options=options):
+                    properties.calculate_superconformal_index(data, order=4, **options)
+                    forwarded = self.calculate_index_internal.call_args.kwargs
+                    self.assertEqual(forwarded["char_cache_database_path"], expected)
+                    self.assertNotIn("cache_directory", forwarded)
+                    self.assertNotIn("database_path", forwarded)
+
     def test_complex_flavor_blocks_prefer_lower_dynkin_nodes(self):
         cases = (
             ("A4", (1, 0, 0, 0), (0, 0, 0, 1)),
@@ -458,7 +472,7 @@ class TheoryIndexIntegrationTests(unittest.TestCase):
             "hypermultiplets": [{"representation": "fundamental", "number": 4}],
         }
         with TemporaryDirectory() as directory, patch.multiple(
-            properties, INDEX_CACHE_DIRECTORY=Path(directory), DEFAULT_PROCESS_COUNT=1,
+            properties, CHAR_CACHE_DATABASE_PATH=Path(directory) / "characters.db", DEFAULT_PROCESS_COUNT=1,
         ):
             lower = properties.calculate_n2_theory_indices(
                 data, order=0, max_dimension=0,

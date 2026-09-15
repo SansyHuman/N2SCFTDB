@@ -61,7 +61,7 @@ def _calculate_job(job):
             _connection, job, order=_settings["index/full_max_order"],
             max_dimension=_settings["index/coulomb_max_dimension"], missing_only=True,
             full_index_options={
-                "database_path": _settings["cache/character_database"],
+                "char_cache_database_path": _settings["cache/character_database"],
                 "form_cache_database_path": _settings["cache/form_database"],
                 "lie_executable": _settings["tools/lie_executable"],
                 "form_executable": _settings["tools/form_executable"],

@@ -46,7 +46,7 @@ def calculate_index_in_process(request):
             {"representation": "fundamental", "number": 6, "kind": "full"}
         ]},
         6,
-        cache_directory=directory,
+        char_cache_database_path=Path(directory) / "characters.db",
         form_executable=form_executable,
         processes=1,
     )
@@ -335,7 +335,7 @@ class IndexExpansionCacheIntegrationTests(unittest.TestCase):
         ]}
         with tempfile.TemporaryDirectory() as directory:
             form_path = Path(directory) / "expansions" / "custom.db"
-            options = dict(cache_directory=Path(directory) / "characters",
+            options = dict(char_cache_database_path=Path(directory) / "characters" / "custom.db",
                            form_cache_database_path=form_path, processes=1)
             with patch("index.form_expansion_cache.run_form", wraps=run_form) as run:
                 cold = calculate_index(data, 6, **options)
@@ -348,13 +348,15 @@ class IndexExpansionCacheIntegrationTests(unittest.TestCase):
             self.assertEqual(cold, expected)
             self.assertEqual(warm, expected)
             self.assertTrue(form_path.exists())
-            self.assertFalse((Path(options["cache_directory"]) / DEFAULT_FORM_CACHE_DATABASE.name).exists())
+            self.assertTrue(options["char_cache_database_path"].is_file())
+            self.assertFalse((Path(options["char_cache_database_path"]).parent / DEFAULT_FORM_CACHE_DATABASE.name).exists())
 
     def test_form_cache_defaults_beside_explicit_character_database(self):
         with tempfile.TemporaryDirectory() as directory:
             character_path = Path(directory) / "custom" / "characters.db"
             calculate_index({"algebra": "A1", "hypermultiplets": []}, 4,
-                            database_path=character_path, processes=1)
+                            char_cache_database_path=character_path, processes=1)
+            self.assertTrue(character_path.is_file())
             self.assertTrue(character_path.with_name(DEFAULT_FORM_CACHE_DATABASE.name).exists())
 
     def test_index_calculations_in_separate_processes_share_both_caches(self):

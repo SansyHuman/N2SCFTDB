@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import shutil
 import sqlite3
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -113,11 +114,32 @@ class N2TheoryIndexTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.temporary_directory = tempfile.TemporaryDirectory()
-        cls.cache_directory = cls.temporary_directory.name
+        cls.char_cache_database_path = Path(cls.temporary_directory.name) / "characters.db"
 
     @classmethod
     def tearDownClass(cls):
         cls.temporary_directory.cleanup()
+
+    def test_cli_file_and_module_use_character_database_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            theory = root / "theory.json"
+            theory.write_text(json.dumps({"algebra": "A1", "hypermultiplets": []}))
+            for entrypoint in ([str(PROJECT_ROOT / "index/n2_theory_index.py")],
+                               ["-m", "index.n2_theory_index"]):
+                with self.subTest(entrypoint=entrypoint):
+                    database = root / f"cache {len(entrypoint)}" / "custom.sqlite"
+                    result = subprocess.run(
+                        [sys.executable, *entrypoint, str(theory), "--order", "4",
+                         "--char-cache-database", str(database), "--processes", "1"],
+                        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=60,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(parse_index_polynomial(result.stdout),
+                                     parse_index_polynomial("1 + t^4*u^4"))
+                    self.assertTrue(database.is_file())
+                    self.assertTrue(database.with_name("form_expansion_cache.db").is_file())
+                    self.assertFalse(database.with_name("char_decomposition_cache.db").exists())
 
     def test_su3_six_flavors_matches_reference_through_t6(self):
         result = calculate_index(
@@ -132,7 +154,7 @@ class N2TheoryIndexTests(unittest.TestCase):
                 ],
             },
             6,
-            cache_directory=self.cache_directory,
+            char_cache_database_path=self.char_cache_database_path,
         )
         t, y, u = result.parent().gens()
         expected = (
@@ -157,8 +179,8 @@ class N2TheoryIndexTests(unittest.TestCase):
             ],
         }
         self.assertEqual(
-            calculate_index(named, 6, cache_directory=self.cache_directory),
-            calculate_index(labelled, 6, cache_directory=self.cache_directory),
+            calculate_index(named, 6, char_cache_database_path=self.char_cache_database_path),
+            calculate_index(labelled, 6, char_cache_database_path=self.char_cache_database_path),
         )
 
     def test_product_bifundamental_matches_reference_through_t10(self):
@@ -180,7 +202,7 @@ class N2TheoryIndexTests(unittest.TestCase):
                 ],
             },
             10,
-            cache_directory=self.cache_directory,
+            char_cache_database_path=self.char_cache_database_path,
         )
         t, y, u = result.parent().gens()
         expected = (
@@ -235,12 +257,12 @@ class N2TheoryIndexTests(unittest.TestCase):
         }
         order = 6
         actual = calculate_index(
-            product, order, cache_directory=self.cache_directory
+            product, order, char_cache_database_path=self.char_cache_database_path
         )
         independent = calculate_index(
-            left, order, cache_directory=self.cache_directory
+            left, order, char_cache_database_path=self.char_cache_database_path
         ) * calculate_index(
-            right, order, cache_directory=self.cache_directory
+            right, order, char_cache_database_path=self.char_cache_database_path
         )
         t, y, u = actual.parent().gens()
         expected = sum(
@@ -297,7 +319,7 @@ class N2TheoryIndexTests(unittest.TestCase):
                 ],
             },
             4,
-            cache_directory=self.cache_directory,
+            char_cache_database_path=self.char_cache_database_path,
         )
         self.assertEqual(
             result.monomial_coefficient(result.parent().one()), 1
@@ -358,12 +380,12 @@ class N2TheoryIndexTests(unittest.TestCase):
             calculate_index(
                 theory(factor_ids),
                 6,
-                cache_directory=self.cache_directory,
+                char_cache_database_path=self.char_cache_database_path,
             ),
             calculate_index(
                 theory(reversed(factor_ids)),
                 6,
-                cache_directory=self.cache_directory,
+                char_cache_database_path=self.char_cache_database_path,
             ),
         )
 
@@ -380,7 +402,7 @@ class N2TheoryIndexTests(unittest.TestCase):
                 result = calculate_index(
                     data,
                     order,
-                    cache_directory=self.cache_directory,
+                    char_cache_database_path=self.char_cache_database_path,
                     lie_executable="missing-lie-for-low-order-test",
                     form_executable="missing-form-for-low-order-test",
                 )
@@ -399,7 +421,7 @@ class N2TheoryIndexTests(unittest.TestCase):
                     ],
                 },
                 4,
-                cache_directory=self.cache_directory,
+                char_cache_database_path=self.char_cache_database_path,
             )
 
     def test_order_must_be_nonnegative(self):
@@ -407,7 +429,7 @@ class N2TheoryIndexTests(unittest.TestCase):
             calculate_index(
                 {"algebra": "A1", "hypermultiplets": []},
                 -1,
-                cache_directory=self.cache_directory,
+                char_cache_database_path=self.char_cache_database_path,
             )
 
 

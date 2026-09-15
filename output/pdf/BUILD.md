@@ -1,5 +1,10 @@
 # PDF sources and rebuilding
 
+The 15 September 2026 cache-path update changes index examples to
+`char_cache_database_path=` / `--char-cache-database`, including the database
+index worker. The standalone character-cache builder retains its own path
+options. Both PDFs are rebuilt from the updated sources.
+
 The 14 September 2026 revision adds the anomaly GUI, persistent index cutoffs
 and CPU limits, portable Sage launch, editable/file-loaded gauge lists,
 parallel SCFT checking and MySQL imports, optional character-cache preparation,

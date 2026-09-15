@@ -119,7 +119,12 @@ def main():
                     index_module.CharacterDecompositionCache = MeasuredCache
                     def calculate():
                         if args.suite == 'full':
-                            return index_module.calculate_index(data, order, cache_directory=directory,
+                            # Historical baselines retain their original directory API.
+                            cache_options = (
+                                {'char_cache_database_path': directory / 'char_decomposition_cache.db'}
+                                if index_module is candidate_index else {'cache_directory': directory}
+                            )
+                            return index_module.calculate_index(data, order, **cache_options,
                                                                 processes=args.workers, timeout=50).dict()
                         cache = MeasuredCache(directory, max_workers=args.workers, timeout=50)
                         try:

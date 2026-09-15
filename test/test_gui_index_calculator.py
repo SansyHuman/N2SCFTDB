@@ -48,6 +48,25 @@ def _exit_worker(item):
 
 
 class IndexJobTests(unittest.TestCase):
+    def test_connection_monitor_records_successfully_retried_lock_failures(self):
+        from test.test_gui_candidate_workers import _record_connections
+
+        for code in (1205, 1213):
+            with self.subTest(code=code):
+                connection = MagicMock()
+                connection.thread_id.return_value = 123
+                original_rollback = connection.rollback
+                connection_ids, rollbacks = [], []
+                action = MagicMock(side_effect=[db.pymysql.OperationalError(code, "lock failure"), "saved"])
+                with patch.object(db, "connect_database", return_value=connection), \
+                     _record_connections(connection_ids, rollbacks), patch.object(db.time, "sleep"):
+                    tracked = db.connect_database("isolated_test")
+                    self.assertEqual(db._run_index_transaction(tracked, action), "saved")
+                self.assertEqual(connection_ids, [123])
+                self.assertEqual(rollbacks, [123])
+                original_rollback.assert_called_once()
+                connection.commit.assert_called_once()
+
     def test_partial_failure_and_stale_job_retry_only_compute_missing_fields(self):
         item = job()
         connection = MagicMock()
@@ -103,7 +122,7 @@ class IndexJobTests(unittest.TestCase):
         self.assertFalse(connect.call_args.kwargs["initialize_schema"])
         forwarded = calculate.call_args.kwargs["full_index_options"]
         self.assertEqual(forwarded["processes"], 1)
-        self.assertEqual(forwarded["database_path"], options["cache/character_database"])
+        self.assertEqual(forwarded["char_cache_database_path"], options["cache/character_database"])
         self.assertEqual(forwarded["form_cache_database_path"], options["cache/form_database"])
 
 
@@ -183,9 +202,9 @@ class IndexSchedulingTests(unittest.TestCase):
         self.assertTrue(any(r.get("result", {}).get("errors") for r in records))
 
 
-def _tracked_initializer(options, stopped, messages, connection_ids):
+def _tracked_initializer(options, stopped, messages, connection_ids, rollbacks):
     from test.test_gui_candidate_workers import _record_connections
-    _record_connections(connection_ids).start()
+    _record_connections(connection_ids, rollbacks).start()
     calculator._initialize_worker(options, stopped, messages)
 
 
@@ -220,9 +239,10 @@ class IndexCalculationMySQLTests(unittest.TestCase):
         manager = get_context("spawn").Manager()
         self.addCleanup(manager.shutdown)
         self.connection_ids = manager.list()
+        self.rollbacks = manager.list()
         def executor(**kwargs):
             kwargs["initializer"] = _tracked_initializer
-            kwargs["initargs"] = (*kwargs["initargs"], self.connection_ids)
+            kwargs["initargs"] = (*kwargs["initargs"], self.connection_ids, self.rollbacks)
             return ProcessPoolExecutor(**kwargs)
         factory = patch.object(calculator, "ProcessPoolExecutor", side_effect=executor)
         factory.start()
@@ -246,10 +266,6 @@ class IndexCalculationMySQLTests(unittest.TestCase):
         self.assertEqual(row["n"], 0, "worker MySQL connection leaked after shutdown")
         return result
 
-    def deadlocks(self):
-        return int(db._fetchone(self.connection,
-                   "SELECT COUNT FROM information_schema.INNODB_METRICS WHERE NAME = 'lock_deadlocks'")["COUNT"])
-
     def test_actual_indices_exact_cutoffs_custom_caches_and_stale_retry(self):
         jobs = self.add_theories(4)
         product = {
@@ -262,7 +278,6 @@ class IndexCalculationMySQLTests(unittest.TestCase):
         db.store_lagrangian_theory(self.connection, product, initialize_schema=False)
         product_job = list(db.iter_lagrangian_index_jobs(self.connection, order=0, max_dimension=0))[-1]
         selected = jobs[:2] + [product_job]
-        before = self.deadlocks()
         summary = self.run_jobs(selected)
         self.assertEqual(summary["status"], "completed", self.records)
         pids = {r["result"]["worker_pid"] for r in self.records if "result" in r}
@@ -285,7 +300,7 @@ class IndexCalculationMySQLTests(unittest.TestCase):
         self.settings["index/full_max_order"] = 100  # A stale GUI selection must not upgrade.
         self.assertEqual(self.run_jobs(selected)["status"], "completed")
         self.assertTrue(all(not r["result"]["updated_fields"] for r in self.records if "result" in r))
-        self.assertEqual(self.deadlocks() - before, 0)
+        self.assertEqual(list(self.rollbacks), [], "index workers unexpectedly rolled back/retried")
 
     def test_partial_tool_failure_commits_spectrum_and_retries_only_indices(self):
         jobs = self.add_theories(2)
@@ -304,12 +319,11 @@ class IndexCalculationMySQLTests(unittest.TestCase):
     def test_256_distinct_theories_eight_workers_no_deadlocks(self):
         jobs = self.add_theories(256)
         self.settings.update({"tools/processes": 8, "index/full_max_order": 0, "index/coulomb_max_dimension": "0"})
-        before = self.deadlocks()
         summary = self.run_jobs(jobs)
         self.assertEqual(summary["status"], "completed", self.records)
         self.assertEqual(summary["processed"], 256)
         self.assertEqual(list(db.iter_lagrangian_index_jobs(self.connection, order=0, max_dimension=0)), [])
-        self.assertEqual(self.deadlocks() - before, 0)
+        self.assertEqual(list(self.rollbacks), [], "index workers unexpectedly rolled back/retried")
 
     def test_real_gui_search_calculation_and_file_log(self):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")

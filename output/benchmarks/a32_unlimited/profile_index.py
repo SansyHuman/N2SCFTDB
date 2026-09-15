@@ -59,7 +59,7 @@ reference = None
 for phase in ['cold','warm']:
     emit('calculation_start', order=18, workers=1, timeout=None, input=data)
     began = time.perf_counter()
-    result = idx.calculate_index(data, 18, database_path=OUT/'cache.db', processes=1, timeout=None)
+    result = idx.calculate_index(data, 18, char_cache_database_path=OUT/'cache.db', processes=1, timeout=None)
     seconds = time.perf_counter()-began
     coefficients = sorted((tuple(int(x) for x in powers), str(value)) for powers,value in result.dict().items())
     if reference is not None:

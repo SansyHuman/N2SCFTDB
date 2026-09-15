@@ -35,7 +35,7 @@
 {\large N2SCFTDB / \texttt{n2\_theory\_index.py}}\par
 FORM and LiE computation of four-dimensional $\mathcal N=2$ indices\\
 Simple and semisimple product gauge groups\par
-\textbf{Index-package reference: 14 September 2026}
+\textbf{Index-package reference: 15 September 2026}
 \end{center}
 \vspace{3mm}
 \textbf{Purpose.} The canonical implementation computes the flavor-unrefined right
@@ -353,10 +353,9 @@ python -m index.n2_theory_index theory.json --order 10
 \end{lstlisting}
 The default files are \code{char_decomposition_cache.db} and
 \code{form_expansion_cache.db} at the project root.
-Use \code{--cache-database} \code{/path/to/cache.db} for an explicit file, or
-\code{--cache-directory} \code{/path/to/directory} for the default filename inside that
-directory. These options are mutually exclusive; the corresponding Python
-arguments are \code{database_path=} and \code{cache_directory=}. The FORM database
+Use \code{--char-cache-database} \code{/path/to/cache.db} to select the character
+database file. The corresponding Python argument is
+\code{char_cache_database_path=}. The FORM database
 follows the character database directory unless \code{--form-cache-database}
 (or Python \code{form_cache_database_path=}) overrides it.
 
@@ -364,7 +363,7 @@ For example, an unlimited single-worker calculation through $t^{18}$ is
 \begin{lstlisting}[language=Python]
 result = calculate_index(
     data, 18, processes=1, timeout=None,
-    database_path="/tmp/fresh-index/characters.db",
+    char_cache_database_path="/tmp/fresh-index/characters.db",
     form_cache_database_path="/tmp/fresh-index/form.db",
 )
 \end{lstlisting}

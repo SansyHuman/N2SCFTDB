@@ -58,8 +58,10 @@ def calculate_index_job(connection, job, *, order, max_dimension,
         saving = False
         try:
             if key == "superconformal_index":
+                options = dict(full_index_options or {})
+                options.setdefault("theory_db_connection", connection)
                 value = properties.calculate_superconformal_index(
-                    job["input"], order=order, **(full_index_options or {}),
+                    job["input"], order=order, **options,
                 )
                 payload = {key: str(value), "superconformal_index_order": order}
             elif key == "coulomb_branch_index":
@@ -136,7 +138,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--coulomb-max-dimension", default=str(properties.C_INDEX_MAX_ORDER))
     parser.add_argument("--upgrade", action="store_true", help="also upgrade indices with known lower cutoffs")
     parser.add_argument("--limit", type=int, help="maximum number of theory jobs to visit")
-    parser.add_argument("--cache-directory", type=Path)
+    parser.add_argument(
+        "--char-cache-database", type=Path,
+        help="character SQLite cache file (default: project-root char_decomposition_cache.db)",
+    )
     parser.add_argument("--lie-executable", default=properties.LIE_EXECUTABLE)
     parser.add_argument("--form-executable", default=properties.FORM_EXECUTABLE)
     parser.add_argument("--timeout", type=float, default=properties.DEFAULT_TIMEOUT)
@@ -152,8 +157,8 @@ def main(argv: list[str] | None = None) -> int:
             as_nonnegative_int(args.limit, "limit")
         if args.processes < 1 or args.timeout <= 0:
             raise ValueError("processes and timeout must be positive")
-        if args.cache_directory is not None:
-            properties.INDEX_CACHE_DIRECTORY = args.cache_directory
+        if args.char_cache_database is not None:
+            properties.CHAR_CACHE_DATABASE_PATH = args.char_cache_database
         properties.LIE_EXECUTABLE = args.lie_executable
         properties.FORM_EXECUTABLE = args.form_executable
         properties.DEFAULT_TIMEOUT = args.timeout

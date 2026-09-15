@@ -205,7 +205,7 @@ def main():
         assert checked["lagrangian_scft_candidate"], checked
         for order in args.orders:
             print(json.dumps({"case": case_id, "order": order, "stage": "prefill"}), flush=True)
-            kwargs = dict(database_path=char_db, processes=1, timeout=600)
+            kwargs = dict(char_cache_database_path=char_db, processes=1, timeout=600)
             start = time.perf_counter()
             reference = idx.calculate_index(data, order, form_cache_database_path=hit_db, **kwargs)
             prefill_seconds = time.perf_counter() - start

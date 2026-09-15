@@ -164,7 +164,7 @@ class IndexUpdateMySQLTests(unittest.TestCase):
         for column in db._INDEX_COLUMNS.values():
             self.assertIsNone(before[column])
         with tempfile.TemporaryDirectory() as cache, patch.multiple(
-            properties, INDEX_CACHE_DIRECTORY=Path(cache), DEFAULT_PROCESS_COUNT=1,
+            properties, CHAR_CACHE_DATABASE_PATH=Path(cache) / "characters.db", DEFAULT_PROCESS_COUNT=1,
         ):
             results = list(worker.fill_lagrangian_indices(self.connection, order=4, max_dimension=5))
         self.assertEqual(len(results), 1)
@@ -432,12 +432,11 @@ class IndexUpdateMySQLTests(unittest.TestCase):
         # index writer must wait there without locking its property child;
         # otherwise the next parent-holder update creates a lock cycle.
         writer = db.connect_database(MYSQL_TEST_DATABASE, **self.settings, initialize_schema=False)
-        metric = "SELECT COUNT FROM information_schema.INNODB_METRICS WHERE NAME = 'lock_deadlocks'"
-        before = int(db._fetchone(self.connection, metric)["COUNT"])
         self.connection.begin()
         db._fetchone(self.connection, "SELECT id FROM theories WHERE id = %s FOR UPDATE", (self.stored.theory_id,))
         try:
-            with ThreadPoolExecutor(max_workers=1) as pool:
+            with patch.object(writer, "rollback", wraps=writer.rollback) as rollback, \
+                 ThreadPoolExecutor(max_workers=1) as pool:
                 future = pool.submit(db.update_lagrangian_indices, writer, self.rid, index_payload())
                 try:
                     deadline = time.monotonic() + 5
@@ -460,16 +459,15 @@ class IndexUpdateMySQLTests(unittest.TestCase):
                 finally:
                     self.connection.commit()
                 self.assertIn("superconformal_index", future.result(timeout=10)["updated_fields"])
+                rollback.assert_not_called()
         finally:
             self.connection.rollback()
             writer.close()
-        after = int(db._fetchone(self.connection, metric)["COUNT"])
-        self.assertEqual(after - before, 0)
 
     def test_cli_runs_worker_and_reports_summary(self):
         output, error_output = StringIO(), StringIO()
         with tempfile.TemporaryDirectory() as cache, redirect_stdout(output), patch.multiple(
-            properties, INDEX_CACHE_DIRECTORY=Path(cache), DEFAULT_PROCESS_COUNT=1,
+            properties, CHAR_CACHE_DATABASE_PATH=Path(cache) / "characters.db", DEFAULT_PROCESS_COUNT=1,
         ), patch.dict(os.environ, {
             # The CLI uses N2_DB_*; this fixture uses N2_TEST_MYSQL_*.
             "N2_DB_PASSWORD": self.settings["password"],
@@ -480,7 +478,7 @@ class IndexUpdateMySQLTests(unittest.TestCase):
                 "--host", self.settings["host"], "--port", str(self.settings["port"]),
                 *(["--unix-socket", self.settings["unix_socket"]] if self.settings["unix_socket"] else []),
                 "--index-order", "0", "--coulomb-max-dimension", "0",
-                "--cache-directory", cache, "--processes", "1",
+                "--char-cache-database", str(Path(cache) / "characters.db"), "--processes", "1",
             ])
         self.assertEqual(code, 0, error_output.getvalue())
         self.assertEqual(json.loads(output.getvalue().splitlines()[-1]), {"processed": 1, "failed": 0})

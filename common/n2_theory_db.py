@@ -46,6 +46,7 @@ else:
     from common.number_utils import as_nonnegative_fraction, as_nonnegative_int
 
 from anomalies.check_n2_anomalies import (
+    GaugeFactorData,
     HyperData,
     ProductHyperData,
     check_input_data,
@@ -582,7 +583,8 @@ def _canonical_lagrangian_payload(
     one half hyper when its total half-hyper multiplicity is odd. This keeps
     the previous payload for inputs written entirely in full hypers.
     """
-    factor_rows = _factor_rows(anomaly_result)
+    factor_rows = (anomaly_result["gauge_factors"] if "gauge_factors" in anomaly_result
+                   else [{"id": "gauge", "algebra": anomaly_result["algebra"]}])
     aggregated: dict[tuple[str, tuple[tuple[int, ...], ...]], int] = {}
     pseudoreal_units: dict[tuple[tuple[int, ...], ...], int] = {}
 
@@ -647,6 +649,44 @@ def _canonical_hash(anomaly_result: dict[str, Any]) -> str:
         _canonical_lagrangian_payload(anomaly_result), canonical=True
     )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def find_superconformal_index(
+    connection: Connection,
+    factors: tuple[GaugeFactorData, ...],
+    hypermultiplets: list[HyperData | ProductHyperData],
+    *,
+    order: int,
+) -> str | None:
+    """Read a sufficiently precise index for validated internal theory data.
+
+    Match the existing canonical Lagrangian identity (factor IDs are ignored,
+    factor order is retained). SQL NULL, JSON null and unknown/lower cutoffs
+    are cache misses. This lookup neither initializes the schema nor changes
+    data or the caller's transaction. Pure free sectors have no stored gauge
+    realization and are calculated directly.
+    """
+    order = as_nonnegative_int(order, "order")
+    if not factors:
+        return None
+    if len(factors) == 1 and all(isinstance(h, HyperData) for h in hypermultiplets):
+        anomaly_result = {"algebra": factors[0].algebra.cartan_type,
+                          "hypermultiplets": hypermultiplets}
+    else:
+        anomaly_result = {"gauge_factors": [{"id": f.factor_id, "algebra": f.algebra.cartan_type}
+                                            for f in factors],
+                          "hypermultiplets": hypermultiplets}
+    row = _fetchone(connection, """
+        SELECT p.superconformal_index_json
+        FROM lagrangian_realizations AS lr
+        JOIN theory_properties AS p ON p.theory_id = lr.theory_id
+        WHERE lr.canonical_hash = %s
+          AND p.superconformal_index_order >= %s
+          AND JSON_TYPE(p.superconformal_index_json) = 'STRING'
+    """, (_canonical_hash(anomaly_result), order))
+    if row is None:
+        return None
+    return json.loads(row["superconformal_index_json"])
 
 
 def _shared_flavor_symmetry(flavor: dict[str, Any]) -> dict[str, Any]:

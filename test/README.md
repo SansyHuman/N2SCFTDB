@@ -5,6 +5,11 @@ fixtures/helpers. Application modules in `gui/` contain runtime code only.
 The moved GUI modules use the `test_gui_` prefix, alongside the existing
 GUI-worker tests.
 
+Index tests pass character cache filenames with `char_cache_database_path`;
+CLI tests use `--char-cache-database` for both direct-file and module execution.
+Property/worker tests override `CHAR_CACHE_DATABASE_PATH` with a temporary file.
+The standalone character-cache class and builder retain their own path API.
+
 From the project root, run the combined backend and GUI suite with Sage:
 
 ```bash
@@ -37,10 +42,22 @@ With a disposable MySQL database configured, these cover real Sage/FORM/LiE
 calculations, simple/product groups, exact cutoffs, custom shared cache files,
 stale selections, partial retries, cooperative stop and worker connection cleanup.
 They also exercise the actual GUI-to-Sage process protocol, a 256-theory run
-with eight index workers, and parent-row contention while checking InnoDB's
-`lock_deadlocks` metric. Access to `information_schema.INNODB_METRICS` and
-`PROCESSLIST` is needed for the concurrency/cleanup assertions. The normal suite
+with eight index workers, and parent-row contention. Concurrency tests record
+rollbacks on their own connections, including lock failures that the backend
+successfully retries, and require none in the no-deadlock scenarios. They do not
+query the privileged server-wide `information_schema.INNODB_METRICS` table.
+Connection cleanup and contention checks use `PROCESSLIST` only for connections
+owned by the configured test user, which does not require the global `PROCESS`
+privilege. Database-scoped test permissions are sufficient. The normal suite
 also checks bounded scheduling and a real abrupt worker exit without MySQL.
+
+`test_disconnected_index.py` checks NetworkX sector partitioning, transitive
+and trifundamental connections, zero multiplicities, free singlet hypers,
+exact truncated products, repeated sectors and optional MySQL index reuse.
+It compares split calculations with the original unsplit FORM projection.
+The live database cases cover canonical representation matching, missing/null
+indices, unknown/lower/equal/higher cutoffs, read-only connection ownership,
+and the worker's reuse of connected product sectors alongside simple sectors.
 
 These tests use temporary settings and fixture credentials. The opt-in real
 Secret Service check remains separate from unittest discovery:

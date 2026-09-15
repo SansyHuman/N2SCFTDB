@@ -114,7 +114,7 @@ def main():
                     with old.CharacterDecompositionCache(database_path=seed) as cache: cache._connection()
                     if state=='from_t12':
                         with patch.object(idx,'CharacterDecompositionCache',old.CharacterDecompositionCache):
-                            idx.calculate_index(data,12,database_path=seed,form_cache_database_path=form_db,
+                            idx.calculate_index(data,12,char_cache_database_path=seed,form_cache_database_path=form_db,
                                                 processes=1,form_executable='FORM-must-not-run')
                     expected=None; measurements={'old':[],'new':[]}
                     for trial in range(3):
@@ -128,7 +128,7 @@ def main():
                                 return original(self,expressions)
                             with patch.object(idx,'CharacterDecompositionCache',module.CharacterDecompositionCache),patch.object(module.CharacterDecompositionCache,'_run_lie',execute):
                                 start=time.perf_counter()
-                                value=idx.calculate_index(data,18,database_path=path,form_cache_database_path=form_db,
+                                value=idx.calculate_index(data,18,char_cache_database_path=path,form_cache_database_path=form_db,
                                                           processes=1,form_executable='FORM-must-not-run')
                                 seconds=time.perf_counter()-start
                             if expected is None: expected=value

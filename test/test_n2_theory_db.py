@@ -905,7 +905,7 @@ class TheoryDatabaseBackendTests(unittest.TestCase):
                 INDEX_MAX_ORDER=6,
                 C_INDEX_MAX_ORDER=12,
                 DEFAULT_PROCESS_COUNT=1,
-                INDEX_CACHE_DIRECTORY=Path(cache_directory),
+                CHAR_CACHE_DATABASE_PATH=Path(cache_directory) / "characters.db",
             ),
         ):
             for product, number in ((False, 4), (True, 1)):

@@ -9,20 +9,25 @@ orthogonality extracts the final singlet coefficient. The SQLite cache in
 coefficients using Cartan types, Dynkin labels and Adams powers.
 The separate FORM expansion cache stores parsed terms by the raw program text.
 
-For a product gauge group, FORM keeps a separate formal character for each
-simple factor and singlet projection is performed factor by factor.
+NetworkX separates disconnected gauge sectors before expansion. Each sector
+is calculated with FORM/LiE or reused from an optional N=2 theory database
+connection, then the sector indices are multiplied with exact truncation.
+Within a connected product, FORM keeps separate simple-factor characters.
 """
 
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 from fractions import Fraction
 import json
 from pathlib import Path
 import re
 import sqlite3
 import sys
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+import networkx as nx
 
 if not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -50,6 +55,9 @@ from index.form_expansion_cache import (
     FormExpansionCache,
     IndexFormTerm,
 )
+
+if TYPE_CHECKING:
+    from pymysql.connections import Connection
 
 
 # A pair (gauge factor position, highest weight of representation)
@@ -157,6 +165,76 @@ def _character_basis(
     return character_specs, vector_characters, indexed_matter
 
 
+def _split_disconnected_sectors(
+    factors: tuple[GaugeFactorData, ...],
+    hypermultiplets: list[HyperData | ProductHyperData],
+) -> list[tuple[tuple[GaugeFactorData, ...], list[HyperData | ProductHyperData]]]:
+    """Partition charged matter by gauge connectivity; retain one free sector."""
+    graph = nx.Graph()
+    graph.add_nodes_from(factor.factor_id for factor in factors)
+    supported_hypers = []
+    for hyper in hypermultiplets:
+        if not hyper.number:
+            continue
+        if isinstance(hyper, ProductHyperData):
+            support = tuple(factor.factor_id for factor in factors
+                            if any(hyper.representations[factor.factor_id].labels))
+        else:
+            support = (factors[0].factor_id,) if any(hyper.representation.labels) else ()
+        if support:
+            graph.add_edges_from((support[0], other) for other in support[1:])
+        supported_hypers.append((hyper, support))
+
+    # Preserve input factor order both within and between components, matching
+    # the database's existing ordered-factor canonical identity.
+    components = sorted(nx.connected_components(graph),
+                        key=lambda component: min(i for i, factor in enumerate(factors)
+                                                  if factor.factor_id in component))
+    sector_factors = [tuple(factor for factor in factors if factor.factor_id in component)
+                      for component in components]
+    sector_hypers = [[] for _ in components]
+    sector_by_factor = {factor_id: i for i, component in enumerate(components)
+                        for factor_id in component}
+    free_hypers = []
+    for hyper, support in supported_hypers:
+        if not support:
+            if isinstance(hyper, ProductHyperData):
+                hyper = replace(hyper, representations={}, beta_contributions={})
+            else:
+                hyper = ProductHyperData(
+                    name=hyper.representation.name, representations={},
+                    dimension=hyper.representation.dimension, reality=hyper.representation.reality,
+                    number=hyper.number, kind=hyper.kind, beta_contributions={},
+                )
+            free_hypers.append(hyper)
+            continue
+        position = sector_by_factor[support[0]]
+        component = sector_factors[position]
+        if isinstance(hyper, ProductHyperData):
+            if len(component) == 1:
+                factor_id = component[0].factor_id
+                hyper = HyperData(hyper.representations[factor_id], hyper.number,
+                                  hyper.kind, hyper.beta_contributions[factor_id])
+            else:
+                hyper = replace(hyper,
+                                representations={f.factor_id: hyper.representations[f.factor_id]
+                                                 for f in component},
+                                beta_contributions={f.factor_id: hyper.beta_contributions[f.factor_id]
+                                                    for f in component})
+        sector_hypers[position].append(hyper)
+    sectors = list(zip(sector_factors, sector_hypers))
+    if free_hypers:
+        sectors.append(((), free_hypers))
+    return sectors
+
+
+def _truncate_index(polynomial: Any, order: int) -> Any:
+    """Retain exact Laurent coefficients through the inclusive t cutoff."""
+    return INDEX_POLYNOMIAL_RING({powers: coefficient
+                                 for powers, coefficient in polynomial.dict().items()
+                                 if powers[0] <= order})
+
+
 def _build_form_program(
     order: int,
     character_count: int,
@@ -178,7 +256,8 @@ def _build_form_program(
         prefix = "" if multiplicity == 1 else f"{multiplicity}*"
         characters = "".join(f"*C{position}(j)" for position in monomial)
         letter_terms.append(f"{prefix}Khyp(t^j,y^j,u^j){characters}")
-    total_letters = "+".join(letter_terms)
+    total_letters = "+".join(letter_terms) or "0"
+    character_declaration = "d" + (f",{character_names}" if character_names else "")
 
     exponential_steps = ""
     if max_adams >= 2:
@@ -191,7 +270,7 @@ def _build_form_program(
     return f"""#: MaxTermSize 600000
 Off statistics;
 S m,n,y,idx1,idx2,j,z,u,t(:{order});
-CF d,{character_names};
+CF {character_declaration};
 PolyRatFun d;
 Function Kvec,Khyp;
 
@@ -317,21 +396,22 @@ def calculate_index(
     data: dict[str, Any],
     order: int,
     *,
-    cache_directory: str | Path | None = None,
-    database_path: str | Path | None = None,
+    char_cache_database_path: str | Path | None = None,
     form_cache_database_path: str | Path | None = None,
     lie_executable: str = "lie",
     form_executable: str = "form",
     timeout: float = 600,
     processes: int | None = None,
+    theory_db_connection: Connection | None = None,
 ) -> Any:
     """Calculate the exact simple- or product-group index through ``t^order``.
 
     The default SQLite cache is ``char_decomposition_cache.db`` at the
-    project root. Select a file with ``database_path`` or place the default
-    filename in a custom ``cache_directory``; do not supply both.
+    project root. Select another file with ``char_cache_database_path``.
     Parsed FORM expansions use ``form_expansion_cache.db`` in the same
     directory, unless ``form_cache_database_path`` selects another file.
+    ``theory_db_connection`` optionally reuses stored sector indices with
+    sufficient recorded precision; it is separate from the SQLite caches.
     """
     order = as_nonnegative_int(order, "order")
     factors, hypermultiplets = _parse_input(data)
@@ -340,13 +420,13 @@ def calculate_index(
         factors,
         hypermultiplets,
         order,
-        cache_directory=cache_directory,
-        database_path=database_path,
+        char_cache_database_path=char_cache_database_path,
         form_cache_database_path=form_cache_database_path,
         lie_executable=lie_executable,
         form_executable=form_executable,
         timeout=timeout,
         processes=processes,
+        theory_db_connection=theory_db_connection,
     )
 
 
@@ -355,20 +435,76 @@ def calculate_index_internal(
     hypermultiplets: list[HyperData | ProductHyperData],
     order: int,
     *,
-    cache_directory: str | Path | None = None,
-    database_path: str | Path | None = None,
+    char_cache_database_path: str | Path | None = None,
+    form_cache_database_path: str | Path | None = None,
+    lie_executable: str = "lie",
+    form_executable: str = "form",
+    timeout: float = 600,
+    processes: int | None = None,
+    theory_db_connection: Connection | None = None,
+) -> Any:
+    """Multiply indices of disconnected sectors of validated theory data.
+
+    A supplied N=2 MySQL connection is borrowed for read-only sector lookups.
+    Only indices with a known cutoff at least ``order`` are reused; other
+    sectors use FORM/LiE. No sector rows are inserted and the connection is
+    never committed, rolled back or closed here. Pass a connection owned by
+    this process/thread, with the current schema already initialized.
+    """
+    order = as_nonnegative_int(order, "order")
+
+    if order < 2:
+        return _to_sage_polynomial({(0, 0, 0): Fraction(1)})
+
+    result = INDEX_POLYNOMIAL_RING.one()
+    calculated = {}
+    for sector_factors, sector_hypers in _split_disconnected_sectors(factors, hypermultiplets):
+        # Identical sectors in one product need only one lookup/calculation.
+        key = (tuple(f.algebra.cartan_type for f in sector_factors),
+               tuple(sorted(_matter_character_multiplicities(sector_factors, sector_hypers).items())))
+        if key not in calculated:
+            sector_index = None
+            if theory_db_connection is not None and sector_factors:
+                # Import lazily: the database/property APIs also import index.
+                from common.n2_theory_db import find_superconformal_index
+
+                stored = find_superconformal_index(
+                    theory_db_connection, sector_factors, sector_hypers, order=order,
+                )
+                if stored is not None:
+                    try:
+                        sector_index = parse_index_polynomial(stored)
+                        if any(powers[0] < 0 for powers in sector_index.dict()):
+                            sector_index = None
+                    except (TypeError, ValueError):
+                        # Invalid serialized data is not a usable cached index.
+                        sector_index = None
+            if sector_index is None:
+                sector_index = _calculate_sector_index(
+                    sector_factors, sector_hypers, order,
+                    char_cache_database_path=char_cache_database_path,
+                    form_cache_database_path=form_cache_database_path,
+                    lie_executable=lie_executable, form_executable=form_executable,
+                    timeout=timeout, processes=processes,
+                )
+            calculated[key] = _truncate_index(sector_index, order)
+        result = _truncate_index(result * calculated[key], order)
+    return result
+
+
+def _calculate_sector_index(
+    factors: tuple[GaugeFactorData, ...],
+    hypermultiplets: list[HyperData | ProductHyperData],
+    order: int,
+    *,
+    char_cache_database_path: str | Path | None = None,
     form_cache_database_path: str | Path | None = None,
     lie_executable: str = "lie",
     form_executable: str = "form",
     timeout: float = 600,
     processes: int | None = None,
 ) -> Any:
-    """Calculate an index from already validated internal theory data."""
-    order = as_nonnegative_int(order, "order")
-
-    if order < 2:
-        return _to_sage_polynomial({(0, 0, 0): Fraction(1)})
-
+    """Expand and project one complete sector using the existing FORM path."""
     character_specs, vector_characters, matter_multiplicities = _character_basis(
         factors, hypermultiplets
     )
@@ -379,8 +515,7 @@ def calculate_index_internal(
         matter_multiplicities,
     )
     with CharacterDecompositionCache(
-        cache_directory,
-        database_path=database_path,
+        database_path=char_cache_database_path,
         lie_executable=lie_executable,
         timeout=timeout,
         max_workers=processes,
@@ -420,16 +555,10 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         help="largest power of t retained in the index",
     )
-    cache_options = parser.add_mutually_exclusive_group()
-    cache_options.add_argument(
-        "--cache-directory",
+    parser.add_argument(
+        "--char-cache-database",
         type=Path,
-        help="directory containing the character and FORM expansion caches",
-    )
-    cache_options.add_argument(
-        "--cache-database",
-        type=Path,
-        help="SQLite cache file (default: project-root char_decomposition_cache.db)",
+        help="character SQLite cache file (default: project-root char_decomposition_cache.db)",
     )
     parser.add_argument(
         "--form-cache-database",
@@ -447,8 +576,7 @@ def main(argv: list[str] | None = None) -> int:
         result = calculate_index_from_file(
             args.input,
             args.order,
-            cache_directory=args.cache_directory,
-            database_path=args.cache_database,
+            char_cache_database_path=args.char_cache_database,
             form_cache_database_path=args.form_cache_database,
             processes=args.processes,
         )

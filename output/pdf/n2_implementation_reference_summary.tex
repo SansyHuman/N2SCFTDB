@@ -34,7 +34,7 @@
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[L]{\small\sffamily\color{muted}N2SCFTDB / REFERENCE}
-\fancyhead[R]{\small\sffamily\color{muted}14 September 2026}
+\fancyhead[R]{\small\sffamily\color{muted}15 September 2026}
 \fancyfoot[L]{\footnotesize\color{muted}Mathematics \& implementation \enspace | \enspace consolidated edition}
 \fancyfoot[R]{\small\thepage}
 \renewcommand{\headrulewidth}{0.3pt}
@@ -89,7 +89,8 @@ calculation and schema-7 precision rules remain in place.
 \begin{tabularx}{\textwidth}{@{}p{31mm}Y@{}}
 Snapshot & Base reference: 8 September 2026. Database and validation update:
 9 September 2026. Index/cache update: 10 September 2026; \code{04bbe21}.
-Property/database: 12 September. GUI/concurrency: 14 September 2026.\\
+Property/database: 12 September. GUI/concurrency: 14 September.
+Index cache-file arguments: 15 September 2026.\\
 Consolidates & \code{index/n2_theory_index_Mathematical_Background.pdf}\newline
 and the previous \code{output/pdf/n2_implementation_reference_summary.pdf}.\\
 Status & Anomaly GUI, parallel imports, logs and deadlock repair documented;
@@ -614,9 +615,11 @@ retries busy/locked operations. Python's connection context manager controls
 commit/rollback; this class's \code{close()} and context manager also close the
 connection and clear local caches \cite{python-sqlite}.
 
-\code{cache_directory=} selects a directory for the default filename;
-\code{database_path=} selects an explicit file. They are mutually exclusive.
-The CLI exposes \code{--cache-directory} and \code{--cache-database}.
+For \code{CharacterDecompositionCache}, \code{cache_directory=} selects a directory
+for the default filename and \code{database_path=} selects an explicit file;
+they are mutually exclusive. Its builder CLI exposes \code{--cache-directory}
+and \code{--cache-database}. Index calculation instead accepts the single file
+argument \code{char_cache_database_path=} or CLI option \code{--char-cache-database}.
 Legacy JSON discovery/import and \code{cache_path()} have been removed. Existing
 SQLite entries and keys remain valid; the projection update needs no migration.
 

@@ -48,6 +48,7 @@ from index.n2_theory_coulomb_branches import (
     coulomb_branch_spectrum_from_gauge_factors,
 )
 from index.n2_theory_index import calculate_index_internal
+from index.char_decomposition_cache import DEFAULT_CHAR_CACHE_DATABASE
 
 if __package__:
     from .json_utils import json_text
@@ -60,8 +61,7 @@ RepresentationKey = tuple[tuple[str, DynkinLabels], ...]
 
 INDEX_MAX_ORDER = 18
 C_INDEX_MAX_ORDER = 90
-# The cache stores char_decomposition_cache.db inside this directory.
-INDEX_CACHE_DIRECTORY = Path(__file__).resolve().parents[1]
+CHAR_CACHE_DATABASE_PATH = DEFAULT_CHAR_CACHE_DATABASE
 LIE_EXECUTABLE = "lie"
 FORM_EXECUTABLE = "form"
 DEFAULT_TIMEOUT = 600
@@ -344,12 +344,10 @@ def _calculate_superconformal_index(
     factors = _extract_gauge_factors(anomaly_result)
     hypermultiplets = anomaly_result["hypermultiplets"]
     defaults = dict(
-        cache_directory=INDEX_CACHE_DIRECTORY,
+        char_cache_database_path=CHAR_CACHE_DATABASE_PATH,
         lie_executable=LIE_EXECUTABLE, form_executable=FORM_EXECUTABLE,
         timeout=DEFAULT_TIMEOUT, processes=DEFAULT_PROCESS_COUNT,
     )
-    if options.get("database_path") is not None:
-        defaults.pop("cache_directory")
     defaults.update(options)
     return calculate_index_internal(
         factors,

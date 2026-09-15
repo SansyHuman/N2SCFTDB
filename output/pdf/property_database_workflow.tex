@@ -134,8 +134,8 @@ sage -python -m common.n2_theory_db_indices DATABASE --user USER
 sage -python -m common.n2_theory_db_indices DATABASE --user USER \
   --upgrade --index-order 24 --coulomb-max-dimension 100 --limit 10
 \end{lstlisting}
-The worker also accepts \code{--host}, \code{--port}, \code{--unix-socket},
-\code{--connect-timeout}, \code{--cache-directory}, \code{--lie-executable},
+Options include \code{--host}, \code{--port}, \code{--unix-socket},
+\code{--connect-timeout}, \mbox{\code{--char-cache-database}}, \code{--lie-executable},
 \code{--form-executable}, \code{--timeout} and \code{--processes}.
 \code{--limit} bounds visited theory jobs, including reported legacy skips.
 The API \code{fill_lagrangian_indices} yields the same per-theory outcomes.

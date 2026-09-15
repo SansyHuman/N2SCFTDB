@@ -1,6 +1,67 @@
 # N2SCFTDB Project Handoff
 
-Last updated: **2026-09-14 (Asia/Seoul)**.
+Last updated: **2026-09-15 (Asia/Seoul)**.
+
+## Character-cache file argument (15 September 2026)
+
+`calculate_index`, `calculate_index_internal`, and their file wrapper now use
+`char_cache_database_path=None` for the character SQLite database file. This
+replaces both `cache_directory` and `database_path` in the index API. The index
+and database-index worker CLIs use `--char-cache-database`; their old path
+options are removed. The property wrapper's default is
+`CHAR_CACHE_DATABASE_PATH`, initialized from `DEFAULT_CHAR_CACHE_DATABASE`.
+GUI workers pass the existing `cache/character_database` file setting through
+the new keyword. Default files and SQLite data need no migration: the character
+database remains at the project root, and the FORM database defaults beside it.
+The standalone character-cache class and builder keep their own existing API.
+
+Validation: `all_test.sh` passed **355 tests in 60.129 seconds, with no skips**.
+The tests include direct-file/module CLI invocation with custom filenames,
+FORM-cache placement, property defaults/overrides and GUI worker forwarding.
+
+## Disconnected-sector full indices (15 September 2026)
+
+`index.n2_theory_index.calculate_index_internal` and `calculate_index` now
+accept the optional keyword `theory_db_connection=None`, separate from the
+SQLite `char_cache_database_path` and `form_cache_database_path` options. NetworkX builds
+gauge connectivity from nontrivial hypermultiplet representations. Nonzero
+multifundamentals join every charged factor; zero multiplicities are ignored.
+Each connected component gets its own gauge factors and restricted hyper data.
+All-gauge-singlet hypers form a separate free sector and contribute once.
+
+The read-only `common.n2_theory_db.find_superconformal_index` helper uses the
+existing canonical Lagrangian hash and accepts only a stored string index with
+known `superconformal_index_order >= order`. Missing, JSON-null and unknown or
+lower-precision results are misses. Factor IDs are ignored by this identity,
+but the existing factor-order dependence remains; no hashes/schema are migrated.
+Malformed polynomial strings or negative t degrees also trigger recalculation.
+Free sectors have no stored gauge realization and use FORM directly.
+
+Misses use the existing FORM/character-cache/singlet-projection implementation.
+Identical sectors within one call reuse one calculated polynomial. Every sector
+and intermediate product is truncated to the inclusive t cutoff using exact
+Laurent coefficients. Output remains a flat `t,y,u` Laurent polynomial.
+No new sector rows or sector indices are written. The borrowed connection is
+never committed, rolled back or closed by index calculation. The database/GUI
+worker passes its own connection through the property API, so reuse is enabled
+without transferring a connection between processes. See
+`test/test_disconnected_index.py` for algebraic and live MySQL regressions.
+
+Validation: `all_test.sh` passed **353 tests in 58.615 seconds, with no skips**,
+using the existing database-scoped test account, Sage/FORM/LiE and offscreen Qt.
+This includes 14 new sector tests and the existing worker contention checks.
+The previously slow theory 9780 (`SU(3) x SU(3)`, symmetric plus fundamental
+matter on each factor) now completes through `t^18` in **13.753 seconds** with
+one sector calculation and exact agreement with all 168 saved combined-index
+monomials. This run used a private copied character cache, an empty FORM cache,
+one process and no MySQL connection; see
+`output/benchmarks/disconnected_sectors_20260915.json`.
+
+The test-only `PROCESS` permission issue reported on 15 September was also
+fixed: concurrency tests now observe their own connections' rollbacks,
+including successful lock retries, instead of querying server-wide InnoDB
+metrics. The preceding complete run passed 339 tests with the database-scoped
+`n2_test` account. No global privilege grant is needed.
 
 ## Index GUI calculation (14 September 2026)
 
@@ -230,6 +291,7 @@ caches, logs and bytecode are not source changes.
 The active implementation requires:
 
 - SageMath; the code was developed with SageMath 10.7.
+- NetworkX for disconnected gauge-sector partitioning (3.6.1 in the Sage environment).
 - FORM, available as the `form` executable.
 - LiE, available as the `lie` executable.
 - PyMySQL and a MySQL server for database operations.
@@ -678,8 +740,8 @@ The default is project-root `form_expansion_cache.db`, from
 not set `user_version`. `calculate_index` and `calculate_index_internal` accept
 `form_cache_database_path=`; the CLI accepts `--form-cache-database`. By default
 this database follows the actual character database directory. Thus
-`--cache-directory /path` places both default files there, and an explicit
-`--cache-database /path/characters.db` puts the default FORM file beside it.
+`--char-cache-database /path/characters.db` selects the character database
+file and puts the default FORM file beside it.
 A FORM hit avoids execution and parsing but still performs singlet projection
 and polynomial construction. Orders below two return the vacuum without
 external execution or cache access.
@@ -764,9 +826,11 @@ concurrent clients. LiE never runs inside a write transaction. Context-manager
 use closes connections explicitly. The full-decomposition API remains available;
 singlet requests now use the optimized projection described below.
 
-Existing `cache_directory=` arguments still work, selecting the directory for
-the default database filename. New `database_path=` selects a file, and the CLI
-adds `--cache-database`. These options are mutually exclusive. Cache lookup
+`CharacterDecompositionCache` and its builder retain `cache_directory=` for
+a directory and `database_path=` for a file; the builder CLI retains
+`--cache-directory` and `--cache-database`. These are mutually exclusive.
+Index calculation instead uses only `char_cache_database_path=` and
+`--char-cache-database`, both selecting a file. Cache lookup
 uses memory and SQLite only; missing entries use LiE decompositions and exact
 singlet pairing as needed. Legacy
 JSON import, directory discovery and the `cache_path()` compatibility wrapper
@@ -985,7 +1049,7 @@ CLI example:
 sage -python index/n2_theory_index.py \
   anomalies/example_a1.json \
   --order 18 \
-  --cache-database char_decomposition_cache.db \
+  --char-cache-database char_decomposition_cache.db \
   --form-cache-database form_expansion_cache.db
 ```
 
@@ -1293,7 +1357,7 @@ sage -python common/n2_theory_db_indices.py database_name --user database_user \
   --upgrade --index-order 24 --coulomb-max-dimension 100 --limit 10
 ```
 
-The worker accepts host/port/socket options, `--cache-directory`, executable
+The worker accepts host/port/socket options, `--char-cache-database`, executable
 paths, `--timeout`, and `--processes`. It emits JSON outcomes and a summary;
 exit 0 means no component errors, 1 means component failures, and 2 means a
 configuration/database-level error. `fill_lagrangian_indices` exposes the same

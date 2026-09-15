@@ -202,8 +202,9 @@ enumerates solutions and checks keys even though it runs no LiE or worker pool.
 Use the prepared character database and a shared FORM database for index calls:
 \begin{lstlisting}[language=bash]
 sage -python -m index.n2_theory_index theory.json --order 18 \
-  --cache-database /tmp/index-demo/char_decomposition_cache.db \
+  --char-cache-database /tmp/index-demo/char_decomposition_cache.db \
   --form-cache-database /tmp/index-demo/form_expansion_cache.db
 \end{lstlisting}
 Without the last option, the FORM database defaults to that same directory.
-The corresponding index Python keyword is \code{form_cache_database_path=}.
+The corresponding index Python keywords are \code{char_cache_database_path=}
+and \code{form_cache_database_path=}.
