@@ -1,0 +1,310 @@
+{
+  "case": "12526",
+  "order": 12,
+  "variant": "degree_bounded",
+  "input": {
+    "gauge_groups": [
+      {
+        "id": "gauge_1",
+        "algebra": "A10"
+      },
+      {
+        "id": "gauge_2",
+        "algebra": "A10"
+      }
+    ],
+    "hypermultiplets": [
+      {
+        "kind": "full",
+        "number": 1,
+        "representations": {
+          "gauge_1": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "gauge_2": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "kind": "full",
+        "number": 2,
+        "representations": {
+          "gauge_1": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "gauge_2": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "kind": "full",
+        "number": 11,
+        "representations": {
+          "gauge_1": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "gauge_2": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "kind": "full",
+        "number": 1,
+        "representations": {
+          "gauge_1": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "gauge_2": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    ]
+  },
+  "formal_characters": 8,
+  "vector_characters": 2,
+  "matter_monomials": 8,
+  "max_matter_support": 2,
+  "raw_program_sha256": "b08fe6df493893e1f23a2e8543cff6a4da9be978338dd51378726562ca7e7c96",
+  "form_seconds": 0.8279173219998484,
+  "form_cpu_seconds": 0.814615,
+  "peak_rss_kib": 42364,
+  "peak_scratch_bytes": 0,
+  "stdout_bytes": 2768959,
+  "timed_out": false,
+  "returncode": 0,
+  "last_output_terms": 56842,
+  "modules": [
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": null,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": null,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 324,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": null,
+      "bytes": 19140
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": null,
+      "bytes": 900
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": null,
+      "bytes": 20644
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 282,
+      "expression": "I",
+      "output_terms": 282,
+      "step": null,
+      "bytes": 20580
+    },
+    {
+      "cpu_seconds": 0.02,
+      "generated_terms": 12450,
+      "expression": "I",
+      "output_terms": 4078,
+      "step": 2,
+      "bytes": 301108
+    },
+    {
+      "cpu_seconds": 0.14,
+      "generated_terms": 62206,
+      "expression": "I",
+      "output_terms": 16892,
+      "step": 3,
+      "bytes": 1264544
+    },
+    {
+      "cpu_seconds": 0.35,
+      "generated_terms": 111936,
+      "expression": "I",
+      "output_terms": 36957,
+      "step": 4,
+      "bytes": 2805544
+    },
+    {
+      "cpu_seconds": 0.53,
+      "generated_terms": 106201,
+      "expression": "I",
+      "output_terms": 52161,
+      "step": 5,
+      "bytes": 3952828
+    },
+    {
+      "cpu_seconds": 0.61,
+      "generated_terms": 71631,
+      "expression": "I",
+      "output_terms": 56894,
+      "step": 6,
+      "bytes": 4270168
+    },
+    {
+      "cpu_seconds": 0.61,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": null,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 0.61,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": null,
+      "bytes": 19140
+    },
+    {
+      "cpu_seconds": 0.63,
+      "generated_terms": 56894,
+      "expression": "I",
+      "output_terms": 56841,
+      "step": null,
+      "bytes": 4223944
+    },
+    {
+      "cpu_seconds": 0.67,
+      "generated_terms": 56895,
+      "expression": "result",
+      "output_terms": 56842,
+      "step": null,
+      "bytes": 4223988
+    },
+    {
+      "cpu_seconds": 0.67,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": null,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 0.67,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": null,
+      "bytes": 19140
+    },
+    {
+      "cpu_seconds": 0.69,
+      "generated_terms": 56841,
+      "expression": "I",
+      "output_terms": 56841,
+      "step": null,
+      "bytes": 4223944
+    },
+    {
+      "cpu_seconds": 0.71,
+      "generated_terms": 56842,
+      "expression": "result",
+      "output_terms": 56842,
+      "step": null,
+      "bytes": 4223988
+    }
+  ],
+  "formal_result_sha256": "3471d04ef80efbaae3b30bf44e2f68125fd55ae7ce57a25b2ae32efd0542ae62",
+  "parse_seconds": 0.8049145859986311,
+  "expansion_terms": 56842,
+  "structures": 23017
+}

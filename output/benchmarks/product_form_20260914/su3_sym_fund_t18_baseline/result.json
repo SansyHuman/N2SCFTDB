@@ -1,0 +1,1507 @@
+{
+  "case": "su3_sym_fund",
+  "order": 18,
+  "variant": "baseline",
+  "input": {
+    "algebra": "A2",
+    "hypermultiplets": [
+      {
+        "representation": "fundamental",
+        "kind": "full",
+        "number": 1
+      },
+      {
+        "representation": "symmetric",
+        "kind": "full",
+        "number": 1
+      }
+    ]
+  },
+  "formal_characters": 5,
+  "vector_characters": 1,
+  "matter_monomials": 4,
+  "max_matter_support": 1,
+  "raw_program_sha256": "a94ff12eb0213cdbc3b386f0e5a27c9c3f8fbb564450642344e7c802da94995d",
+  "form_seconds": 11.366043903999525,
+  "form_cpu_seconds": 11.339125000000001,
+  "peak_rss_kib": 78912,
+  "peak_scratch_bytes": 0,
+  "stdout_bytes": 5476802,
+  "timed_out": false,
+  "returncode": 0,
+  "last_output_terms": 113831,
+  "parse_seconds": 1.3926909290003096,
+  "expansion_terms": 113831,
+  "structures": 26532,
+  "projection_seconds": 0.9253251860009186,
+  "index_terms": 145,
+  "coefficients": [
+    [
+      [
+        0,
+        0,
+        0
+      ],
+      "1"
+    ],
+    [
+      [
+        4,
+        0,
+        -2
+      ],
+      "2"
+    ],
+    [
+      [
+        4,
+        0,
+        4
+      ],
+      "1"
+    ],
+    [
+      [
+        5,
+        -1,
+        2
+      ],
+      "-1"
+    ],
+    [
+      [
+        5,
+        1,
+        2
+      ],
+      "-1"
+    ],
+    [
+      [
+        6,
+        0,
+        -3
+      ],
+      "4"
+    ],
+    [
+      [
+        6,
+        0,
+        6
+      ],
+      "1"
+    ],
+    [
+      [
+        7,
+        -1,
+        -2
+      ],
+      "1"
+    ],
+    [
+      [
+        7,
+        1,
+        -2
+      ],
+      "1"
+    ],
+    [
+      [
+        8,
+        -2,
+        2
+      ],
+      "-1"
+    ],
+    [
+      [
+        8,
+        0,
+        -4
+      ],
+      "3"
+    ],
+    [
+      [
+        8,
+        0,
+        -1
+      ],
+      "-2"
+    ],
+    [
+      [
+        8,
+        0,
+        8
+      ],
+      "1"
+    ],
+    [
+      [
+        8,
+        2,
+        2
+      ],
+      "-1"
+    ],
+    [
+      [
+        9,
+        -1,
+        -3
+      ],
+      "2"
+    ],
+    [
+      [
+        9,
+        -1,
+        0
+      ],
+      "-1"
+    ],
+    [
+      [
+        9,
+        1,
+        -3
+      ],
+      "2"
+    ],
+    [
+      [
+        9,
+        1,
+        0
+      ],
+      "-1"
+    ],
+    [
+      [
+        10,
+        -2,
+        -2
+      ],
+      "1"
+    ],
+    [
+      [
+        10,
+        0,
+        -5
+      ],
+      "6"
+    ],
+    [
+      [
+        10,
+        0,
+        -2
+      ],
+      "-1"
+    ],
+    [
+      [
+        10,
+        0,
+        10
+      ],
+      "1"
+    ],
+    [
+      [
+        10,
+        2,
+        -2
+      ],
+      "1"
+    ],
+    [
+      [
+        11,
+        -3,
+        2
+      ],
+      "-1"
+    ],
+    [
+      [
+        11,
+        -1,
+        -4
+      ],
+      "3"
+    ],
+    [
+      [
+        11,
+        -1,
+        -1
+      ],
+      "-2"
+    ],
+    [
+      [
+        11,
+        -1,
+        2
+      ],
+      "3"
+    ],
+    [
+      [
+        11,
+        -1,
+        8
+      ],
+      "-1"
+    ],
+    [
+      [
+        11,
+        1,
+        -4
+      ],
+      "3"
+    ],
+    [
+      [
+        11,
+        1,
+        -1
+      ],
+      "-2"
+    ],
+    [
+      [
+        11,
+        1,
+        2
+      ],
+      "3"
+    ],
+    [
+      [
+        11,
+        1,
+        8
+      ],
+      "-1"
+    ],
+    [
+      [
+        11,
+        3,
+        2
+      ],
+      "-1"
+    ],
+    [
+      [
+        12,
+        -2,
+        -3
+      ],
+      "2"
+    ],
+    [
+      [
+        12,
+        -2,
+        0
+      ],
+      "-4"
+    ],
+    [
+      [
+        12,
+        0,
+        -6
+      ],
+      "10"
+    ],
+    [
+      [
+        12,
+        0,
+        -3
+      ],
+      "-8"
+    ],
+    [
+      [
+        12,
+        0,
+        0
+      ],
+      "-9"
+    ],
+    [
+      [
+        12,
+        0,
+        12
+      ],
+      "2"
+    ],
+    [
+      [
+        12,
+        2,
+        -3
+      ],
+      "2"
+    ],
+    [
+      [
+        12,
+        2,
+        0
+      ],
+      "-4"
+    ],
+    [
+      [
+        13,
+        -3,
+        -2
+      ],
+      "1"
+    ],
+    [
+      [
+        13,
+        -3,
+        4
+      ],
+      "1"
+    ],
+    [
+      [
+        13,
+        -1,
+        -5
+      ],
+      "10"
+    ],
+    [
+      [
+        13,
+        -1,
+        -2
+      ],
+      "3"
+    ],
+    [
+      [
+        13,
+        -1,
+        1
+      ],
+      "4"
+    ],
+    [
+      [
+        13,
+        -1,
+        4
+      ],
+      "3"
+    ],
+    [
+      [
+        13,
+        1,
+        -5
+      ],
+      "10"
+    ],
+    [
+      [
+        13,
+        1,
+        -2
+      ],
+      "3"
+    ],
+    [
+      [
+        13,
+        1,
+        1
+      ],
+      "4"
+    ],
+    [
+      [
+        13,
+        1,
+        4
+      ],
+      "3"
+    ],
+    [
+      [
+        13,
+        3,
+        -2
+      ],
+      "1"
+    ],
+    [
+      [
+        13,
+        3,
+        4
+      ],
+      "1"
+    ],
+    [
+      [
+        14,
+        -4,
+        2
+      ],
+      "-1"
+    ],
+    [
+      [
+        14,
+        -2,
+        -4
+      ],
+      "3"
+    ],
+    [
+      [
+        14,
+        -2,
+        -1
+      ],
+      "-6"
+    ],
+    [
+      [
+        14,
+        -2,
+        2
+      ],
+      "1"
+    ],
+    [
+      [
+        14,
+        -2,
+        8
+      ],
+      "-2"
+    ],
+    [
+      [
+        14,
+        0,
+        -7
+      ],
+      "8"
+    ],
+    [
+      [
+        14,
+        0,
+        -4
+      ],
+      "-8"
+    ],
+    [
+      [
+        14,
+        0,
+        -1
+      ],
+      "-8"
+    ],
+    [
+      [
+        14,
+        0,
+        2
+      ],
+      "1"
+    ],
+    [
+      [
+        14,
+        0,
+        8
+      ],
+      "-3"
+    ],
+    [
+      [
+        14,
+        0,
+        14
+      ],
+      "1"
+    ],
+    [
+      [
+        14,
+        2,
+        -4
+      ],
+      "3"
+    ],
+    [
+      [
+        14,
+        2,
+        -1
+      ],
+      "-6"
+    ],
+    [
+      [
+        14,
+        2,
+        2
+      ],
+      "1"
+    ],
+    [
+      [
+        14,
+        2,
+        8
+      ],
+      "-2"
+    ],
+    [
+      [
+        14,
+        4,
+        2
+      ],
+      "-1"
+    ],
+    [
+      [
+        15,
+        -3,
+        -3
+      ],
+      "2"
+    ],
+    [
+      [
+        15,
+        -3,
+        0
+      ],
+      "-4"
+    ],
+    [
+      [
+        15,
+        -1,
+        -6
+      ],
+      "10"
+    ],
+    [
+      [
+        15,
+        -1,
+        -3
+      ],
+      "-6"
+    ],
+    [
+      [
+        15,
+        -1,
+        0
+      ],
+      "-8"
+    ],
+    [
+      [
+        15,
+        -1,
+        6
+      ],
+      "2"
+    ],
+    [
+      [
+        15,
+        1,
+        -6
+      ],
+      "10"
+    ],
+    [
+      [
+        15,
+        1,
+        -3
+      ],
+      "-6"
+    ],
+    [
+      [
+        15,
+        1,
+        0
+      ],
+      "-8"
+    ],
+    [
+      [
+        15,
+        1,
+        6
+      ],
+      "2"
+    ],
+    [
+      [
+        15,
+        3,
+        -3
+      ],
+      "2"
+    ],
+    [
+      [
+        15,
+        3,
+        0
+      ],
+      "-4"
+    ],
+    [
+      [
+        16,
+        -4,
+        -2
+      ],
+      "1"
+    ],
+    [
+      [
+        16,
+        -4,
+        4
+      ],
+      "1"
+    ],
+    [
+      [
+        16,
+        -2,
+        -5
+      ],
+      "10"
+    ],
+    [
+      [
+        16,
+        -2,
+        -2
+      ],
+      "1"
+    ],
+    [
+      [
+        16,
+        -2,
+        1
+      ],
+      "6"
+    ],
+    [
+      [
+        16,
+        -2,
+        4
+      ],
+      "4"
+    ],
+    [
+      [
+        16,
+        0,
+        -8
+      ],
+      "13"
+    ],
+    [
+      [
+        16,
+        0,
+        -5
+      ],
+      "-2"
+    ],
+    [
+      [
+        16,
+        0,
+        -2
+      ],
+      "6"
+    ],
+    [
+      [
+        16,
+        0,
+        1
+      ],
+      "12"
+    ],
+    [
+      [
+        16,
+        0,
+        4
+      ],
+      "7"
+    ],
+    [
+      [
+        16,
+        0,
+        10
+      ],
+      "2"
+    ],
+    [
+      [
+        16,
+        0,
+        16
+      ],
+      "2"
+    ],
+    [
+      [
+        16,
+        2,
+        -5
+      ],
+      "10"
+    ],
+    [
+      [
+        16,
+        2,
+        -2
+      ],
+      "1"
+    ],
+    [
+      [
+        16,
+        2,
+        1
+      ],
+      "6"
+    ],
+    [
+      [
+        16,
+        2,
+        4
+      ],
+      "4"
+    ],
+    [
+      [
+        16,
+        4,
+        -2
+      ],
+      "1"
+    ],
+    [
+      [
+        16,
+        4,
+        4
+      ],
+      "1"
+    ],
+    [
+      [
+        17,
+        -5,
+        2
+      ],
+      "-1"
+    ],
+    [
+      [
+        17,
+        -3,
+        -4
+      ],
+      "3"
+    ],
+    [
+      [
+        17,
+        -3,
+        -1
+      ],
+      "-8"
+    ],
+    [
+      [
+        17,
+        -3,
+        2
+      ],
+      "1"
+    ],
+    [
+      [
+        17,
+        -3,
+        8
+      ],
+      "-2"
+    ],
+    [
+      [
+        17,
+        -1,
+        -7
+      ],
+      "14"
+    ],
+    [
+      [
+        17,
+        -1,
+        -4
+      ],
+      "-18"
+    ],
+    [
+      [
+        17,
+        -1,
+        -1
+      ],
+      "-18"
+    ],
+    [
+      [
+        17,
+        -1,
+        2
+      ],
+      "-13"
+    ],
+    [
+      [
+        17,
+        -1,
+        5
+      ],
+      "-2"
+    ],
+    [
+      [
+        17,
+        -1,
+        8
+      ],
+      "-4"
+    ],
+    [
+      [
+        17,
+        -1,
+        14
+      ],
+      "-1"
+    ],
+    [
+      [
+        17,
+        1,
+        -7
+      ],
+      "14"
+    ],
+    [
+      [
+        17,
+        1,
+        -4
+      ],
+      "-18"
+    ],
+    [
+      [
+        17,
+        1,
+        -1
+      ],
+      "-18"
+    ],
+    [
+      [
+        17,
+        1,
+        2
+      ],
+      "-13"
+    ],
+    [
+      [
+        17,
+        1,
+        5
+      ],
+      "-2"
+    ],
+    [
+      [
+        17,
+        1,
+        8
+      ],
+      "-4"
+    ],
+    [
+      [
+        17,
+        1,
+        14
+      ],
+      "-1"
+    ],
+    [
+      [
+        17,
+        3,
+        -4
+      ],
+      "3"
+    ],
+    [
+      [
+        17,
+        3,
+        -1
+      ],
+      "-8"
+    ],
+    [
+      [
+        17,
+        3,
+        2
+      ],
+      "1"
+    ],
+    [
+      [
+        17,
+        3,
+        8
+      ],
+      "-2"
+    ],
+    [
+      [
+        17,
+        5,
+        2
+      ],
+      "-1"
+    ],
+    [
+      [
+        18,
+        -4,
+        -3
+      ],
+      "2"
+    ],
+    [
+      [
+        18,
+        -4,
+        0
+      ],
+      "-5"
+    ],
+    [
+      [
+        18,
+        -2,
+        -6
+      ],
+      "18"
+    ],
+    [
+      [
+        18,
+        -2,
+        -3
+      ],
+      "-6"
+    ],
+    [
+      [
+        18,
+        -2,
+        0
+      ],
+      "12"
+    ],
+    [
+      [
+        18,
+        -2,
+        3
+      ],
+      "4"
+    ],
+    [
+      [
+        18,
+        -2,
+        6
+      ],
+      "3"
+    ],
+    [
+      [
+        18,
+        0,
+        -9
+      ],
+      "18"
+    ],
+    [
+      [
+        18,
+        0,
+        -3
+      ],
+      "8"
+    ],
+    [
+      [
+        18,
+        0,
+        0
+      ],
+      "36"
+    ],
+    [
+      [
+        18,
+        0,
+        3
+      ],
+      "8"
+    ],
+    [
+      [
+        18,
+        0,
+        6
+      ],
+      "7"
+    ],
+    [
+      [
+        18,
+        0,
+        12
+      ],
+      "-2"
+    ],
+    [
+      [
+        18,
+        0,
+        18
+      ],
+      "2"
+    ],
+    [
+      [
+        18,
+        2,
+        -6
+      ],
+      "18"
+    ],
+    [
+      [
+        18,
+        2,
+        -3
+      ],
+      "-6"
+    ],
+    [
+      [
+        18,
+        2,
+        0
+      ],
+      "12"
+    ],
+    [
+      [
+        18,
+        2,
+        3
+      ],
+      "4"
+    ],
+    [
+      [
+        18,
+        2,
+        6
+      ],
+      "3"
+    ],
+    [
+      [
+        18,
+        4,
+        -3
+      ],
+      "2"
+    ],
+    [
+      [
+        18,
+        4,
+        0
+      ],
+      "-5"
+    ]
+  ],
+  "modules": [
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": null,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": null,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 365,
+      "expression": "itotal",
+      "output_terms": 308,
+      "step": null,
+      "bytes": 19812
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": 2,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 308,
+      "expression": "itotal",
+      "output_terms": 308,
+      "step": 2,
+      "bytes": 19812
+    },
+    {
+      "cpu_seconds": 0.04,
+      "generated_terms": 16321,
+      "expression": "I",
+      "output_terms": 4468,
+      "step": 2,
+      "bytes": 302816
+    },
+    {
+      "cpu_seconds": 0.04,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": 3,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 0.04,
+      "generated_terms": 308,
+      "expression": "itotal",
+      "output_terms": 308,
+      "step": 3,
+      "bytes": 19812
+    },
+    {
+      "cpu_seconds": 0.42,
+      "generated_terms": 92485,
+      "expression": "I",
+      "output_terms": 19761,
+      "step": 3,
+      "bytes": 1347640
+    },
+    {
+      "cpu_seconds": 0.42,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": 4,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 0.42,
+      "generated_terms": 308,
+      "expression": "itotal",
+      "output_terms": 308,
+      "step": 4,
+      "bytes": 19812
+    },
+    {
+      "cpu_seconds": 1.77,
+      "generated_terms": 194038,
+      "expression": "I",
+      "output_terms": 46601,
+      "step": 4,
+      "bytes": 3212012
+    },
+    {
+      "cpu_seconds": 1.77,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": 5,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 1.77,
+      "generated_terms": 308,
+      "expression": "itotal",
+      "output_terms": 308,
+      "step": 5,
+      "bytes": 19812
+    },
+    {
+      "cpu_seconds": 4.21,
+      "generated_terms": 235941,
+      "expression": "I",
+      "output_terms": 75836,
+      "step": 5,
+      "bytes": 5255408
+    },
+    {
+      "cpu_seconds": 4.21,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": 6,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 4.22,
+      "generated_terms": 308,
+      "expression": "itotal",
+      "output_terms": 308,
+      "step": 6,
+      "bytes": 19812
+    },
+    {
+      "cpu_seconds": 7.15,
+      "generated_terms": 207575,
+      "expression": "I",
+      "output_terms": 97710,
+      "step": 6,
+      "bytes": 6789208
+    },
+    {
+      "cpu_seconds": 7.15,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": 7,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 7.15,
+      "generated_terms": 308,
+      "expression": "itotal",
+      "output_terms": 308,
+      "step": 7,
+      "bytes": 19812
+    },
+    {
+      "cpu_seconds": 9.3,
+      "generated_terms": 158424,
+      "expression": "I",
+      "output_terms": 109150,
+      "step": 7,
+      "bytes": 7589488
+    },
+    {
+      "cpu_seconds": 9.3,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": 8,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 9.3,
+      "generated_terms": 308,
+      "expression": "itotal",
+      "output_terms": 308,
+      "step": 8,
+      "bytes": 19812
+    },
+    {
+      "cpu_seconds": 10.48,
+      "generated_terms": 126625,
+      "expression": "I",
+      "output_terms": 113115,
+      "step": 8,
+      "bytes": 7859484
+    },
+    {
+      "cpu_seconds": 10.48,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": 9,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 10.48,
+      "generated_terms": 308,
+      "expression": "itotal",
+      "output_terms": 308,
+      "step": 9,
+      "bytes": 19812
+    },
+    {
+      "cpu_seconds": 10.92,
+      "generated_terms": 115590,
+      "expression": "I",
+      "output_terms": 113830,
+      "step": 9,
+      "bytes": 7903560
+    },
+    {
+      "cpu_seconds": 10.92,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": null,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 10.93,
+      "generated_terms": 308,
+      "expression": "itotal",
+      "output_terms": 308,
+      "step": null,
+      "bytes": 19812
+    },
+    {
+      "cpu_seconds": 10.96,
+      "generated_terms": 113830,
+      "expression": "I",
+      "output_terms": 113830,
+      "step": null,
+      "bytes": 7903560
+    },
+    {
+      "cpu_seconds": 10.96,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": null,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 10.96,
+      "generated_terms": 308,
+      "expression": "itotal",
+      "output_terms": 308,
+      "step": null,
+      "bytes": 19812
+    },
+    {
+      "cpu_seconds": 11.0,
+      "generated_terms": 113830,
+      "expression": "I",
+      "output_terms": 113830,
+      "step": null,
+      "bytes": 7897840
+    },
+    {
+      "cpu_seconds": 11.07,
+      "generated_terms": 113831,
+      "expression": "result",
+      "output_terms": 113831,
+      "step": null,
+      "bytes": 7897884
+    },
+    {
+      "cpu_seconds": 11.07,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": null,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 11.07,
+      "generated_terms": 308,
+      "expression": "itotal",
+      "output_terms": 308,
+      "step": null,
+      "bytes": 19812
+    },
+    {
+      "cpu_seconds": 11.11,
+      "generated_terms": 113830,
+      "expression": "I",
+      "output_terms": 113830,
+      "step": null,
+      "bytes": 7897840
+    },
+    {
+      "cpu_seconds": 11.15,
+      "generated_terms": 113831,
+      "expression": "result",
+      "output_terms": 113831,
+      "step": null,
+      "bytes": 7897884
+    }
+  ],
+  "formal_result_sha256": "e5bc2a87ba2c1d9a98ef253f4bf5a995267095080a51131698680892db8de350"
+}

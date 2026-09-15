@@ -26,6 +26,22 @@ QT_QPA_PLATFORM=offscreen PYTHONDONTWRITEBYTECODE=1 sage -python -B \
   test.test_gui_logging_utils -v
 ```
 
+For the index calculation workers and database write regressions:
+
+```bash
+QT_QPA_PLATFORM=offscreen PYTHONDONTWRITEBYTECODE=1 sage -python -B \
+  -m unittest test.test_gui_index_calculator test.test_n2_theory_db_indices -v
+```
+
+With a disposable MySQL database configured, these cover real Sage/FORM/LiE
+calculations, simple/product groups, exact cutoffs, custom shared cache files,
+stale selections, partial retries, cooperative stop and worker connection cleanup.
+They also exercise the actual GUI-to-Sage process protocol, a 256-theory run
+with eight index workers, and parent-row contention while checking InnoDB's
+`lock_deadlocks` metric. Access to `information_schema.INNODB_METRICS` and
+`PROCESSLIST` is needed for the concurrency/cleanup assertions. The normal suite
+also checks bounded scheduling and a real abrupt worker exit without MySQL.
+
 These tests use temporary settings and fixture credentials. The opt-in real
 Secret Service check remains separate from unittest discovery:
 

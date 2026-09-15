@@ -1,0 +1,234 @@
+[
+  {
+    "cpu_seconds": 0.0,
+    "generated_terms": 15,
+    "expression": "J",
+    "output_terms": 15,
+    "step": null,
+    "bytes": 864
+  },
+  {
+    "cpu_seconds": 0.0,
+    "generated_terms": 15,
+    "expression": "J",
+    "output_terms": 15,
+    "step": null,
+    "bytes": 864
+  },
+  {
+    "cpu_seconds": 0.0,
+    "generated_terms": 324,
+    "expression": "itotal",
+    "output_terms": 282,
+    "step": null,
+    "bytes": 19140
+  },
+  {
+    "cpu_seconds": 0.0,
+    "generated_terms": 15,
+    "expression": "J",
+    "output_terms": 15,
+    "step": 2,
+    "bytes": 864
+  },
+  {
+    "cpu_seconds": 0.0,
+    "generated_terms": 282,
+    "expression": "itotal",
+    "output_terms": 282,
+    "step": 2,
+    "bytes": 19140
+  },
+  {
+    "cpu_seconds": 0.03,
+    "generated_terms": 12450,
+    "expression": "I",
+    "output_terms": 4078,
+    "step": 2,
+    "bytes": 301108
+  },
+  {
+    "cpu_seconds": 0.03,
+    "generated_terms": 15,
+    "expression": "J",
+    "output_terms": 15,
+    "step": 3,
+    "bytes": 864
+  },
+  {
+    "cpu_seconds": 0.03,
+    "generated_terms": 282,
+    "expression": "itotal",
+    "output_terms": 282,
+    "step": 3,
+    "bytes": 19140
+  },
+  {
+    "cpu_seconds": 0.36,
+    "generated_terms": 62206,
+    "expression": "I",
+    "output_terms": 16892,
+    "step": 3,
+    "bytes": 1264544
+  },
+  {
+    "cpu_seconds": 0.36,
+    "generated_terms": 15,
+    "expression": "J",
+    "output_terms": 15,
+    "step": 4,
+    "bytes": 864
+  },
+  {
+    "cpu_seconds": 0.36,
+    "generated_terms": 282,
+    "expression": "itotal",
+    "output_terms": 282,
+    "step": 4,
+    "bytes": 19140
+  },
+  {
+    "cpu_seconds": 1.47,
+    "generated_terms": 111936,
+    "expression": "I",
+    "output_terms": 36957,
+    "step": 4,
+    "bytes": 2805544
+  },
+  {
+    "cpu_seconds": 1.47,
+    "generated_terms": 15,
+    "expression": "J",
+    "output_terms": 15,
+    "step": 5,
+    "bytes": 864
+  },
+  {
+    "cpu_seconds": 1.47,
+    "generated_terms": 282,
+    "expression": "itotal",
+    "output_terms": 282,
+    "step": 5,
+    "bytes": 19140
+  },
+  {
+    "cpu_seconds": 3.24,
+    "generated_terms": 106201,
+    "expression": "I",
+    "output_terms": 52161,
+    "step": 5,
+    "bytes": 3952828
+  },
+  {
+    "cpu_seconds": 3.24,
+    "generated_terms": 15,
+    "expression": "J",
+    "output_terms": 15,
+    "step": 6,
+    "bytes": 864
+  },
+  {
+    "cpu_seconds": 3.24,
+    "generated_terms": 282,
+    "expression": "itotal",
+    "output_terms": 282,
+    "step": 6,
+    "bytes": 19140
+  },
+  {
+    "cpu_seconds": 4.64,
+    "generated_terms": 71631,
+    "expression": "I",
+    "output_terms": 56894,
+    "step": 6,
+    "bytes": 4270168
+  },
+  {
+    "cpu_seconds": 4.64,
+    "generated_terms": 15,
+    "expression": "J",
+    "output_terms": 15,
+    "step": null,
+    "bytes": 864
+  },
+  {
+    "cpu_seconds": 4.64,
+    "generated_terms": 282,
+    "expression": "itotal",
+    "output_terms": 282,
+    "step": null,
+    "bytes": 19140
+  },
+  {
+    "cpu_seconds": 4.66,
+    "generated_terms": 56894,
+    "expression": "I",
+    "output_terms": 56894,
+    "step": null,
+    "bytes": 4270168
+  },
+  {
+    "cpu_seconds": 4.66,
+    "generated_terms": 15,
+    "expression": "J",
+    "output_terms": 15,
+    "step": null,
+    "bytes": 864
+  },
+  {
+    "cpu_seconds": 4.66,
+    "generated_terms": 282,
+    "expression": "itotal",
+    "output_terms": 282,
+    "step": null,
+    "bytes": 19140
+  },
+  {
+    "cpu_seconds": 4.68,
+    "generated_terms": 56894,
+    "expression": "I",
+    "output_terms": 56841,
+    "step": null,
+    "bytes": 4223944
+  },
+  {
+    "cpu_seconds": 4.72,
+    "generated_terms": 56895,
+    "expression": "result",
+    "output_terms": 56842,
+    "step": null,
+    "bytes": 4223988
+  },
+  {
+    "cpu_seconds": 4.72,
+    "generated_terms": 15,
+    "expression": "J",
+    "output_terms": 15,
+    "step": null,
+    "bytes": 864
+  },
+  {
+    "cpu_seconds": 4.72,
+    "generated_terms": 282,
+    "expression": "itotal",
+    "output_terms": 282,
+    "step": null,
+    "bytes": 19140
+  },
+  {
+    "cpu_seconds": 4.74,
+    "generated_terms": 56841,
+    "expression": "I",
+    "output_terms": 56841,
+    "step": null,
+    "bytes": 4223944
+  },
+  {
+    "cpu_seconds": 4.76,
+    "generated_terms": 56842,
+    "expression": "result",
+    "output_terms": 56842,
+    "step": null,
+    "bytes": 4223988
+  }
+]

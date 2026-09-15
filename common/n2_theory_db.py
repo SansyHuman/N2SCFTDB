@@ -710,7 +710,7 @@ def _insert_theory(
     if theory_id is not None:
         row = _fetchone(
             connection,
-            "SELECT id FROM theories WHERE id = %s",
+            "SELECT id FROM theories WHERE id = %s FOR UPDATE",
             (theory_id,),
         )
         if row is None:
@@ -1254,6 +1254,15 @@ def _index_replacement_reason(value: Any, old_cutoff: Any, new_cutoff: Any) -> s
 
 
 def _locked_index_row(connection: Connection, realization_id: int) -> dict[str, Any]:
+    # Resolve without child locks, then lock parent first, as imports/deletes do.
+    # Locking children first can deadlock against a parent's FK cascade/check.
+    owner = _fetchone(connection,
+                     "SELECT theory_id FROM lagrangian_realizations WHERE id = %s",
+                     (realization_id,))
+    if owner is None or _fetchone(
+        connection, "SELECT id FROM theories WHERE id = %s FOR UPDATE", (owner["theory_id"],),
+    ) is None:
+        raise ValueError(f"unknown Lagrangian realization {realization_id}")
     row = _fetchone(connection, """
         SELECT p.*, lr.id AS realization_id
         FROM theory_properties AS p
@@ -1261,9 +1270,45 @@ def _locked_index_row(connection: Connection, realization_id: int) -> dict[str, 
         WHERE lr.id = %s
         FOR UPDATE
     """, (realization_id,))
-    if row is None:
+    if row is None or row["theory_id"] != owner["theory_id"]:
         raise ValueError(f"unknown Lagrangian realization {realization_id}")
     return row
+
+
+def missing_lagrangian_index_fields(connection, realization_id, *, theory_id):
+    """Recheck a retained job by ID without rescanning the database or locking."""
+    row = _fetchone(connection, """
+        SELECT p.* FROM theory_properties AS p
+        JOIN lagrangian_realizations AS lr ON lr.theory_id = p.theory_id
+        WHERE lr.id = %s AND p.theory_id = %s
+    """, (realization_id, theory_id))
+    if row is None:
+        raise ValueError(f"unknown Lagrangian realization {realization_id} for theory {theory_id}")
+    state = _index_state(row)
+    return [key for key in (*_INDEX_CUTOFFS, "coulomb_branch_spectrum") if state[key] is None]
+
+
+def _run_index_transaction(connection, action):
+    """Retry only rolled-back lock failures, never ambiguous connection errors."""
+    for attempt in range(3):
+        connection.begin()
+        try:
+            result = action()
+            connection.commit()
+            return result
+        except BaseException as exc:
+            try:
+                connection.rollback()
+            except Exception as rollback_error:
+                raise RuntimeError(
+                    f"{type(exc).__name__}: {exc}; rollback failed: "
+                    f"{type(rollback_error).__name__}: {rollback_error}"
+                ) from exc
+            code = exc.args[0] if exc.args else None
+            if isinstance(exc, pymysql.OperationalError) and code in (1205, 1213) and attempt < 2:
+                time.sleep(0.05 * (2 ** attempt))
+                continue
+            raise
 
 
 def _write_index_changes(
@@ -1290,7 +1335,8 @@ def _write_index_changes(
 
 
 def update_lagrangian_indices(
-    connection: Connection, realization_id: int, indices: dict[str, Any]
+    connection: Connection, realization_id: int, indices: dict[str, Any], *,
+    missing_only: bool = False,
 ) -> dict[str, Any]:
     """Atomically fill or upgrade a realization's shared theory indices.
 
@@ -1305,6 +1351,9 @@ def update_lagrangian_indices(
     The connection must have an initialized schema and no caller transaction.
     Calculation belongs outside this short transaction. Row locking makes
     competing workers recheck the latest stored precision before writing.
+    ``missing_only`` preserves every present component, including a result
+    filled by another worker after a GUI search. Lock failures retry at most
+    twice after full rollback, without repeating the calculation.
     """
     unknown = set(indices) - _INDEX_COLUMNS.keys()
     if unknown:
@@ -1334,13 +1383,15 @@ def update_lagrangian_indices(
             raise ValueError("Coulomb generator dimensions must be positive")
         incoming["coulomb_branch_spectrum"] = spectrum
 
-    connection.begin()
-    try:
+    def save():
         row = _locked_index_row(connection, realization_id)
         state = _index_state(row)
         changes, skipped = {}, {}
         for key, cutoff_key in _INDEX_CUTOFFS.items():
             if key not in incoming:
+                continue
+            if missing_only and state[key] is not None:
+                skipped[key] = "already_present"
                 continue
             reason = _index_replacement_reason(
                 state[key], state[cutoff_key], incoming[cutoff_key]
@@ -1354,20 +1405,17 @@ def update_lagrangian_indices(
             previous = state["coulomb_branch_spectrum"]
             if previous is None:
                 changes["coulomb_branch_spectrum"] = spectrum
-            elif tuple(sorted(_exact_cutoff(value) for value in previous)) != spectrum:
+            elif not missing_only and tuple(sorted(_exact_cutoff(value) for value in previous)) != spectrum:
                 raise ValueError("stored Coulomb spectrum conflicts with the supplied spectrum")
             else:
                 skipped["coulomb_branch_spectrum"] = "already_present"
         _write_index_changes(connection, row, changes)
-        connection.commit()
-    except BaseException:
-        connection.rollback()
-        raise
-    return {
-        "theory_id": int(row["theory_id"]),
-        "lagrangian_realization_id": realization_id,
-        "updated_fields": list(changes), "skipped_fields": skipped,
-    }
+        return {
+            "theory_id": int(row["theory_id"]),
+            "lagrangian_realization_id": realization_id,
+            "updated_fields": list(changes), "skipped_fields": skipped,
+        }
+    return _run_index_transaction(connection, save)
 
 
 def record_lagrangian_index_cutoffs(
@@ -1388,8 +1436,7 @@ def record_lagrangian_index_cutoffs(
         requested["coulomb_branch_index"] = _exact_cutoff(max_dimension)
     if not requested:
         raise ValueError("supply at least one known cutoff")
-    connection.begin()
-    try:
+    def save():
         row = _locked_index_row(connection, realization_id)
         state = _index_state(row)
         changes = {}
@@ -1402,10 +1449,7 @@ def record_lagrangian_index_cutoffs(
             elif state[cutoff_key] != cutoff:
                 raise ValueError(f"{key} already has a different known cutoff")
         _write_index_changes(connection, row, changes)
-        connection.commit()
-    except BaseException:
-        connection.rollback()
-        raise
+    _run_index_transaction(connection, save)
 
 
 def iter_lagrangian_index_jobs(

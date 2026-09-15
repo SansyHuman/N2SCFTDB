@@ -1,0 +1,353 @@
+[
+  {
+    "theory_id": 9780,
+    "gauge_group": "SU(3) x SU(3)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "29b257fa4fc9e9b850457e5ab50302e8e25177ac13c8ffb5a8dac3398ea56899",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 9784,
+    "gauge_group": "SU(3) x SU(4)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "ebea17199b830071f1348f4ac21bef15074d4a12e706ac4b6a3f628cbc68dabb",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 9816,
+    "gauge_group": "SU(3) x SU(5)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "29b257fa4fc9e9b850457e5ab50302e8e25177ac13c8ffb5a8dac3398ea56899",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 9818,
+    "gauge_group": "SU(3) x SU(5)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "162c5165b8dd1985594ee5f3f99fbc705bc021ee79b9c9d3db79619bde55f0f0",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 9824,
+    "gauge_group": "SU(3) x SU(5)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "0b8be713177ad9a4be7ca10a1c68711b143d4fffcd4286744fbeb0a99f6c5270",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 9826,
+    "gauge_group": "SU(3) x SU(5)",
+    "characters": 8,
+    "matter_monomials": 8,
+    "disconnected": false,
+    "program_hash": "f99b4eb72a5bcf4e2c98bae691027e52443b640ef867eed52b00359d63701d60",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 9829,
+    "gauge_group": "SU(3) x SU(5)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "981ebf417494fc9a147b87013fd7355016d33e4b3b33109cb64f6bb3e7d1d06f",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 9831,
+    "gauge_group": "SU(3) x SU(5)",
+    "characters": 8,
+    "matter_monomials": 8,
+    "disconnected": false,
+    "program_hash": "4c24462c973c06bef82748fa5b0047589bbc0c24a61e50ae5a2185dd91fc60f4",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 9833,
+    "gauge_group": "SU(3) x SU(5)",
+    "characters": 8,
+    "matter_monomials": 8,
+    "disconnected": false,
+    "program_hash": "9d8f9ddfa4347021daa89d067a172696eb62b15d74ec438b008c08b8acd7087c",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 9840,
+    "gauge_group": "SU(3) x SU(5)",
+    "characters": 8,
+    "matter_monomials": 8,
+    "disconnected": false,
+    "program_hash": "39b73394a1af1d2be4ddb00ac4dfc5cd44d9292d1fc23523f945de9afc42ddf9",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 9841,
+    "gauge_group": "SU(3) x SU(5)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "f415657ca983c08d2ff89fe61c37deedfda5e571f82b0354ef837d3d2819ab8f",
+    "cached_json_bytes": 159225032
+  },
+  {
+    "theory_id": 9844,
+    "gauge_group": "SU(3) x SU(6)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "29b257fa4fc9e9b850457e5ab50302e8e25177ac13c8ffb5a8dac3398ea56899",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 9847,
+    "gauge_group": "SU(3) x SU(6)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "f3a2dd2197b8b83f60d73c9f355fe6e1ccf04fdd4d820b13f4503463b11c73b0",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 9989,
+    "gauge_group": "SU(3) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "e02e4945c3c34748b2f10c2cd330b11ff9a674a7d173b339e5cf6ea05bc65d16",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 9990,
+    "gauge_group": "SU(3) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "f415657ca983c08d2ff89fe61c37deedfda5e571f82b0354ef837d3d2819ab8f",
+    "cached_json_bytes": 159225032
+  },
+  {
+    "theory_id": 9998,
+    "gauge_group": "SU(3) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "29b257fa4fc9e9b850457e5ab50302e8e25177ac13c8ffb5a8dac3398ea56899",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 9999,
+    "gauge_group": "SU(3) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "ec6ecf815392998aa3e83156c114507d44f100961071287b3a2686fa707be04b",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12523,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "80f04bcb92dc37f7f0f9046c6068e7c4c941a73b9a95c8339911b5e38a9b4967",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12526,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 8,
+    "matter_monomials": 8,
+    "disconnected": false,
+    "program_hash": "2c001caead9ff726bd54ad2302585b9eca78b9681fa8b4f7e10ef2a76070a8f4",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12528,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "42774fad33488767c5f4ad0f9aef9bb20719f8487bd01563956f408b2ddac81c",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12530,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "972bbaef1221d0ec83983792e9a2a5269a28ade6bbc6358cc6af8ff2fbcfe80d",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12538,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 8,
+    "matter_monomials": 8,
+    "disconnected": false,
+    "program_hash": "730b0345ea878da4f1861749aadbf7259c83b272fe5e751cb4f038cab8013c0d",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12541,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "eca4456f18b4b29eb6a46d066a67ef0f11d2606c2bbc4222e881070265e32690",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12543,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "bf261801fd8cebceb17ea19f0b290804b03da475ccfd38ff109513dd4fc72365",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12545,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 8,
+    "matter_monomials": 8,
+    "disconnected": false,
+    "program_hash": "4c7d94f8f290ea87fcdf888594e6b51a85cabe8646980568ceed7326bfb2c205",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12546,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "f3b65339cc9e1e3893c6fc98dee89fc961d2b53f7f6478d55006b027aa023fd7",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12547,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "079b365267a10876ca92af8a9234e820acd9c852da899d1038991acb60d6eb0f",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12550,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "e3a77e2260cd033ab1eca04d755786eae071d32c49109193f64c6286d64e31ee",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12553,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "f415657ca983c08d2ff89fe61c37deedfda5e571f82b0354ef837d3d2819ab8f",
+    "cached_json_bytes": 159225032
+  },
+  {
+    "theory_id": 12557,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "55f8ca1294031b7ff1bc1111e61d3a5f54999061942dcb0e2d7a9fd0f12b17dc",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12559,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "00463ac6f1336d6ef4931ee1520f40d8bfcab6abcac6e957172ced5195917180",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12560,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "e02e4945c3c34748b2f10c2cd330b11ff9a674a7d173b339e5cf6ea05bc65d16",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12561,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "29b257fa4fc9e9b850457e5ab50302e8e25177ac13c8ffb5a8dac3398ea56899",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12562,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "0b78e1914bb25ad8d9c4fd2b9f59d04d7b19928aa32d1a2d46c7f2c14662934a",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12563,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "c1c12fa681ce8f449e5a2cfe09e072c586fcd91b72dddfcd4bfc227a91898174",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12564,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 8,
+    "disconnected": true,
+    "program_hash": "ec6ecf815392998aa3e83156c114507d44f100961071287b3a2686fa707be04b",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12565,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 10,
+    "disconnected": false,
+    "program_hash": "88ba77f22c11488982bbfebc68d1acc68be970188eaa0e5a40b30716c839d81b",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12566,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 8,
+    "matter_monomials": 8,
+    "disconnected": false,
+    "program_hash": "658a85ba2fa025e61736bfd6f01fd5747535fae51ba93c130fab94096e72bf36",
+    "cached_json_bytes": null
+  },
+  {
+    "theory_id": 12567,
+    "gauge_group": "SU(11) x SU(11)",
+    "characters": 10,
+    "matter_monomials": 10,
+    "disconnected": false,
+    "program_hash": "bb9ceef66dfd1a90c911ffea88ea490b5faf5d0b23a804d5b014cb4c921f0671",
+    "cached_json_bytes": null
+  }
+]

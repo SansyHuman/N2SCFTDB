@@ -26,6 +26,70 @@ from common import n2_theory_properties as properties
 from common.number_utils import as_nonnegative_int
 
 
+def calculate_index_job(connection, job, *, order, max_dimension,
+                        missing_only=False, full_index_options=None,
+                        cancelled=lambda: False, log=lambda message, level="INFO": None):
+    """Calculate a retained job outside transactions, committing each component.
+
+    In missing-only mode, an ID lookup rechecks stale selections without another
+    database search. Stop finishes/saves the active component, then returns the
+    remaining fields so the caller can retry without discarding useful work.
+    """
+    result = {
+        "theory_id": job["theory_id"],
+        "lagrangian_realization_id": job["lagrangian_realization_id"],
+        "updated_fields": [], "skipped_fields": {
+            key: "unknown_precision" for key in job["unknown_precision"]
+        }, "errors": {}, "remaining_fields": list(job["needed_fields"]),
+    }
+    if cancelled():
+        return result
+    if missing_only:
+        needed = database.missing_lagrangian_index_fields(
+            connection, job["lagrangian_realization_id"], theory_id=job["theory_id"],
+        )
+        for key in set(job["needed_fields"]) - set(needed):
+            result["skipped_fields"][key] = "already_present"
+        result["remaining_fields"] = needed
+    for key in tuple(result["remaining_fields"]):
+        if cancelled():
+            break
+        log(f"Theory {job['theory_id']}: calculating {key}…")
+        saving = False
+        try:
+            if key == "superconformal_index":
+                value = properties.calculate_superconformal_index(
+                    job["input"], order=order, **(full_index_options or {}),
+                )
+                payload = {key: str(value), "superconformal_index_order": order}
+            elif key == "coulomb_branch_index":
+                value = properties.calculate_coulomb_branch_index(job["input"], max_dimension=max_dimension)
+                payload = {key: str(value), "coulomb_branch_index_max_dimension": max_dimension}
+            elif key == "coulomb_branch_spectrum":
+                value = properties.calculate_coulomb_branch_spectrum(job["input"])
+                payload = {key: value}
+            else:
+                raise ValueError(f"unknown index component {key}")
+            if value is None:
+                raise ValueError("stored input no longer passes the SCFT-candidate checks")
+            saving = True
+            saved = database.update_lagrangian_indices(
+                connection, job["lagrangian_realization_id"], payload, missing_only=missing_only,
+            )
+            result["updated_fields"].extend(saved["updated_fields"])
+            result["skipped_fields"].update(saved["skipped_fields"])
+            result["remaining_fields"].remove(key)
+            log(f"Theory {job['theory_id']}: {key} "
+                + ("saved." if key in saved["updated_fields"] else "already stored; preserved."))
+        except (OSError, ValueError, ArithmeticError, RuntimeError, pymysql.MySQLError) as exc:
+            result["errors"][key] = str(exc)
+            log(f"Theory {job['theory_id']}: {key}: {exc}", level="ERROR")
+            if saving and not isinstance(exc, ValueError):
+                # Never reuse/replay an uncertain connection or commit.
+                break
+    return result
+
+
 def fill_lagrangian_indices(
     connection, *, order: Any | None = None, max_dimension: Any | None = None,
     upgrade: bool = False, limit: int | None = None,
@@ -52,39 +116,9 @@ def fill_lagrangian_indices(
         connection, order=order, max_dimension=max_dimension, upgrade=upgrade,
     )
     for count, job in enumerate(jobs, 1):
-        result = {
-            "theory_id": job["theory_id"],
-            "lagrangian_realization_id": job["lagrangian_realization_id"],
-            "updated_fields": [], "skipped_fields": {
-                key: "unknown_precision" for key in job["unknown_precision"]
-            }, "errors": {},
-        }
-        for key in job["needed_fields"]:
-            try:
-                if key == "superconformal_index":
-                    value = properties.calculate_superconformal_index(job["input"], order=order)
-                    payload = {
-                        key: str(value), "superconformal_index_order": order,
-                    }
-                elif key == "coulomb_branch_index":
-                    value = properties.calculate_coulomb_branch_index(
-                        job["input"], max_dimension=max_dimension,
-                    )
-                    payload = {
-                        key: str(value), "coulomb_branch_index_max_dimension": max_dimension,
-                    }
-                else:
-                    value = properties.calculate_coulomb_branch_spectrum(job["input"])
-                    payload = {key: value}
-                if value is None:
-                    raise ValueError("stored input no longer passes the SCFT-candidate checks")
-                saved = database.update_lagrangian_indices(
-                    connection, job["lagrangian_realization_id"], payload,
-                )
-                result["updated_fields"].extend(saved["updated_fields"])
-                result["skipped_fields"].update(saved["skipped_fields"])
-            except (OSError, ValueError, ArithmeticError, RuntimeError, pymysql.MySQLError) as exc:
-                result["errors"][key] = str(exc)
+        result = calculate_index_job(connection, job, order=order, max_dimension=max_dimension)
+        # Keep the established CLI/API result shape.
+        result.pop("remaining_fields")
         yield result
         if limit is not None and count >= limit:
             return

@@ -6,9 +6,11 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import time
 from threading import Barrier
 import unittest
 from unittest.mock import MagicMock, patch
+import pymysql
 
 from common import n2_theory_db as db
 from common import n2_theory_db_indices as worker
@@ -35,6 +37,42 @@ def index_payload(order=4, maximum=5):
 
 
 class IndexUpdateUnitTests(unittest.TestCase):
+    def test_lock_errors_retry_rolled_back_transaction_and_recheck_latest_row(self):
+        initial = dict.fromkeys(db._INDEX_COLUMNS.values())
+        initial.update(theory_id=1, properties_json="{}")
+        newer = dict(initial, superconformal_index_json='"newer"', superconformal_index_order=20)
+        for code in (1205, 1213):
+            connection = MagicMock()
+            with patch.object(db, "_locked_index_row", side_effect=[initial, newer]), \
+                 patch.object(db, "_write_index_changes", side_effect=[pymysql.OperationalError(code, "lock"), None]), \
+                 patch.object(db.time, "sleep"):
+                result = db.update_lagrangian_indices(connection, 1, {
+                    "superconformal_index": "1", "superconformal_index_order": 4,
+                })
+            self.assertEqual(result["updated_fields"], [])
+            self.assertEqual(result["skipped_fields"], {"superconformal_index": "lower_order"})
+            self.assertEqual(connection.begin.call_count, 2)
+            connection.rollback.assert_called_once()
+            connection.commit.assert_called_once()
+
+    def test_transaction_retries_are_bounded_and_never_replay_connection_errors(self):
+        for code, attempts in ((1213, 3), (1205, 3), (2013, 1)):
+            connection = MagicMock()
+            with patch.object(db, "_locked_index_row", side_effect=pymysql.OperationalError(code, "failure")), \
+                 patch.object(db.time, "sleep"), self.assertRaises(pymysql.OperationalError):
+                db.update_lagrangian_indices(connection, 1, index_payload())
+            self.assertEqual(connection.begin.call_count, attempts)
+            self.assertEqual(connection.rollback.call_count, attempts)
+            connection.commit.assert_not_called()
+
+    def test_rollback_failure_keeps_original_error_and_does_not_retry(self):
+        connection = MagicMock()
+        connection.rollback.side_effect = OSError("closed")
+        with patch.object(db, "_locked_index_row", side_effect=pymysql.OperationalError(1213, "deadlock")), \
+             self.assertRaisesRegex(RuntimeError, "deadlock.*rollback failed.*closed"):
+            db.update_lagrangian_indices(connection, 1, index_payload())
+        connection.begin.assert_called_once()
+
     def test_migration_adds_nullable_cutoffs_without_overwriting_legacy_indices(self):
         connection = _RecordingConnection(select_rows=[{"metadata_value": "6"}])
         db.initialize_database(connection)
@@ -388,6 +426,45 @@ class IndexUpdateMySQLTests(unittest.TestCase):
                 connection.close()
         self.assertEqual(self.row()["superconformal_index_order"], 30)
         self.assertEqual(json.loads(self.row()["coulomb_branch_index_max_dimension_json"]), {"numerator": 30, "denominator": 1})
+
+    def test_parent_lock_contention_does_not_lock_children_first(self):
+        # An import/administrative transaction already holds the parent. The
+        # index writer must wait there without locking its property child;
+        # otherwise the next parent-holder update creates a lock cycle.
+        writer = db.connect_database(MYSQL_TEST_DATABASE, **self.settings, initialize_schema=False)
+        metric = "SELECT COUNT FROM information_schema.INNODB_METRICS WHERE NAME = 'lock_deadlocks'"
+        before = int(db._fetchone(self.connection, metric)["COUNT"])
+        self.connection.begin()
+        db._fetchone(self.connection, "SELECT id FROM theories WHERE id = %s FOR UPDATE", (self.stored.theory_id,))
+        try:
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(db.update_lagrangian_indices, writer, self.rid, index_payload())
+                try:
+                    deadline = time.monotonic() + 5
+                    waiting = None
+                    while time.monotonic() < deadline:
+                        if future.done():
+                            future.result()
+                            self.fail("index writer unexpectedly passed the held parent lock")
+                        waiting = db._fetchone(self.connection, """
+                            SELECT INFO FROM information_schema.PROCESSLIST
+                            WHERE ID = %s AND (INFO LIKE 'SELECT id FROM theories%%'
+                                               OR INFO LIKE '%%UPDATE theories%%')
+                        """, (writer.thread_id(),))
+                        if waiting:
+                            break
+                        time.sleep(0.02)
+                    self.assertIsNotNone(waiting, "writer never reached the contested lock")
+                    db._execute(self.connection, "UPDATE theory_properties SET properties_json = properties_json "
+                                "WHERE theory_id = %s", (self.stored.theory_id,))
+                finally:
+                    self.connection.commit()
+                self.assertIn("superconformal_index", future.result(timeout=10)["updated_fields"])
+        finally:
+            self.connection.rollback()
+            writer.close()
+        after = int(db._fetchone(self.connection, metric)["COUNT"])
+        self.assertEqual(after - before, 0)
 
     def test_cli_runs_worker_and_reports_summary(self):
         output, error_output = StringIO(), StringIO()

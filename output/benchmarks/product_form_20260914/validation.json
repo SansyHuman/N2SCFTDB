@@ -1,0 +1,50 @@
+[
+  {
+    "case": "12526",
+    "order": 12,
+    "variant": "degree_bounded",
+    "exact_formal_polynomial_equality": true,
+    "baseline_seconds": 4.8785024150001846,
+    "variant_seconds": 0.8279173219998484
+  },
+  {
+    "case": "12526",
+    "order": 12,
+    "variant": "prune_z",
+    "exact_formal_polynomial_equality": true,
+    "baseline_seconds": 4.8785024150001846,
+    "variant_seconds": 1.6733597290003672
+  },
+  {
+    "case": "9780",
+    "order": 12,
+    "variant": "degree_bounded",
+    "exact_formal_polynomial_equality": true,
+    "baseline_seconds": 4.545125471000574,
+    "variant_seconds": 0.7674412269989261
+  },
+  {
+    "case": "9780",
+    "order": 12,
+    "variant": "prune_z",
+    "exact_formal_polynomial_equality": true,
+    "baseline_seconds": 4.545125471000574,
+    "variant_seconds": 1.573669436000273
+  },
+  {
+    "case": "a1_g2",
+    "order": 18,
+    "variant": "degree_bounded",
+    "exact_formal_polynomial_equality": true,
+    "baseline_seconds": 17.924325965999742,
+    "variant_seconds": 3.286836614001004
+  },
+  {
+    "case": "bifundamental",
+    "order": 18,
+    "variant": "degree_bounded",
+    "exact_formal_polynomial_equality": true,
+    "baseline_seconds": 2.3981303540003864,
+    "variant_seconds": 0.6468198349994054
+  }
+]

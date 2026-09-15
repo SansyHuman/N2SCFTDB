@@ -2,6 +2,49 @@
 
 Last updated: **2026-09-14 (Asia/Seoul)**.
 
+## Index GUI calculation (14 September 2026)
+
+Both areas of the index tab are implemented. This section supersedes older
+statements below that the tab is empty or its calculation action is unwired.
+`IndexTabController` retains successful search results grouped by gauge factors;
+**Calculate index** sends only checked groups' cached jobs to
+`gui/index_calculator.py`. No second database-wide search is performed.
+
+The Sage coordinator dynamically schedules one theory per task across spawned
+workers, with the saved CPU limit and at most twice the worker count outstanding.
+Each worker owns its connection, uses the initialized schema without migrations,
+and calculates missing full/Coulomb indices and complete Coulomb spectra through
+the existing backend. Exact cutoffs, both custom cache filenames, executables and
+tool timeout are honored; inner full-index work uses one process.
+
+The reusable `calculate_index_job` backend checks each retained theory/realization
+ID for currently missing components. Writes use `missing_only=True`, so concurrent
+fills and legacy results are preserved. Each component commits independently.
+Confirmed finished jobs are removed from the GUI list after the run; failed,
+stopped and unconfirmed jobs remain selected for retry. **Stop** and window close
+let active components finish/save, cancel queued work, and wait for clean worker
+shutdown. A manager queue carries live logs without child feeder-thread shutdown
+dependencies. Searches and calculations each create a flushed, redacted
+`logs/log_index_YYYYMMDD_HHMMSS_ffffff.log` through the shared GUI logger.
+
+Index transactions and existing-theory anomaly attachments now lock the parent
+theory before property/realization rows, avoiding a child/parent lock-order cycle.
+Index writes and cutoff recording retry MySQL 1205/1213 at most twice after full
+rollback, rechecking current values without recalculation. Connection errors or
+failed rollbacks are not replayed. The earlier anomaly fresh-property gap-lock
+fix remains in place; index calculations only update existing property rows.
+Other database clients can still introduce contention, so bounded retries remain
+necessary. See `gui/README.md` for behavior and `test/README.md` for test commands.
+
+Validation: combined discovery passed **338 tests in 55.104 seconds, with no
+skips**, using Sage/FORM/LiE, offscreen Qt and a password-protected disposable
+MySQL 8.0.46 server. This includes actual GUI search-to-calculation/file logging,
+simple/product indices, exact fractional cutoffs, custom caches, stale retries,
+partial failures, cooperative Stop, abrupt worker exit and connection cleanup.
+The 256-theory/eight-worker index stress run and targeted parent-row contention
+test each added **zero InnoDB deadlocks**. No production data was modified.
+The temporary server was shut down after validation. PDFs were not rebuilt.
+
 ## Test layout update (14 September 2026)
 
 All new test code belongs in `test/`, including GUI tests and test helpers.

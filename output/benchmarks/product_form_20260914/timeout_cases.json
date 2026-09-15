@@ -1,0 +1,4623 @@
+[
+  {
+    "theory_id": 9780,
+    "id": 3755,
+    "gauge_group": "SU(3) x SU(3)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A2"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9784,
+    "id": 3760,
+    "gauge_group": "SU(3) x SU(4)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A3"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9816,
+    "id": 3792,
+    "gauge_group": "SU(3) x SU(5)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A4"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9818,
+    "id": 3794,
+    "gauge_group": "SU(3) x SU(5)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A4"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 7,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9824,
+    "id": 3800,
+    "gauge_group": "SU(3) x SU(5)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A4"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 3,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9826,
+    "id": 3802,
+    "gauge_group": "SU(3) x SU(5)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A4"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9829,
+    "id": 3805,
+    "gauge_group": "SU(3) x SU(5)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A4"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 3,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9831,
+    "id": 3807,
+    "gauge_group": "SU(3) x SU(5)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A4"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9833,
+    "id": 3809,
+    "gauge_group": "SU(3) x SU(5)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A4"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 4,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9840,
+    "id": 3816,
+    "gauge_group": "SU(3) x SU(5)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A4"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 4,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9841,
+    "id": 3817,
+    "gauge_group": "SU(3) x SU(5)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A4"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 4,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9844,
+    "id": 3820,
+    "gauge_group": "SU(3) x SU(6)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A5"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9847,
+    "id": 3823,
+    "gauge_group": "SU(3) x SU(6)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A5"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 4,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9989,
+    "id": 3965,
+    "gauge_group": "SU(3) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 13,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9990,
+    "id": 3967,
+    "gauge_group": "SU(3) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 4,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9998,
+    "id": 3974,
+    "gauge_group": "SU(3) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 9999,
+    "id": 3975,
+    "gauge_group": "SU(3) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A2"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 9,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12523,
+    "id": 6499,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 4,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 4,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12526,
+    "id": 6502,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 11,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12528,
+    "id": 6504,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 4,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 13,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12530,
+    "id": 6506,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 13,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 9,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12538,
+    "id": 6514,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 11,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12541,
+    "id": 6523,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 9,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12543,
+    "id": 6521,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 9,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 9,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12545,
+    "id": 6522,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 11,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12546,
+    "id": 6518,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 9,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 13,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12547,
+    "id": 6524,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 13,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 13,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12550,
+    "id": 6526,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 4,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 9,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12553,
+    "id": 6529,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 4,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12557,
+    "id": 6533,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 9,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 4,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12559,
+    "id": 6535,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 13,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 4,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12560,
+    "id": 6537,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 13,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12561,
+    "id": 6539,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12562,
+    "id": 6538,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 13,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12563,
+    "id": 6541,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 4,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12564,
+    "id": 6536,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 9,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12565,
+    "id": 6540,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12566,
+    "id": 6542,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 11,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "theory_id": 12567,
+    "id": 6543,
+    "gauge_group": "SU(11) x SU(11)",
+    "input": {
+      "gauge_groups": [
+        {
+          "id": "gauge_1",
+          "algebra": "A10"
+        },
+        {
+          "id": "gauge_2",
+          "algebra": "A10"
+        }
+      ],
+      "hypermultiplets": [
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 2,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "kind": "full",
+          "number": 1,
+          "representations": {
+            "gauge_1": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "gauge_2": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,202 @@
+{
+  "case": "9780",
+  "order": 18,
+  "variant": "baseline",
+  "input": {
+    "gauge_groups": [
+      {
+        "id": "gauge_1",
+        "algebra": "A2"
+      },
+      {
+        "id": "gauge_2",
+        "algebra": "A2"
+      }
+    ],
+    "hypermultiplets": [
+      {
+        "kind": "full",
+        "number": 1,
+        "representations": {
+          "gauge_1": [
+            0,
+            0
+          ],
+          "gauge_2": [
+            1,
+            0
+          ]
+        }
+      },
+      {
+        "kind": "full",
+        "number": 1,
+        "representations": {
+          "gauge_1": [
+            0,
+            0
+          ],
+          "gauge_2": [
+            2,
+            0
+          ]
+        }
+      },
+      {
+        "kind": "full",
+        "number": 1,
+        "representations": {
+          "gauge_1": [
+            1,
+            0
+          ],
+          "gauge_2": [
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "kind": "full",
+        "number": 1,
+        "representations": {
+          "gauge_1": [
+            2,
+            0
+          ],
+          "gauge_2": [
+            0,
+            0
+          ]
+        }
+      }
+    ]
+  },
+  "formal_characters": 10,
+  "vector_characters": 2,
+  "matter_monomials": 8,
+  "max_matter_support": 1,
+  "raw_program_sha256": "29b257fa4fc9e9b850457e5ab50302e8e25177ac13c8ffb5a8dac3398ea56899",
+  "form_seconds": 60.014971034001064,
+  "form_cpu_seconds": 60.00592799999999,
+  "peak_rss_kib": 255320,
+  "peak_scratch_bytes": 0,
+  "stdout_bytes": 2282,
+  "timed_out": true,
+  "returncode": -9,
+  "last_output_terms": 616,
+  "modules": [
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": null,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": null,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 730,
+      "expression": "itotal",
+      "output_terms": 616,
+      "step": null,
+      "bytes": 39620
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": 2,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 616,
+      "expression": "itotal",
+      "output_terms": 616,
+      "step": 2,
+      "bytes": 39620
+    },
+    {
+      "cpu_seconds": 0.16,
+      "generated_terms": 64668,
+      "expression": "I",
+      "output_terms": 16950,
+      "step": 2,
+      "bytes": 1150436
+    },
+    {
+      "cpu_seconds": 0.16,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": 3,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 0.16,
+      "generated_terms": 616,
+      "expression": "itotal",
+      "output_terms": 616,
+      "step": 3,
+      "bytes": 39620
+    },
+    {
+      "cpu_seconds": 3.53,
+      "generated_terms": 699916,
+      "expression": "I",
+      "output_terms": 129970,
+      "step": 3,
+      "bytes": 8943684
+    },
+    {
+      "cpu_seconds": 3.53,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": 4,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 3.53,
+      "generated_terms": 616,
+      "expression": "itotal",
+      "output_terms": 616,
+      "step": 4,
+      "bytes": 39620
+    },
+    {
+      "cpu_seconds": 24.8,
+      "generated_terms": 2623042,
+      "expression": "I",
+      "output_terms": 481798,
+      "step": 4,
+      "bytes": 33835348
+    },
+    {
+      "cpu_seconds": 24.8,
+      "generated_terms": 28,
+      "expression": "J",
+      "output_terms": 28,
+      "step": 5,
+      "bytes": 1572
+    },
+    {
+      "cpu_seconds": 24.8,
+      "generated_terms": 616,
+      "expression": "itotal",
+      "output_terms": 616,
+      "step": 5,
+      "bytes": 39620
+    }
+  ]
+}

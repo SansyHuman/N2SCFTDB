@@ -1,0 +1,746 @@
+{
+  "case": "9780",
+  "order": 12,
+  "variant": "baseline",
+  "input": {
+    "gauge_groups": [
+      {
+        "id": "gauge_1",
+        "algebra": "A2"
+      },
+      {
+        "id": "gauge_2",
+        "algebra": "A2"
+      }
+    ],
+    "hypermultiplets": [
+      {
+        "kind": "full",
+        "number": 1,
+        "representations": {
+          "gauge_1": [
+            0,
+            0
+          ],
+          "gauge_2": [
+            1,
+            0
+          ]
+        }
+      },
+      {
+        "kind": "full",
+        "number": 1,
+        "representations": {
+          "gauge_1": [
+            0,
+            0
+          ],
+          "gauge_2": [
+            2,
+            0
+          ]
+        }
+      },
+      {
+        "kind": "full",
+        "number": 1,
+        "representations": {
+          "gauge_1": [
+            1,
+            0
+          ],
+          "gauge_2": [
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "kind": "full",
+        "number": 1,
+        "representations": {
+          "gauge_1": [
+            2,
+            0
+          ],
+          "gauge_2": [
+            0,
+            0
+          ]
+        }
+      }
+    ]
+  },
+  "formal_characters": 10,
+  "vector_characters": 2,
+  "matter_monomials": 8,
+  "max_matter_support": 1,
+  "raw_program_sha256": "94731f566ca7f736a4864fe6e368881d0180c44b8f30a722b85cabc396e2218f",
+  "form_seconds": 4.545125471000574,
+  "form_cpu_seconds": 4.537199000000001,
+  "peak_rss_kib": 41300,
+  "peak_scratch_bytes": 0,
+  "stdout_bytes": 2582946,
+  "timed_out": false,
+  "returncode": 0,
+  "last_output_terms": 57613,
+  "parse_seconds": 0.7016198670007725,
+  "expansion_terms": 57613,
+  "structures": 26763,
+  "projection_seconds": 0.24617323700113047,
+  "index_terms": 52,
+  "coefficients": [
+    [
+      [
+        0,
+        0,
+        0
+      ],
+      "1"
+    ],
+    [
+      [
+        4,
+        0,
+        -2
+      ],
+      "4"
+    ],
+    [
+      [
+        4,
+        0,
+        4
+      ],
+      "2"
+    ],
+    [
+      [
+        5,
+        -1,
+        2
+      ],
+      "-2"
+    ],
+    [
+      [
+        5,
+        1,
+        2
+      ],
+      "-2"
+    ],
+    [
+      [
+        6,
+        0,
+        -3
+      ],
+      "8"
+    ],
+    [
+      [
+        6,
+        0,
+        6
+      ],
+      "2"
+    ],
+    [
+      [
+        7,
+        -1,
+        -2
+      ],
+      "2"
+    ],
+    [
+      [
+        7,
+        1,
+        -2
+      ],
+      "2"
+    ],
+    [
+      [
+        8,
+        -2,
+        2
+      ],
+      "-2"
+    ],
+    [
+      [
+        8,
+        0,
+        -4
+      ],
+      "10"
+    ],
+    [
+      [
+        8,
+        0,
+        -1
+      ],
+      "-4"
+    ],
+    [
+      [
+        8,
+        0,
+        2
+      ],
+      "4"
+    ],
+    [
+      [
+        8,
+        0,
+        8
+      ],
+      "3"
+    ],
+    [
+      [
+        8,
+        2,
+        2
+      ],
+      "-2"
+    ],
+    [
+      [
+        9,
+        -1,
+        -3
+      ],
+      "4"
+    ],
+    [
+      [
+        9,
+        -1,
+        0
+      ],
+      "-6"
+    ],
+    [
+      [
+        9,
+        -1,
+        6
+      ],
+      "-2"
+    ],
+    [
+      [
+        9,
+        1,
+        -3
+      ],
+      "4"
+    ],
+    [
+      [
+        9,
+        1,
+        0
+      ],
+      "-6"
+    ],
+    [
+      [
+        9,
+        1,
+        6
+      ],
+      "-2"
+    ],
+    [
+      [
+        10,
+        -2,
+        -2
+      ],
+      "2"
+    ],
+    [
+      [
+        10,
+        -2,
+        4
+      ],
+      "1"
+    ],
+    [
+      [
+        10,
+        0,
+        -5
+      ],
+      "28"
+    ],
+    [
+      [
+        10,
+        0,
+        -2
+      ],
+      "-2"
+    ],
+    [
+      [
+        10,
+        0,
+        1
+      ],
+      "8"
+    ],
+    [
+      [
+        10,
+        0,
+        4
+      ],
+      "6"
+    ],
+    [
+      [
+        10,
+        0,
+        10
+      ],
+      "4"
+    ],
+    [
+      [
+        10,
+        2,
+        -2
+      ],
+      "2"
+    ],
+    [
+      [
+        10,
+        2,
+        4
+      ],
+      "1"
+    ],
+    [
+      [
+        11,
+        -3,
+        2
+      ],
+      "-2"
+    ],
+    [
+      [
+        11,
+        -1,
+        -4
+      ],
+      "10"
+    ],
+    [
+      [
+        11,
+        -1,
+        -1
+      ],
+      "-12"
+    ],
+    [
+      [
+        11,
+        -1,
+        2
+      ],
+      "8"
+    ],
+    [
+      [
+        11,
+        -1,
+        8
+      ],
+      "-4"
+    ],
+    [
+      [
+        11,
+        1,
+        -4
+      ],
+      "10"
+    ],
+    [
+      [
+        11,
+        1,
+        -1
+      ],
+      "-12"
+    ],
+    [
+      [
+        11,
+        1,
+        2
+      ],
+      "8"
+    ],
+    [
+      [
+        11,
+        1,
+        8
+      ],
+      "-4"
+    ],
+    [
+      [
+        11,
+        3,
+        2
+      ],
+      "-2"
+    ],
+    [
+      [
+        12,
+        -2,
+        -3
+      ],
+      "4"
+    ],
+    [
+      [
+        12,
+        -2,
+        0
+      ],
+      "-14"
+    ],
+    [
+      [
+        12,
+        -2,
+        6
+      ],
+      "-2"
+    ],
+    [
+      [
+        12,
+        0,
+        -6
+      ],
+      "48"
+    ],
+    [
+      [
+        12,
+        0,
+        -3
+      ],
+      "-24"
+    ],
+    [
+      [
+        12,
+        0,
+        0
+      ],
+      "-16"
+    ],
+    [
+      [
+        12,
+        0,
+        3
+      ],
+      "4"
+    ],
+    [
+      [
+        12,
+        0,
+        6
+      ],
+      "4"
+    ],
+    [
+      [
+        12,
+        0,
+        12
+      ],
+      "7"
+    ],
+    [
+      [
+        12,
+        2,
+        -3
+      ],
+      "4"
+    ],
+    [
+      [
+        12,
+        2,
+        0
+      ],
+      "-14"
+    ],
+    [
+      [
+        12,
+        2,
+        6
+      ],
+      "-2"
+    ]
+  ],
+  "modules": [
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": null,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": null,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 324,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": null,
+      "bytes": 18972
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": 2,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": 2,
+      "bytes": 18972
+    },
+    {
+      "cpu_seconds": 0.03,
+      "generated_terms": 12450,
+      "expression": "I",
+      "output_terms": 4078,
+      "step": 2,
+      "bytes": 299076
+    },
+    {
+      "cpu_seconds": 0.03,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": 3,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 0.03,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": 3,
+      "bytes": 18972
+    },
+    {
+      "cpu_seconds": 0.34,
+      "generated_terms": 62206,
+      "expression": "I",
+      "output_terms": 16904,
+      "step": 3,
+      "bytes": 1259012
+    },
+    {
+      "cpu_seconds": 0.34,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": 4,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 0.34,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": 4,
+      "bytes": 18972
+    },
+    {
+      "cpu_seconds": 1.36,
+      "generated_terms": 112092,
+      "expression": "I",
+      "output_terms": 37089,
+      "step": 4,
+      "bytes": 2818392
+    },
+    {
+      "cpu_seconds": 1.36,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": 5,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 1.36,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": 5,
+      "bytes": 18972
+    },
+    {
+      "cpu_seconds": 3.01,
+      "generated_terms": 106949,
+      "expression": "I",
+      "output_terms": 52607,
+      "step": 5,
+      "bytes": 4028504
+    },
+    {
+      "cpu_seconds": 3.01,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": 6,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 3.01,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": 6,
+      "bytes": 18972
+    },
+    {
+      "cpu_seconds": 4.33,
+      "generated_terms": 72627,
+      "expression": "I",
+      "output_terms": 57612,
+      "step": 6,
+      "bytes": 4413276
+    },
+    {
+      "cpu_seconds": 4.33,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": null,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 4.33,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": null,
+      "bytes": 18972
+    },
+    {
+      "cpu_seconds": 4.35,
+      "generated_terms": 57612,
+      "expression": "I",
+      "output_terms": 57612,
+      "step": null,
+      "bytes": 4413276
+    },
+    {
+      "cpu_seconds": 4.35,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": null,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 4.35,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": null,
+      "bytes": 18972
+    },
+    {
+      "cpu_seconds": 4.37,
+      "generated_terms": 57612,
+      "expression": "I",
+      "output_terms": 57612,
+      "step": null,
+      "bytes": 4373236
+    },
+    {
+      "cpu_seconds": 4.41,
+      "generated_terms": 57613,
+      "expression": "result",
+      "output_terms": 57613,
+      "step": null,
+      "bytes": 4373280
+    },
+    {
+      "cpu_seconds": 4.41,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": null,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 4.41,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": null,
+      "bytes": 18972
+    },
+    {
+      "cpu_seconds": 4.43,
+      "generated_terms": 57612,
+      "expression": "I",
+      "output_terms": 57612,
+      "step": null,
+      "bytes": 4373236
+    },
+    {
+      "cpu_seconds": 4.44,
+      "generated_terms": 57613,
+      "expression": "result",
+      "output_terms": 57613,
+      "step": null,
+      "bytes": 4373280
+    }
+  ],
+  "formal_result_sha256": "2fb15e3af99fd0848a534f1c6cf6d0466d227ca18b7eb6432d85e07310f4d578"
+}

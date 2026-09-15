@@ -1,0 +1,810 @@
+{
+  "case": "12526",
+  "order": 12,
+  "variant": "prune_z",
+  "input": {
+    "gauge_groups": [
+      {
+        "id": "gauge_1",
+        "algebra": "A10"
+      },
+      {
+        "id": "gauge_2",
+        "algebra": "A10"
+      }
+    ],
+    "hypermultiplets": [
+      {
+        "kind": "full",
+        "number": 1,
+        "representations": {
+          "gauge_1": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "gauge_2": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "kind": "full",
+        "number": 2,
+        "representations": {
+          "gauge_1": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "gauge_2": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "kind": "full",
+        "number": 11,
+        "representations": {
+          "gauge_1": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "gauge_2": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "kind": "full",
+        "number": 1,
+        "representations": {
+          "gauge_1": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "gauge_2": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    ]
+  },
+  "formal_characters": 8,
+  "vector_characters": 2,
+  "matter_monomials": 8,
+  "max_matter_support": 2,
+  "raw_program_sha256": "b08fe6df493893e1f23a2e8543cff6a4da9be978338dd51378726562ca7e7c96",
+  "form_seconds": 1.6733597290003672,
+  "form_cpu_seconds": 1.6656270000000053,
+  "peak_rss_kib": 42360,
+  "peak_scratch_bytes": 0,
+  "stdout_bytes": 2770589,
+  "timed_out": false,
+  "returncode": 0,
+  "last_output_terms": 56842,
+  "modules": [
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": null,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": null,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 324,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": null,
+      "bytes": 19140
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": 2,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 0.0,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": 2,
+      "bytes": 19140
+    },
+    {
+      "cpu_seconds": 0.02,
+      "generated_terms": 12450,
+      "expression": "I",
+      "output_terms": 4078,
+      "step": 2,
+      "bytes": 301108
+    },
+    {
+      "cpu_seconds": 0.02,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": 3,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 0.02,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": 3,
+      "bytes": 19140
+    },
+    {
+      "cpu_seconds": 0.22,
+      "generated_terms": 62206,
+      "expression": "I",
+      "output_terms": 16892,
+      "step": 3,
+      "bytes": 1264544
+    },
+    {
+      "cpu_seconds": 0.22,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": 4,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 0.22,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": 4,
+      "bytes": 19140
+    },
+    {
+      "cpu_seconds": 0.71,
+      "generated_terms": 111936,
+      "expression": "I",
+      "output_terms": 36957,
+      "step": 4,
+      "bytes": 2805544
+    },
+    {
+      "cpu_seconds": 0.71,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": 5,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 0.71,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": 5,
+      "bytes": 19140
+    },
+    {
+      "cpu_seconds": 1.22,
+      "generated_terms": 106201,
+      "expression": "I",
+      "output_terms": 52161,
+      "step": 5,
+      "bytes": 3952828
+    },
+    {
+      "cpu_seconds": 1.22,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": 6,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 1.22,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": 6,
+      "bytes": 19140
+    },
+    {
+      "cpu_seconds": 1.45,
+      "generated_terms": 71631,
+      "expression": "I",
+      "output_terms": 56894,
+      "step": 6,
+      "bytes": 4270168
+    },
+    {
+      "cpu_seconds": 1.45,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": null,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 1.45,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": null,
+      "bytes": 19140
+    },
+    {
+      "cpu_seconds": 1.46,
+      "generated_terms": 56894,
+      "expression": "I",
+      "output_terms": 56894,
+      "step": null,
+      "bytes": 4270168
+    },
+    {
+      "cpu_seconds": 1.46,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": null,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 1.46,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": null,
+      "bytes": 19140
+    },
+    {
+      "cpu_seconds": 1.49,
+      "generated_terms": 56894,
+      "expression": "I",
+      "output_terms": 56841,
+      "step": null,
+      "bytes": 4223944
+    },
+    {
+      "cpu_seconds": 1.53,
+      "generated_terms": 56895,
+      "expression": "result",
+      "output_terms": 56842,
+      "step": null,
+      "bytes": 4223988
+    },
+    {
+      "cpu_seconds": 1.53,
+      "generated_terms": 15,
+      "expression": "J",
+      "output_terms": 15,
+      "step": null,
+      "bytes": 864
+    },
+    {
+      "cpu_seconds": 1.53,
+      "generated_terms": 282,
+      "expression": "itotal",
+      "output_terms": 282,
+      "step": null,
+      "bytes": 19140
+    },
+    {
+      "cpu_seconds": 1.54,
+      "generated_terms": 56841,
+      "expression": "I",
+      "output_terms": 56841,
+      "step": null,
+      "bytes": 4223944
+    },
+    {
+      "cpu_seconds": 1.56,
+      "generated_terms": 56842,
+      "expression": "result",
+      "output_terms": 56842,
+      "step": null,
+      "bytes": 4223988
+    }
+  ],
+  "formal_result_sha256": "3471d04ef80efbaae3b30bf44e2f68125fd55ae7ce57a25b2ae32efd0542ae62",
+  "parse_seconds": 0.6815903400001844,
+  "expansion_terms": 56842,
+  "structures": 23017,
+  "projection_seconds": 0.20655931399960537,
+  "index_terms": 52,
+  "coefficients": [
+    [
+      [
+        0,
+        0,
+        0
+      ],
+      "1"
+    ],
+    [
+      [
+        4,
+        0,
+        -2
+      ],
+      "127"
+    ],
+    [
+      [
+        4,
+        0,
+        4
+      ],
+      "2"
+    ],
+    [
+      [
+        5,
+        -1,
+        2
+      ],
+      "-2"
+    ],
+    [
+      [
+        5,
+        1,
+        2
+      ],
+      "-2"
+    ],
+    [
+      [
+        6,
+        0,
+        -3
+      ],
+      "46"
+    ],
+    [
+      [
+        6,
+        0,
+        0
+      ],
+      "-126"
+    ],
+    [
+      [
+        6,
+        0,
+        6
+      ],
+      "2"
+    ],
+    [
+      [
+        7,
+        -1,
+        -2
+      ],
+      "128"
+    ],
+    [
+      [
+        7,
+        1,
+        -2
+      ],
+      "128"
+    ],
+    [
+      [
+        8,
+        -2,
+        2
+      ],
+      "-2"
+    ],
+    [
+      [
+        8,
+        0,
+        -4
+      ],
+      "8176"
+    ],
+    [
+      [
+        8,
+        0,
+        -1
+      ],
+      "-46"
+    ],
+    [
+      [
+        8,
+        0,
+        2
+      ],
+      "253"
+    ],
+    [
+      [
+        8,
+        0,
+        8
+      ],
+      "5"
+    ],
+    [
+      [
+        8,
+        2,
+        2
+      ],
+      "-2"
+    ],
+    [
+      [
+        9,
+        -1,
+        -3
+      ],
+      "46"
+    ],
+    [
+      [
+        9,
+        -1,
+        0
+      ],
+      "-381"
+    ],
+    [
+      [
+        9,
+        -1,
+        6
+      ],
+      "-4"
+    ],
+    [
+      [
+        9,
+        1,
+        -3
+      ],
+      "46"
+    ],
+    [
+      [
+        9,
+        1,
+        0
+      ],
+      "-381"
+    ],
+    [
+      [
+        9,
+        1,
+        6
+      ],
+      "-4"
+    ],
+    [
+      [
+        10,
+        -2,
+        -2
+      ],
+      "128"
+    ],
+    [
+      [
+        10,
+        -2,
+        4
+      ],
+      "1"
+    ],
+    [
+      [
+        10,
+        0,
+        -5
+      ],
+      "5954"
+    ],
+    [
+      [
+        10,
+        0,
+        -2
+      ],
+      "-15922"
+    ],
+    [
+      [
+        10,
+        0,
+        1
+      ],
+      "92"
+    ],
+    [
+      [
+        10,
+        0,
+        4
+      ],
+      "5"
+    ],
+    [
+      [
+        10,
+        0,
+        10
+      ],
+      "6"
+    ],
+    [
+      [
+        10,
+        2,
+        -2
+      ],
+      "128"
+    ],
+    [
+      [
+        10,
+        2,
+        4
+      ],
+      "1"
+    ],
+    [
+      [
+        11,
+        -3,
+        2
+      ],
+      "-2"
+    ],
+    [
+      [
+        11,
+        -1,
+        -4
+      ],
+      "16305"
+    ],
+    [
+      [
+        11,
+        -1,
+        -1
+      ],
+      "-138"
+    ],
+    [
+      [
+        11,
+        -1,
+        2
+      ],
+      "508"
+    ],
+    [
+      [
+        11,
+        -1,
+        8
+      ],
+      "-4"
+    ],
+    [
+      [
+        11,
+        1,
+        -4
+      ],
+      "16305"
+    ],
+    [
+      [
+        11,
+        1,
+        -1
+      ],
+      "-138"
+    ],
+    [
+      [
+        11,
+        1,
+        2
+      ],
+      "508"
+    ],
+    [
+      [
+        11,
+        1,
+        8
+      ],
+      "-4"
+    ],
+    [
+      [
+        11,
+        3,
+        2
+      ],
+      "-2"
+    ],
+    [
+      [
+        12,
+        -2,
+        -3
+      ],
+      "46"
+    ],
+    [
+      [
+        12,
+        -2,
+        0
+      ],
+      "-637"
+    ],
+    [
+      [
+        12,
+        -2,
+        6
+      ],
+      "-4"
+    ],
+    [
+      [
+        12,
+        0,
+        -6
+      ],
+      "356685"
+    ],
+    [
+      [
+        12,
+        0,
+        -3
+      ],
+      "-11704"
+    ],
+    [
+      [
+        12,
+        0,
+        0
+      ],
+      "23460"
+    ],
+    [
+      [
+        12,
+        0,
+        6
+      ],
+      "382"
+    ],
+    [
+      [
+        12,
+        0,
+        12
+      ],
+      "13"
+    ],
+    [
+      [
+        12,
+        2,
+        -3
+      ],
+      "46"
+    ],
+    [
+      [
+        12,
+        2,
+        0
+      ],
+      "-637"
+    ],
+    [
+      [
+        12,
+        2,
+        6
+      ],
+      "-4"
+    ]
+  ]
+}

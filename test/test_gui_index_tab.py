@@ -58,7 +58,7 @@ class IndexTabTests(unittest.TestCase):
             QtTest.QTest.qWait(10)
         self.assertIsNone(self.window.index_tab.process, self.window.indexCalculationLog.toPlainText())
 
-    def fixture(self, records, *, exit_code=0, tail="", delay=0):
+    def fixture(self, records, *, exit_code=0, tail="", delay=0, jobs=None, wait_stop=False):
         # Split the final record across writes, omitting its trailing newline,
         # to exercise incremental parsing and the final QProcess drain.
         output = "\n".join(json.dumps(r) for r in records)
@@ -66,7 +66,13 @@ class IndexTabTests(unittest.TestCase):
 import json, sys, time
 request = json.loads(sys.stdin.readline())
 assert request['settings']['mysql/database'] == 'isolated_test'
-assert all(key.startswith('mysql/') for key in request['settings'])
+if {jobs!r} is None:
+    assert all(key.startswith('mysql/') for key in request['settings'])
+else:
+    assert request['jobs'] == {jobs!r}
+    assert request['settings']['index/full_max_order'] == 18
+if {wait_stop!r}:
+    assert sys.stdin.readline().strip() == 'stop'
 time.sleep({delay!r})
 output = {output!r}
 sys.stdout.write(output[:len(output)//2]); sys.stdout.flush()
@@ -143,7 +149,7 @@ sys.exit({exit_code!r})
         self.assertEqual(self.launches[0][1], ["-python", "-B", "-u", "-m", "gui.index_search"])
         self.assertTrue(self.window.buildTheoriesButton.isEnabled())
         self.assertTrue(self.window.actionSettings.isEnabled())
-        self.assertEqual(self.window.calculateIndexButton.receivers(self.window.calculateIndexButton.clicked), 0)
+        self.assertFalse(self.window.calculateIndexButton.isEnabled())
 
     def test_refresh_failure_partial_response_and_empty_success(self):
         self.search([record(1), {"complete": 1}])
@@ -272,6 +278,93 @@ sys.exit({exit_code!r})
         self.assertEqual(self.window.index_tab.retrieved_jobs, ())
         self.assertIsNone(self.window.index_tab.logger._stream)
         self.assertIn("cancelling the database search", self.window.index_tab.logger.path.read_text(encoding="utf-8"))
+
+    def test_calculation_uses_selected_snapshot_and_keeps_failed_components(self):
+        self.search([record(1), record(2), record(3, ("A2",), "SU(3)"), {"complete": 3}])
+        self.window.emptyIndexGaugeGroupsList.item(0).setCheckState(QtCore.Qt.CheckState.Checked)
+        jobs = list(self.window.index_tab.selected_jobs)
+        records = [
+            {"log": "Theory 1: full index saved."},
+            {"result": {"theory_id": 1, "lagrangian_realization_id": 11, "remaining_fields": []}},
+            {"result": {"theory_id": 2, "lagrangian_realization_id": 12,
+                        "remaining_fields": ["superconformal_index"]}},
+            {"calculation_complete": {"status": "completed with errors", "processed": 2, "failed": 1, "total": 2}},
+        ]
+        with self.fixture(records, exit_code=1, jobs=jobs, delay=0.05):
+            self.window.calculateIndexButton.click()
+            self.assertEqual(self.window.calculateIndexButton.text(), "Stop")
+            self.assertFalse(self.window.searchEmptyIndicesButton.isEnabled())
+            self.assertFalse(self.window.emptyIndexGaugeGroupsList.isEnabled())
+            self.assertFalse(self.window.selectAllIndexGroupsCheckBox.isEnabled())
+            self.assertFalse(self.window.actionSettings.isEnabled())
+            self.assertFalse(self.window.buildTheoriesButton.isEnabled())
+            self.wait_search()
+        self.assertEqual([j["theory_id"] for j in self.window.index_tab.retrieved_jobs], [2, 3])
+        self.assertEqual([j["theory_id"] for j in self.window.index_tab.selected_jobs], [2])
+        self.assertEqual(self.launches[-1][1][-1], "gui.index_calculator")
+        self.assertEqual(len(self.launches), 2)  # No second empty-theory search.
+        self.assertEqual(self.window.calculateIndexButton.text(), "Calculate index")
+        self.assertTrue(self.window.calculateIndexButton.isEnabled())
+        self.assertIsNone(self.window.index_tab.logger._stream)
+        self.assertIn("full index saved", self.window.index_tab.logger.path.read_text())
+        self.assertEqual(len(list((self.root / "logs").glob("log_index_*.log"))), 2)
+
+    def test_incomplete_calculation_keeps_unknown_jobs_but_accepts_saved_results(self):
+        self.search([record(1), record(2), {"complete": 2}])
+        self.window.selectAllIndexGroupsCheckBox.click()
+        jobs = list(self.window.index_tab.selected_jobs)
+        with self.fixture([{"result": {"theory_id": 1, "lagrangian_realization_id": 11,
+                                       "remaining_fields": []}}], exit_code=1, jobs=jobs):
+            self.window.calculateIndexButton.click()
+            self.wait_search()
+        self.assertEqual([j["theory_id"] for j in self.window.index_tab.selected_jobs], [2])
+        self.assertIn("without a complete report", self.window.indexCalculationLog.toPlainText())
+
+    def test_calculation_close_requests_stop_and_preserves_pending_work(self):
+        self.search([record(1), {"complete": 1}])
+        self.window.selectAllIndexGroupsCheckBox.click()
+        jobs = list(self.window.index_tab.selected_jobs)
+        self.window.show()
+        with self.fixture([{"calculation_complete": {
+            "status": "stopped", "processed": 0, "failed": 0, "total": 1,
+        }}], jobs=jobs, wait_stop=True):
+            self.window.calculateIndexButton.click()
+            self.window.close()  # Includes Stop while the process is starting.
+            self.assertTrue(self.window.isVisible())
+            self.assertFalse(self.window.calculateIndexButton.isEnabled())
+            self.wait_search()
+        self.assertFalse(self.window.isVisible())
+        self.assertEqual(list(self.window.index_tab.selected_jobs), jobs)
+        self.assertIn("Stop requested", self.window.index_tab.logger.path.read_text())
+
+    def test_no_selection_changed_database_and_active_build_prevent_calculation(self):
+        self.search([record(1), {"complete": 1}])
+        self.assertFalse(self.window.calculateIndexButton.isEnabled())
+        self.window.selectAllIndexGroupsCheckBox.click()
+        self.window.index_tab.set_available(False)
+        with patch("gui.index_tab.QtCore.QProcess") as process:
+            self.window.index_tab.calculate()
+            self.window.index_tab.set_available(True)
+            settings = dict(self.settings, **{"mysql/database": "changed_test"})
+            with patch.object(self.store, "load", return_value=settings):
+                self.window.index_tab.calculate()
+            process.assert_not_called()
+        self.assertEqual(self.window.index_tab.retrieved_jobs, ())
+
+    def test_success_removes_finished_group_and_disables_calculate(self):
+        self.search([record(1), {"complete": 1}])
+        self.window.selectAllIndexGroupsCheckBox.click()
+        jobs = list(self.window.index_tab.selected_jobs)
+        with self.fixture([
+            {"result": {"theory_id": 1, "lagrangian_realization_id": 11, "remaining_fields": []}},
+            {"calculation_complete": {"status": "completed", "processed": 1, "total": 1, "failed": 0}},
+        ], jobs=jobs):
+            self.window.calculateIndexButton.click()
+            self.wait_search()
+        self.assertEqual(self.window.index_tab.retrieved_jobs, ())
+        self.assertEqual(self.window.emptyIndexGaugeGroupsList.count(), 0)
+        self.assertFalse(self.window.calculateIndexButton.isEnabled())
+        self.assertFalse(self.window.selectAllIndexGroupsCheckBox.isEnabled())
 
 
 if __name__ == "__main__":

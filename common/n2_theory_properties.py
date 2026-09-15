@@ -338,19 +338,24 @@ def _extract_gauge_factors(
 def _calculate_superconformal_index(
     anomaly_result: dict[str, Any],
     order: int,
+    **options,
 ) -> Any:
     """Calculate the superconformal index."""
     factors = _extract_gauge_factors(anomaly_result)
     hypermultiplets = anomaly_result["hypermultiplets"]
+    defaults = dict(
+        cache_directory=INDEX_CACHE_DIRECTORY,
+        lie_executable=LIE_EXECUTABLE, form_executable=FORM_EXECUTABLE,
+        timeout=DEFAULT_TIMEOUT, processes=DEFAULT_PROCESS_COUNT,
+    )
+    if options.get("database_path") is not None:
+        defaults.pop("cache_directory")
+    defaults.update(options)
     return calculate_index_internal(
         factors,
         hypermultiplets,
         order,
-        cache_directory=INDEX_CACHE_DIRECTORY,
-        lie_executable=LIE_EXECUTABLE,
-        form_executable=FORM_EXECUTABLE,
-        timeout=DEFAULT_TIMEOUT,
-        processes=DEFAULT_PROCESS_COUNT,
+        **defaults,
     )
 
 
@@ -521,16 +526,16 @@ def calculate_coulomb_branch_spectrum(
 
 
 def calculate_superconformal_index(
-    data: dict[str, Any], *, order: Any | None = None
+    data: dict[str, Any], *, order: Any | None = None, **options,
 ) -> Any:
-    """Calculate the raw full index through an inclusive integer t cutoff."""
+    """Calculate the full index; options override calculate_index_internal tools/caches."""
     order = as_nonnegative_int(
         INDEX_MAX_ORDER if order is None else order, "order"
     )
     anomaly_result = _validated_anomaly_result(data)
     if not anomaly_result["lagrangian_scft_candidate"]:
         return None
-    return _calculate_superconformal_index(anomaly_result, order)
+    return _calculate_superconformal_index(anomaly_result, order, **options)
 
 
 def main(argv: list[str] | None = None) -> int:

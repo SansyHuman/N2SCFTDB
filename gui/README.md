@@ -58,17 +58,49 @@ password. These accessors return copies. A successful refresh replaces the
 snapshot and preserves checks for groups still present; an empty successful
 search clears the list. Failed/incomplete searches keep the previous snapshot.
 Changing the source database in Preferences clears it; changing calculation
-cutoffs does not. Results are not saved across application restarts. A future
-calculation action must use this source and the existing write-time index
-rechecks to handle changes committed since the search.
+cutoffs does not. Results are not saved across application restarts.
 
-**Calculate index** remains unwired; this change implements only search and
-selection. Every search attempt also creates
+**Calculate index** uses the retained jobs for checked groups. A separate Sage
+coordinator distributes all selected theories across spawned worker processes,
+using the saved CPU limit (`-1` means all logical cores), capped at the selected
+theory count. Work is assigned dynamically, with at most twice that many jobs
+queued/running. Each worker owns its MySQL connection and runs its full-index
+cache calculations with one process, avoiding nested worker pools. Both saved
+cache filenames, executables, timeout and inclusive index cutoffs are honored.
+Calculation uses the initialized database from the search, without migration.
+
+Each job rechecks its missing components by theory/realization ID, without
+repeating the database-wide search. It computes the full index, Coulomb index
+and complete Coulomb spectrum as needed. Existing components are preserved,
+including legacy results with unknown cutoffs and results filled by another
+client since the search. Each successful component commits independently.
+Finished theories disappear from the retained list when the run ends; failed,
+stopped and unconfirmed jobs remain, with their group selections, for retry.
+Failures in one calculation component do not discard other completed components.
+Database connection/rollback failures stop that job and close its connection.
+
+During calculation the button becomes **Stop**. Stop cancels queued work and
+lets active components finish and save before workers exit. Closing the window
+requests the same cooperative stop. Settings, search and anomaly builds are
+disabled until shutdown completes. Progress and per-component errors appear
+as they arrive; worker logs use a manager queue, avoiding multiprocessing feeder
+threads waiting on undrained pipes during shutdown.
+
+Index writes lock the existing parent theory before its property/realization
+rows. Existing-theory anomaly attachments use the same parent-first order;
+new theories retain the direct-property-insert fix. Calculations hold no MySQL
+locks. Deadlocks and lock timeouts (1213/1205) roll back the entire short write
+transaction and retry at most twice (50/100 ms backoff), rechecking stored data
+without repeating calculations. Lost connections and uncertain commits are
+reported rather than replayed. Other clients can still cause contention; see
+[MySQL's deadlock guidance](https://dev.mysql.com/doc/refman/8.0/en/innodb-deadlocks-handling.html).
+
+Every search and calculation attempt creates
 `logs/log_index_YYYYMMDD_HHMMSS_ffffff.log` under the project root, with the path
 shown in the GUI. The file contains the same timestamped, password-redacted
-messages as the search log, flushed as they arrive, including errors before
+messages as the GUI log, flushed as they arrive, including errors before
 the worker starts. Each attempt gets a new file; it closes after success,
-failure or cancellation. File errors appear in the GUI and search continues
+failure or cancellation. File errors appear in the GUI and processing continues
 with on-screen logging.
 
 In the **anomaly** tab, enter gauge groups in the left text field, one theory
@@ -233,7 +265,7 @@ Defaults mirror `index/char_decomposition_cache.py`,
 if unavailable), resolved when each build starts. A positive integer limits the
 number of worker processes; `1` runs serially and `0` is not allowed. This setting
 controls candidate checking, database insertion and character-cache generation
-in the anomaly build. Theory enumeration remains serial. Older settings files
+in the anomaly build, and parallel theories in index calculation. Theory enumeration remains serial. Older settings files
 default to `-1` until saved.
 
 The **Index truncation** section saves both inclusive cutoffs. Full-index order
@@ -277,8 +309,8 @@ secrets and can write identical, immediately flushed UTF-8 messages to an
 optional file. `start_file()` creates an exclusive timestamped filename and
 preserves existing files; file failures are reported in the widget while GUI
 logging continues. Anomaly builds retain the existing `log_anomalies_...log`
-files; index searches use `log_index_...log`. Future index calculations
-can use the same logger and file API:
+files; index searches and calculations use `log_index_...log`. Both use the
+same logger and file API:
 
 ```python
 logger = window.index_tab.logger
