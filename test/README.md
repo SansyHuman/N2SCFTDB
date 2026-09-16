@@ -10,6 +10,20 @@ CLI tests use `--char-cache-database` for both direct-file and module execution.
 Property/worker tests override `CHAR_CACHE_DATABASE_PATH` with a temporary file.
 The standalone character-cache class and builder retain their own path API.
 
+`test_gui_database_clear.py` checks the Settings deletion warning, target display,
+fresh masked password, cancellation/retry, secret redaction, asynchronous process
+lifetime and invalidation of cached index jobs. `test_database_clear.py` checks
+authentication, schema validation and rollback. Its opt-in MySQL tests delete only
+the dedicated `N2_TEST_MYSQL_DATABASE` fixtures, test the real stdin worker protocol,
+verify all theory-data tables are empty after success, and re-import into the
+preserved schema. They require only database-scoped test privileges.
+
+`test_form_degree_bound.py` compares the degree-bounded FORM exponential with
+the former unrestricted multiplication before singlet projection. Cases include
+empty/free sectors, pure vectors, simple and multi-factor matter, minimal/odd
+cutoffs and the default order 18. `benchmark_product_form.py --variant baseline`
+retains the former multiplication; `--variant degree_bounded` profiles production.
+
 From the project root, run the combined backend and GUI suite with Sage:
 
 ```bash

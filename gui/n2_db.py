@@ -14,6 +14,7 @@ if not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from common.number_utils import as_nonnegative_fraction
+from gui.database_clear_dialog import DeleteDatabaseDialog
 
 if __package__:
     from .anomaly_tab import AnomalyTabController
@@ -173,10 +174,13 @@ class SettingsStore:
 
 
 class SettingsDialog(QtWidgets.QDialog):
+    databaseContentsDeleted = QtCore.pyqtSignal(dict)
+
     def __init__(self, store: SettingsStore, parent=None):
         super().__init__(parent)
         uic.loadUi(str(GUI_DIRECTORY / "settings.ui"), self)
         self.store = store
+        self._deletion_dialog = None
         self.text_fields = {
             "cache/character_database": self.characterCacheEdit,
             "cache/form_database": self.formCacheEdit,
@@ -209,8 +213,53 @@ class SettingsDialog(QtWidgets.QDialog):
         self.formCacheBrowse.clicked.connect(lambda: self.browse_cache(self.formCacheEdit))
         self.lieBrowse.clicked.connect(lambda: self.browse_executable(self.lieEdit))
         self.formBrowse.clicked.connect(lambda: self.browse_executable(self.formEdit))
+        self.deleteDatabaseContentsButton.clicked.connect(self.delete_database_contents)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
+
+    @property
+    def deletion_active(self):
+        return self._deletion_dialog is not None and self._deletion_dialog.process is not None
+
+    def delete_database_contents(self):
+        parent = self.parent()
+        if isinstance(parent, N2DatabaseWindow) and (
+                parent.anomaly_tab.process is not None or parent.index_tab.process is not None):
+            return
+        if self._deletion_dialog is not None:
+            return
+        # Snapshot the displayed target. Do not reuse or save either password.
+        settings = {key: field.text().strip() for key, field in self.text_fields.items()
+                    if key.startswith("mysql/") and key != "mysql/password"}
+        settings.update({key: field.value() for key, field in self.number_fields.items()
+                         if key.startswith("mysql/")})
+        settings["mysql/unix_socket"] = os.environ.get("N2_DB_UNIX_SOCKET")
+        if any(not settings[key] for key in ("mysql/database", "mysql/host", "mysql/user")):
+            QtWidgets.QMessageBox.warning(self, "Choose a database", "Fill in the database name, host and account first.")
+            return
+        dialog = DeleteDatabaseDialog(settings, self)
+        self._deletion_dialog = dialog
+        try:
+            if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+                self.databaseContentsDeleted.emit(settings)
+                QtWidgets.QMessageBox.information(
+                    self, "Database contents deleted",
+                    f"Deleted {dialog.deleted_count} theories and all related data from "
+                    f"{settings['mysql/database']}. The database is ready to use again.",
+                )
+        finally:
+            self._deletion_dialog = None
+            dialog.deleteLater()
+
+    def reject(self):
+        if not self.deletion_active:
+            super().reject()
+
+    def closeEvent(self, event):
+        if self.deletion_active:
+            event.ignore()
+        else:
+            super().closeEvent(event)
 
     def browse_cache(self, field: QtWidgets.QLineEdit) -> None:
         # Selection only: the chosen database may be existing or not yet created.
@@ -230,6 +279,8 @@ class SettingsDialog(QtWidgets.QDialog):
             field.setText(filename)
 
     def accept(self) -> None:
+        if self.deletion_active:
+            return
         values = {key: field.text() for key, field in self.text_fields.items()}
         values.update({key: field.value() for key, field in self.number_fields.items()})
         if values["tools/processes"] == 0:
@@ -287,6 +338,7 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
         self.actionSettings.triggered.connect(self.open_settings)
         self.actionQuit.triggered.connect(self.close)
         self._close_requested = False
+        self._settings_dialog = None
         self.anomaly_tab = AnomalyTabController(self, self.store, project_root=PROJECT_ROOT)
         self.index_tab = IndexTabController(self, self.store, project_root=PROJECT_ROOT)
         self.anomaly_tab.activeChanged.connect(self._sync_tab_availability)
@@ -303,6 +355,9 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
             self.close()
 
     def closeEvent(self, event):
+        if self._settings_dialog is not None and self._settings_dialog.deletion_active:
+            event.ignore()
+            return
         if self.anomaly_tab.process is not None or self.index_tab.process is not None:
             self._close_requested = True
             self.anomaly_tab.stop()
@@ -319,16 +374,24 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
         return self.store.load()
 
     def open_settings(self) -> None:
+        if self.anomaly_tab.process is not None or self.index_tab.process is not None:
+            return
         try:
             dialog = SettingsDialog(self.store, self)
         except OSError as exc:
             QtWidgets.QMessageBox.critical(self, "Cannot load settings", str(exc))
             return
-        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-            try:
-                self.index_tab.invalidate_if_database_changed(self.store.load())
-            except OSError as exc:
-                QtWidgets.QMessageBox.critical(self, "Cannot load settings", str(exc))
+        dialog.databaseContentsDeleted.connect(self.index_tab.invalidate_after_database_deletion)
+        self._settings_dialog = dialog
+        try:
+            if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+                try:
+                    self.index_tab.invalidate_if_database_changed(self.store.load())
+                except OSError as exc:
+                    QtWidgets.QMessageBox.critical(self, "Cannot load settings", str(exc))
+        finally:
+            self._settings_dialog = None
+            dialog.deleteLater()
 
 
 def main() -> int:

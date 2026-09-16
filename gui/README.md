@@ -30,6 +30,24 @@ tabs. Choose **Settings → Preferences…** (Ctrl+,) for settings; **File → Q
 (Ctrl+Q) closes the program. Python loads both UI files directly, so no code
 generation step is needed.
 
+In **Settings → Preferences…**, the MySQL section has **Delete all database
+contents…**. It opens a warning showing the database, server/socket and account
+currently displayed in Settings, including unsaved edits. Enter that account's
+current password in the separate masked field and press **Delete**. The password
+is authenticated by a fresh MySQL connection; it is never taken from the saved
+password, saved back to preferences, or sent through command-line arguments.
+The dialog requires a nonempty password and remains responsive while deletion runs.
+
+Deletion removes every stored theory and its related properties, realizations,
+gauge/matter/flavor data, indices and spectra in one transaction. The tables,
+schema metadata, database account and SQLite cache files remain. A wrong password
+performs no deletion; database errors roll back the transaction. If a connection
+or worker failure leaves the outcome unconfirmed, inspect the database before
+retrying. After success the index tab's retained search results are cleared,
+even if Settings is subsequently cancelled. Settings/deletion are unavailable
+during an active build/search/calculation; an active deletion must finish before
+its dialog can close. This operation cannot be undone after it commits.
+
 In the **index** tab, **Search theories with empty indices** uses the saved
 MySQL settings and the existing `iter_lagrangian_index_jobs` iterator. A theory
 is listed if its full index, Coulomb index **or** Coulomb spectrum is missing

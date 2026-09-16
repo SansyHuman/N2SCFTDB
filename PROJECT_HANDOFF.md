@@ -1,6 +1,71 @@
 # N2SCFTDB Project Handoff
 
-Last updated: **2026-09-15 (Asia/Seoul)**.
+Last updated: **2026-09-16 (Asia/Seoul)**.
+
+## Password-confirmed deletion in Settings (16 September 2026)
+
+The MySQL section of `gui/settings.ui` now has **Delete all database contents…**.
+`SettingsDialog` snapshots the displayed target (including unsaved edits) and
+opens `gui.database_clear_dialog.DeleteDatabaseDialog`, which shows the server
+or effective Unix socket, database and account, an irreversible-deletion warning,
+an initially empty masked password field, and Delete/Cancel buttons. It requires
+a nonempty freshly entered password. Opening or cancelling the warning does not
+connect or delete anything. The entered password is never saved to preferences.
+
+After Delete, a separate Sage process (`gui.database_clear`) receives only the
+connection target, entered password and explicit confirmation via stdin. It
+authenticates a fresh connection with schema initialization disabled and invokes
+`common.n2_theory_db.delete_all_theory_data`. That helper requires the current
+schema and executes a transactional `DELETE FROM theories`; existing foreign-key
+cascades remove all related property/realization/matter/flavor/index records.
+Tables, schema metadata and SQLite caches remain. Failures roll back; credentials
+and raw exception text are not published in worker responses.
+
+Settings is unavailable while a build/search/calculation runs. During deletion,
+the dialog disables input and cancellation and waits for the worker rather than
+killing it on close. Wrong-password failures allow re-entry. An unconfirmed
+worker/connection outcome is reported explicitly. Success clears retained index
+jobs even if the Settings dialog is later cancelled. All tests for this action
+live in `test/test_database_clear.py` and `test/test_gui_database_clear.py`.
+
+Validation: the combined suite passed **370 tests in 65.584 seconds, no skips**.
+An additional real-worker authentication/deletion regression added afterward
+passed separately in 1.444 seconds. Live deletion tests used only the dedicated
+test database; all data tables were checked after success, failed authentication
+preserved records, and a failure before commit restored real cascading deletes.
+The Settings and confirmation dialogs were rendered and visually reviewed offscreen.
+
+## Degree-bounded FORM multiplication (16 September 2026)
+
+`index.n2_theory_index._build_form_program` brackets the plethystic exponent
+by t-degree. A marked term of degree k multiplies only exponent coefficients
+of degrees 2 through N-k, using `itotal[t^idx1]`. `Skip J,itotal` preserves
+the bracketed exponent between modules. A temporary `w` marker prevents newly
+generated products from expanding again within the same exponential step;
+terminal terms are retained by replacing `z` with 1. The existing `t(:N)`
+bound remains. Orders 2 and 3 bypass the multiplication loop, and the public
+API still returns the vacuum without FORM for orders 0 and 1.
+
+The profiler in `test/benchmark_product_form.py` retains the former full-exponent
+multiplication as `baseline`; `degree_bounded` now uses the production generator.
+Its raw-program digest records the actual selected program. The new
+`test/test_form_degree_bound.py` compares complete formal expansions for empty
+and free sectors, vectors, simple/product matter, odd cutoffs and loop boundaries,
+plus a connected bifundamental at the default cutoff 18.
+
+Validation: `all_test.sh` passed **357 tests in 64.117 seconds, with no skips**,
+including 43 complete formal-expansion comparisons and the existing live
+database, GUI-worker, cache-reuse and disconnected-sector regressions.
+
+A single sequential FORM-only comparison at order 18 gave **2.236 s baseline /
+0.585 s optimized (3.82x)**, with exactly matching 28,154 formal terms. Both
+ran FORM directly, without cache hits or singlet projection. This is an observed
+example, not a general speedup guarantee; retained evidence is
+`output/benchmarks/degree_bounded_form_20260916.json`.
+
+Because FORM-cache keys are complete program strings, existing FORM entries
+do not match the new generator. They remain intact; a new program is calculated
+once on its first miss and reused afterward. Character-cache entries are unchanged.
 
 ## Character-cache file argument (15 September 2026)
 

@@ -532,6 +532,31 @@ def _fraction_parts(value: Fraction | int) -> tuple[int, int]:
     return fraction.numerator, fraction.denominator
 
 
+def delete_all_theory_data(connection: Connection) -> int:
+    """Delete all theory data atomically, retaining tables and schema metadata.
+
+    The caller must obtain explicit confirmation and authenticate a fresh
+    connection first. All realization/property/matter tables reference
+    theories through ON DELETE CASCADE. This operation owns its transaction;
+    do not pass a connection with pending work. No DDL or cache files change.
+    """
+    version = _fetchone(
+        connection, "SELECT metadata_value FROM schema_metadata WHERE metadata_key = %s",
+        ("schema_version",),
+    )
+    if version is None or version["metadata_value"] != str(SCHEMA_VERSION):
+        raise ValueError("The database must use the current N2SCFTDB schema before deletion.")
+    connection.begin()
+    try:
+        with connection.cursor() as cursor:
+            deleted = cursor.execute("DELETE FROM theories")
+        connection.commit()
+    except BaseException:
+        connection.rollback()
+        raise
+    return deleted
+
+
 def _factor_rows(anomaly_result: dict[str, Any]) -> list[dict[str, Any]]:
     if "gauge_factors" in anomaly_result:
         return anomaly_result["gauge_factors"]

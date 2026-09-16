@@ -104,6 +104,15 @@ class IndexTabController(QtCore.QObject):
             self._sync_select_all()
             self.log("Database settings changed; cleared the previous search results.")
 
+    def invalidate_after_database_deletion(self, settings):
+        # Clear even when another account/host spelling selected the same DB.
+        # This also runs when Settings is cancelled after a successful deletion.
+        self._groups = {}
+        self._database = None
+        self.window.emptyIndexGaugeGroupsList.clear()
+        self._sync_select_all()
+        self.log("Database contents deleted; cleared the previous search results.")
+
     def select_all(self, checked):
         listing = self.window.emptyIndexGaugeGroupsList
         blocker = QtCore.QSignalBlocker(listing)
