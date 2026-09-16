@@ -3,6 +3,8 @@
 Run with Sage. Inputs are explicit JSON files or the exported timeout_cases.json.
 Each run retains the generated program, FORM statistics, resource use and timings
 under its output directory. Optional projection uses private cache copies.
+The baseline retains the former unrestricted exponential multiplication;
+degree_bounded uses the production generator.
 """
 
 import argparse
@@ -41,11 +43,42 @@ def form_statistics(text):
              "bytes": int(size)} for t, g, name, n, step, size in re.findall(pattern, text)]
 
 
+def build_baseline_program(order, character_count, vectors, matter):
+    """Use the same letters but the former full-exponent multiplication.
+
+    Retain this distinct algorithm for exact regression comparisons as well
+    as profiling; it must not silently become the optimized implementation.
+    """
+    program = idx._build_form_program(order, character_count, vectors, matter)
+    prefix, marker, _ = program.partition("L I=")
+    if not marker:
+        raise ValueError("cannot find the exponential in the generated FORM program")
+    prefix = prefix.replace("Bracket t;\n", "").replace("Skip J,itotal;\n", "")
+    steps = ""
+    if order // 2 >= 2:
+        steps = f"""#do i=2,{order // 2}
+  id z=1+z*itotal/`i';
+  .sort:step `i';
+#enddo
+"""
+    return prefix + f"""L I=z;
+id z=z*itotal;
+{steps}.sort
+L result=1+I;
+id z=1;
+.sort
+Print result;
+.end
+"""
+
+
 def profile(case, data, order, output, timeout, *, print_result=True, project=False,
             variant="baseline"):
     factors, hypers, specs, vectors, matter = describe(data)
-    program = idx._build_form_program(order, len(specs), vectors, matter)
-    digest = hashlib.sha256(program.encode()).hexdigest()
+    if variant == "degree_bounded":
+        program = idx._build_form_program(order, len(specs), vectors, matter)
+    else:
+        program = build_baseline_program(order, len(specs), vectors, matter)
     if variant == "prune_z":
         # Diagnostic-only algebraic equivalent: a marked term of degree >N-2
         # cannot contribute another power of the exponent (minimum degree 2).
@@ -54,35 +87,10 @@ def profile(case, data, order, output, timeout, *, print_result=True, project=Fa
     id z=1;
   endif;
   id z=1+z*itotal/`i';""")
-    elif variant == "degree_bounded":
-        # Diagnostic prototype: preserve t-brackets on the exponent and select
-        # only coefficients that can contribute below the remaining cutoff.
-        program = program.split("L I=z;", 1)[0].replace("j,z,u,t", "j,z,w,u,t") + f"""
-Bracket t;
-.sort
-Skip J,itotal;
-L I=z*itotal;
-.sort
-#do i=2,{order // 2}
-  Skip J,itotal;
-  #do k=2,{order - 2}
-    if (count(t,1) == `k');
-      id z=1+w*sum_(idx1,2,{order}-`k',itotal[t^idx1]*t^idx1)/`i';
-    endif;
-  #enddo
-  id z=1;
-  id w=z;
-  .sort:step `i';
-#enddo
-L result=1+I;
-id z=1;
-.sort
-Print result;
-.end
-"""
     program = program.replace("Off statistics;", "On statistics;")
     if not print_result:
         program = program.replace("Print result;", "")
+    digest = hashlib.sha256(program.encode()).hexdigest()
     folder = output / f"{case}_t{order}_{variant}"
     folder.mkdir(parents=True, exist_ok=True)
     source, stdout = folder / "program.frm", folder / "form.out"

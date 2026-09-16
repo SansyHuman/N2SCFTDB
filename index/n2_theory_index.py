@@ -241,7 +241,13 @@ def _build_form_program(
     vector_characters: tuple[int, ...],
     matter_multiplicities: dict[IndexedMonomial, int],
 ) -> str:
-    """Build the exact FORM program for the representation-valued PE."""
+    """Build the representation-valued PE with degree-bounded products.
+
+    All exponent terms have t-degree at least two. For a marked term of
+    degree k, only exponent coefficients through order-k can contribute.
+    The temporary marker w prevents a new product from being expanded again
+    by a later degree branch in the same exponential step.
+    """
     max_adams = order // 2
     derivative_order = order // 3
     character_names = ",".join(
@@ -262,14 +268,21 @@ def _build_form_program(
     exponential_steps = ""
     if max_adams >= 2:
         exponential_steps = f"""#do i=2,{max_adams}
-  id z=1+z*itotal/`i';
+  Skip J,itotal;
+  #do k=2,{order - 2}
+    if (count(t,1) == `k');
+      id z=1+w*sum_(idx1,2,{order}-`k',itotal[t^idx1]*t^idx1)/`i';
+    endif;
+  #enddo
+  id z=1;
+  id w=z;
   .sort:step `i';
 #enddo
 """
 
     return f"""#: MaxTermSize 600000
 Off statistics;
-S m,n,y,idx1,idx2,j,z,u,t(:{order});
+S m,n,y,idx1,idx2,j,z,w,u,t(:{order});
 CF {character_declaration};
 PolyRatFun d;
 Function Kvec,Khyp;
@@ -283,11 +296,13 @@ id n=t^3/y;
 L itotal=sum_(j,1,{max_adams},({total_letters})/j);
 id Kvec(t?,y?,u?)=J*(t^2*u^2-t^4/u^2-t^3*y-t^3/y+2*t^6);
 id Khyp(t?,y?,u?)=J*(t^2/u-t^4*u);
+Bracket t;
 .sort
 
-L I=z;
-id z=z*itotal;
-{exponential_steps}.sort
+Skip J,itotal;
+L I=z*itotal;
+.sort
+{exponential_steps}
 
 L result=1+I;
 id z=1;
