@@ -1,0 +1,187 @@
+% Session additions to the implementation reference only.
+\clearpage
+\subsection{Tab controllers, reusable logging and retained index searches}
+\label{sec:index-gui}
+\code{gui/n2_db.py} owns the main window, settings and coordination between
+tabs. \code{AnomalyTabController} in \code{gui/anomaly_tab.py} owns anomaly
+input loading, Build/Stop, process output and build state. The parallel
+\code{IndexTabController} in \code{gui/index_tab.py} owns index search,
+selection, calculation and retained results. Both are \code{QObject}s;
+their action methods are connected to widgets loaded from \code{gui/n2_db.ui}.
+
+The index tab has two side-by-side areas. The left contains
+\textbf{Search theories with empty indices}, \textbf{Select all}, and
+checkboxes grouped by the theory's ordered gauge-group factors, with counts.
+The right contains a read-only log and \textbf{Calculate index}, which becomes
+\textbf{Stop} during calculation. Select all checks or clears every listed
+group; individual selections update its state too.
+
+\code{gui/index_search.py} runs as a separate Sage process. It uses the saved
+MySQL settings and \code{iter_lagrangian_index_jobs}, without schema migration
+or writes. An index job is selected when its full index, Coulomb index
+\emph{or} Coulomb spectrum is SQL NULL or JSON null. A complete record of
+lower or unknown precision is not an ``empty'' result and is not selected by
+this GUI search. The separate CLI's upgrade mode remains available.
+One Lagrangian realization is retrieved for each shared theory.
+
+Successful searches retain complete theory/realization IDs, factor and hyper
+inputs, missing-field metadata and source identity in the controller.
+\code{retrieved_jobs} returns all jobs and \code{selected_jobs} returns checked
+groups' jobs as copies. The next calculation uses this snapshot without a
+second database-wide search. New groups begin unchecked; a successful refresh
+preserves checks for still-present groups. An empty successful search clears
+the list; a failed/incomplete search retains the last successful snapshot.
+Changing the source database clears it; changing a cutoff does not. The
+snapshot is in memory only and does not survive restarting the application.
+
+\textbf{Shared log implementation.} \code{gui/logging_utils.py} provides
+\code{redact_message}, \code{make_log_record}, \code{format_log_message},
+and \code{GuiLogger}. A logger accepts an append callback, secrets to redact,
+and an optional file started with a configurable prefix. Both tab controllers
+use this API, so future logs can reuse the same timestamp, level, multiline,
+redaction and flushing behavior. Each index search and calculation attempt
+creates its own file, including failures before worker startup:
+\begin{lstlisting}
+logs/log_index_YYYYMMDD_HHMMSS_ffffff.log
+\end{lstlisting}
+The file and read-only widget receive the same redacted messages. A file error
+is reported on screen without stopping the work. The anomaly prefix remains
+\code{log_anomalies}. Files close after completion, failure or cancellation.
+
+\clearpage
+\subsection{Multiprocessing index calculation and partial progress}
+\code{gui/index_calculator.py} is the Sage coordinator started by
+\textbf{Calculate index}. It distributes the selected retained theories across
+spawned processes. With $C$ selected theories and CPU limit $P$, the pool uses
+at most $\min(C,P)$ workers and at most twice that many outstanding tasks.
+One task contains one theory; workers receive further tasks dynamically.
+The setting $-1$ resolves to all logical CPUs, with a one-worker fallback.
+
+Each worker owns its MySQL connection, opened against the initialized schema,
+and closes it at normal shutdown. Connections never cross process boundaries.
+The worker calls \code{common.n2_theory_db_indices.calculate_index_job} with
+saved full/Coulomb cutoffs, executable paths, timeout and both cache filenames.
+Inner full-index calculations use one process to avoid nested worker pools.
+The worker passes its own theory connection to the disconnected-sector reuse
+path described in Section~\ref{sec:disconnected}.
+
+\begin{enumerate}
+\item Recheck the retained theory/realization IDs for fields currently missing.
+This is a targeted stale-job check, not another search of all empty theories.
+\item Compute missing full index, Coulomb index and complete Coulomb spectrum
+outside write transactions. A stored full index does not limit the separate
+Coulomb calculation's requested precision.
+\item Save each successful component independently using
+\code{missing_only=True}. A concurrent fill, sufficient result or legacy
+unknown-precision value is preserved. A failure in one component does not
+erase successful components already committed.
+\item Publish outcomes. Confirmed complete jobs are removed from the retained
+selection when the run ends. Failed, stopped or unconfirmed jobs remain for
+retry; a later retry rechecks which components still need work.
+\end{enumerate}
+
+A manager-backed queue streams log records from workers to the coordinator.
+The coordinator drains results and logs while tasks are active, avoiding the
+feeder-thread shutdown pattern in which a child waits on a full, undrained
+ordinary multiprocessing queue. Scheduling remains bounded even for a long
+selection. Unexpected worker exit is reported rather than silently retried.
+
+\textbf{Stop and close.} Stop cancels queued work where possible and lets
+active components finish and save before workers shut down. Window close
+requests the same cooperative stop. Search, anomaly Build and Preferences
+are mutually blocked during a calculation. A read-only search can be cancelled
+on close. These ownership and shutdown rules address process/queue deadlocks;
+they do not eliminate mathematical workloads that take a long time.
+
+\clearpage
+\subsection{Database lock ordering and the test-permission repair}
+The index writer and legacy-cutoff recorder lock the parent theory before
+property/realization rows. Existing-theory anomaly attachment uses the same
+parent-first order. This removes the earlier child/parent cycle between
+imports and index updates. The fresh-import missing-row gap-lock fix remains:
+a newly inserted theory gets a direct property insert rather than a locking
+lookup for an absent property row.
+
+For MySQL errors 1205 (lock wait timeout) and 1213 (deadlock), the index write
+and cutoff APIs roll back the whole short transaction, wait 50 then 100 ms,
+and retry at most twice. Each attempt reads the current state again and merges
+only permitted fields; the expensive index is not recomputed. Connection
+failures and failed rollbacks are not replayed. Other clients can still
+introduce contention, so the result is bounded recovery, not a claim that all
+possible database deadlocks are impossible.
+
+The 14 September recorded index run passed 338 tests in 55.104 s, including
+the real GUI search/calculation protocol, custom caches, partial failures,
+cooperative Stop, abrupt worker exit, connection cleanup, an eight-worker
+256-theory stress case and targeted parent-row contention. The controlled
+stress and contention runs added no observed deadlocks.
+
+The later \code{all_test.sh} failure was a test-account permission problem:
+concurrency tests queried server-wide \code{INNODB_METRICS}, which requires
+privileges the database-scoped test account does not have. The repaired tests
+observe rollback calls on their own connections, including successfully retried
+lock failures. Cleanup inspects only connections owned by that test user.
+No global PROCESS or SUPER grant is required. The recorded post-repair suite
+passed 339 tests. Direct-file/module cache-builder resume coverage remains in
+\code{test/test_build_decomposition_cache.py}; its appearance at the start of
+the submitted test log did not identify it as the failing test.
+
+\textbf{Test organization.} All new tests and test helpers live in \code{test/}.
+The moved GUI tests use \code{test_gui_} names; the opt-in real credential-vault
+check is \code{test/check_secret_service.py}. Application files under
+\code{gui/} contain runtime code only. \code{all_test.sh} discovers the combined
+suite from \code{test/}. Live integration fixtures reset only the configured
+test database and need database-scoped privileges; ordinary GUI tests use
+temporary settings and fixture credentials.
+
+\clearpage
+\subsection{Password-confirmed deletion from Settings}
+\label{sec:delete-settings}
+The MySQL section of Settings has \textbf{Delete all database contents...}.
+\code{SettingsDialog} snapshots the displayed database, host, port, user and
+timeout, including unsaved edits, plus the effective Unix socket when set.
+\code{DeleteDatabaseDialog} shows that target, an irreversible-deletion warning,
+a fresh masked password field, and Delete/Cancel. The saved password is not
+prefilled. Opening or cancelling the dialog performs no database operation.
+
+The editable layout is \code{gui/database_clear_dialog.ui}. Python loads it
+with \code{uic.loadUi}, as it loads the main and Settings forms. The UI file
+owns labels, layout, password echo mode, disabled initial Delete button,
+default Cancel button and tab order. \code{gui/database_clear_dialog.py}
+supplies the target text and platform warning icon, connects signals, and
+controls the asynchronous operation. It no longer constructs the layout.
+
+\begin{enumerate}
+\item A nonempty freshly entered password enables Delete. Password whitespace
+is preserved. Delete starts a separate Sage process for
+\code{gui.database_clear}; target, password and explicit confirmation travel
+through stdin, never through command-line arguments or saved preferences.
+\item The worker authenticates a fresh MySQL connection using the entered
+password and \code{initialize_schema=False}. This is database authentication,
+not comparison with the previously saved credential.
+\item \code{delete_all_theory_data} checks schema version 7, starts a transaction,
+executes \texttt{DELETE FROM theories}, and commits. Foreign-key cascades remove
+the associated property, realization, gauge, hyper, flavor, index and spectrum
+data. Tables, schema metadata, account and SQLite caches remain. There is no
+DROP, TRUNCATE or auto-increment reset. Exceptions trigger rollback.
+\item A confirmed result returns the deleted parent-theory count and clears
+the index tab's retained jobs, even if Settings is subsequently cancelled.
+\end{enumerate}
+
+The dialog remains responsive but disables password input and cancellation
+during deletion. Dialog, Settings and main-window close wait for the worker.
+Settings is unavailable during a build, search or calculation. Wrong-password
+rejection allows a fresh entry; errors and logs redact secrets. A lost worker
+or connection can make the commit outcome uncertain, so the UI reports an
+unconfirmed result and advises inspecting the database before retrying.
+The helper guarantees the transactional attempt, not knowledge of a commit
+after a lost connection.
+
+\textbf{Recorded validation, 16 September.} The full suite passed 370 tests in
+65.584 s with no skips; an additional actual stdin-worker authentication test
+passed afterward in 1.444 s. After extracting the layout, 38 deletion-dialog
+and main-GUI tests passed in 1.477 s and the dialog was rendered for visual
+inspection. Live deletion fixtures checked every theory-data table, wrong
+password preservation, rollback after a failure before commit, and reuse of
+the preserved schema. These counts describe separate runs, not a claimed
+371-test combined run. No production database was cleared.

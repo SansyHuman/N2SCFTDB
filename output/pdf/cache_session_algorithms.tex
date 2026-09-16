@@ -53,6 +53,22 @@ supplied afterward by each theory's character basis. Their final indices can
 therefore differ despite a shared expansion. This reuse applies to the supported
 non-$SU$ groups too; it does not require a power-sum/Schur integration backend.
 
+\cacheheading{Large cache files and WAL lifetime}
+A several-gigabyte cache is not by itself a reason to replace SQLite
+\cite{sqlite-use}. For this implementation, distinguish indexed-key lookup
+from decoding one large JSON payload, scanning candidate keys for a dependency
+plan, and waiting for concurrent writes. Those costs need representative
+measurements; this session did not benchmark a several-gigabyte cache.
+
+In WAL mode, \code{-wal} holds the write-ahead log and \code{-shm} coordinates
+access. Other open connections or an unclean process exit can leave these
+files after a program finishes. SQLite normally checkpoints and cleans up on
+the last clean close; their presence alone is not evidence of corruption
+\cite{sqlite-temp}. Never remove a live WAL manually: committed data may still
+be there. A cache context manager closes its current thread's connection;
+that does not close another process's connection. No new checkpoint or
+worker-finalizer policy was implemented as part of this discussion.
+
 \clearpage
 \cacheheading{Reusing lower-order character decompositions}
 Write the cached virtual character as

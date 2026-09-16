@@ -1,11 +1,12 @@
-% Shared GUI and concurrent-import implementation, inspected 14 September 2026.
+% Anomaly GUI foundation; revised to match the 16 September controller split.
 % Keep displays unnumbered so the existing mathematical equations stay stable.
 \subsection{Editable input, saved settings and portable launch}
 The PyQt6 window loads \code{gui/n2_db.ui} and \code{gui/settings.ui} directly.
 The anomaly tab has two side-by-side areas: editable multiline gauge input and
 \textbf{Load theories...} on the left; a character-cache checkbox, read-only
-progress log and \textbf{Build}/\textbf{Stop} controls on the right. The index
-tab remains empty; the separate database index worker remains available.
+progress log and \textbf{Build}/\textbf{Stop} controls on the right. Both tabs
+now have controllers; the implemented index workflow and Settings deletion
+are described in Sections~\ref{sec:index-gui} and \ref{sec:delete-settings}.
 
 Enter one gauge-group specification per nonempty line, separating factors by
 commas. These are instructions to enumerate matter contents, not complete
@@ -147,6 +148,7 @@ Stop. File errors are shown in the GUI, which continues logging on screen.
 Generated logs are ignored by Git.
 
 \textbf{Implementation sources:} \code{gui/n2_db.py},
+\code{gui/anomaly_tab.py}, \code{gui/logging_utils.py},
 \code{gui/theory_builder.py}, \code{gui/candidate_workers.py}, the editable UI
 files, and \code{gui/README.md}. The configured worker limit also applies to
 character-cache generation; it is not a guarantee of proportional speedup.
@@ -220,8 +222,9 @@ pair, 256 candidates and existing database unit regressions.\\
 GUI, documentation refresh & 32 offscreen tests passed in 0.869 s; temporary
 settings and credential test doubles, not the personal desktop vault.\\\bottomrule
 \end{tabularx}
-The backend result was recorded immediately before this documentation update;
-the GUI suite was rerun during it. Earlier 238-test database and 209-test cache
+These two results were recorded during the 14 September implementation and
+documentation refresh. Later combined-suite evidence follows in this reference.
+Earlier 238-test database and 209-test cache
 results remain historical snapshots. No production database was used for this
 validation, and the isolated server was shut down afterward.
 

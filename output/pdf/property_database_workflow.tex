@@ -87,8 +87,9 @@ original calculation was requested through 18.
 
 \code{update_lagrangian_indices(connection, realization_id, indices)} accepts
 \code{calculate_n2_theory_indices}'s output or a subset of computed components
-with their matching cutoffs. It opens a short transaction, locks the shared
-row with \texttt{SELECT ... FOR UPDATE}, rechecks the current cutoffs, and merges
+with their matching cutoffs. It opens a short transaction, locks the parent
+theory before the shared property/realization rows with
+\texttt{SELECT ... FOR UPDATE}, rechecks the current cutoffs, and merges
 accepted changes into the columns and JSON together. Failure rolls back the
 call; a no-op does not change the theory's \code{updated_at} timestamp.
 

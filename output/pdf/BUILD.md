@@ -1,5 +1,55 @@
 # PDF sources and rebuilding
 
+## Current revision: 16 September 2026
+
+The canonical outputs are the **54-page implementation reference** and the
+**26-page index mathematical background**. This revision documents the complete
+session implementation: index-tab layout/search/selection and retained jobs,
+the two tab controllers and shared GUI/file logging, parallel index workers and
+their shutdown/transaction behavior, the test relocation and test-account
+permission repair, disconnected-sector calculation and stored-index reuse,
+character-cache file arguments, degree-bounded FORM multiplication, and
+password-confirmed Settings deletion with its separate editable `.ui` file.
+The SQLite size and WAL discussion is included as operational guidance;
+flavor-refined factorization is explicitly mathematical, not an implemented API.
+
+The index guide remains scoped to index algorithms. Its sections 5.4-5.6
+(PDF pages 5-7) explain the FORM program line by line, including bracket
+coefficients, module-local `Skip`, the `z`/`w` markers, factorial induction,
+both degree bounds, low-order cases and a worked expansion. Sections 7.4-7.6
+(pages 11-13) cover disconnected components, singlets, flavor characters,
+database reuse and the measured bottlenecks. The reference's GUI additions are
+sections 5.6-5.9 (PDF pages 47-50). Earlier experimental timings and test counts
+retain their dates and cache/printing conditions. Application tests and
+benchmarks were not rerun for this documentation-only refresh.
+
+Additional retained source dependencies:
+
+- `form_degree_bound.tex`: current FORM derivation and generated-code excerpt,
+  included by both documents through their `sessionheading` macro.
+- `disconnected_index_sectors.tex`: graph partition, factorization proof,
+  borrowed database connection, exact truncation and profiling evidence.
+- `gui_index_settings_workflow.tex`: controllers, index workflow, logging,
+  lock/retry boundaries, test organization and deletion; reference only.
+- `session_references.tex`: official FORM, NetworkX and SQLite references;
+  included in both bibliographies.
+
+Both documents were built with `pdflatex` until cross-references stabilized.
+All 80 final pages were rendered; contact sheets and full-size checks of new
+material found no clipping or overlap. There are no unresolved references,
+citations or overfull boxes. The reference retains its prior mild underfull
+diagnostic in the Coulomb API table. All pre-existing numbered equation
+environments are unchanged, and preserved guide pages 2-4 have identical
+extracted text. Their original FORM recurrence is explicitly identified as
+the baseline; the added sections show the current implementation. The order-8
+FORM listing was checked against `_build_form_program` itself.
+
+Build logs and render scratch files are in
+`/tmp/n2-session-pdfs-20260916/`; none is required for rebuilding. The commands
+below remain valid with the additional retained inputs listed above.
+
+## Earlier revisions and retained build instructions
+
 The 15 September 2026 cache-path update changes index examples to
 `char_cache_database_path=` / `--char-cache-database`, including the database
 index worker. The standalone character-cache builder retains its own path

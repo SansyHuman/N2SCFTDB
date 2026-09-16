@@ -2,6 +2,29 @@
 
 Last updated: **2026-09-16 (Asia/Seoul)**.
 
+## Complete session PDF refresh (16 September 2026)
+
+The canonical `output/pdf/n2_implementation_reference_summary.pdf` (54 pages)
+and `index/n2_theory_index_Mathematical_Background.pdf` (26 pages) now cover
+the completed index GUI, controller/logging refactor, multiprocessing and
+deadlock handling, test relocation/permission fix, disconnected-sector reuse,
+cache-file API, degree-bounded FORM, and password-confirmed Settings deletion
+with its separate `.ui` layout. The index guide stays focused on index-package
+algorithms; GUI/database operations are in the implementation reference.
+
+The guide's FORM explanation is in sections 5.4-5.6, pages 5-7: bracket lookup,
+module-local Skip, marker lifecycle, factorial induction, cutoff bounds and a
+worked example. Sections 7.4-7.6 cover disconnected sectors, the singlet-once
+rule, external flavor characters and stored-index reuse. SQLite size/WAL
+guidance and dated performance evidence are included. Historical measurements
+are distinguished from current implementation and documentation checks.
+
+Both PDFs were rebuilt with resolved references and all 80 pages rendered for
+layout review. Existing numbered equations and preserved guide pages 2-4 are
+unchanged; the code listing matches the current FORM generator. Application
+tests were not rerun during this documentation-only update. Retained sources,
+new shared TeX inputs, build commands and QA details are in `output/pdf/BUILD.md`.
+
 ## Password-confirmed deletion in Settings (16 September 2026)
 
 The MySQL section of `gui/settings.ui` now has **Delete all database contents…**.

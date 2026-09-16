@@ -1,0 +1,150 @@
+% Shared current index algorithm. All added displays are unnumbered.
+\clearpage
+\sessionheading{Disconnected gauge sectors and the factorization identity}
+\label{sec:disconnected}
+A product gauge group is not necessarily a product of independent theories:
+matter charged under several factors couples those factors. For each nonzero
+hypermultiplet $h$, define its gauge support
+\[
+ S_h=\{a:\ R_{h,a}\ne\mathbf1\}.
+\]
+\code{_split_disconnected_sectors} builds an undirected NetworkX graph with
+one vertex per gauge factor. For a support $(a_1,\ldots,a_r)$, it inserts
+the $r-1$ edges $(a_1,a_2),\ldots,(a_1,a_r)$. A star joins every vertex of
+that support by a path; a complete clique would give the same connected
+components. Overlapping supports join transitively. Zero-multiplicity matter
+is ignored and isolated gauge vertices are retained. Connected components are
+obtained with \code{networkx.connected_components} \cite{networkx-components}.
+
+For components $C_1,\ldots,C_s$, each charged hyper belongs to exactly one
+component. The code preserves factor order, restricts representation and beta
+contribution dictionaries, and converts a one-factor product hyper into
+\code{HyperData}. Multi-factor components retain \code{ProductHyperData}.
+No discarded spectator singlet contributes an extra dimension factor.
+
+Let $L_\alpha$ denote the letters of component $\alpha$ and $L_0$ all matter
+with empty gauge support. The exponent splits because Adams substitution and
+summation are linear, so the plethystic identity gives
+\[
+ L=L_0+\sum_\alpha L_\alpha,\qquad
+ \PE[L]=\PE[L_0]\prod_\alpha\PE[L_\alpha].
+\]
+Normalized Haar integration also factorizes, since each $L_\alpha$ depends
+only on $g_\alpha\in G_{C_\alpha}$:
+\[
+ \begin{aligned}
+ \mathcal I
+ &=\int\prod_\alpha d\mu_\alpha(g_\alpha)\,
+        \PE[L_0]\prod_\alpha\PE[L_\alpha(g_\alpha)]\\
+ &=\mathcal I_0\prod_\alpha\mathcal I_\alpha,\qquad
+ \mathcal I_0=\PE[L_0],\quad
+ \mathcal I_\alpha=\int d\mu_\alpha\,\PE[L_\alpha].
+ \end{aligned}
+\]
+This follows directly from the plethystic definition and product measure
+\cite{plethystics,gpr}; the graph is the implementation's test for these
+independent integration variables.
+
+\textbf{Why all-gauge-singlet matter appears once.} A gauge-singlet hyper
+has empty support. Dropping it loses a physical free-matter factor. Copying
+it into each of $s$ components would replace $\mathcal I_0$ by
+$\mathcal I_0^s$. The code puts all such hypers in one additional sector
+with no gauge factors, preserving each original multiplicity. ``Once'' means
+one assignment of each input species, not changing its multiplicity to one.
+
+\clearpage
+\sessionheading{Exact multiplication, flavor characters and database reuse}
+At finite cutoff, multiplication and truncation commute in the needed sense:
+\[
+ \left[\prod_{\alpha=0}^{s}\mathcal I_\alpha\right]_N
+ =\left[\prod_{\alpha=0}^{s}[\mathcal I_\alpha]_N\right]_N.
+\]
+All sector indices have nonnegative $t$ degree. Discarded powers above $N$
+cannot multiply later terms back down to $N$. Laurent powers of $y,u$ do not
+alter that argument. \code{_truncate_index} filters the exact Sage monomial
+dictionary inclusively after each sector and each product. An identical sector
+within the same call is looked up or calculated once, but its index is still
+multiplied once per occurrence.
+
+\textbf{Flavor refinement.} The same identity holds with external flavor
+variables $x$: $\mathcal I(t,y,u;x)=\mathcal I_0(t,y,u;x)
+\prod_\alpha\mathcal I_\alpha(t,y,u;x)$. Shared flavor variables are coefficients,
+not integrated gauge variables. Products of their characters describe tensor
+products and need not be decomposed first. For example, a free full hyper with
+$U(1)$ fugacity $x$ contributes $\PE[f_H(x+x^{-1})]$ once. Gauging a shared
+flavor subgroup introduces a common Haar integral and can connect sectors;
+one cannot then multiply separately projected indices. The current code is
+flavor-unrefined: this is the extension's mathematical contract, not an
+implemented flavor API.
+
+\textbf{Optional theory database.} \code{calculate_index} and
+\code{calculate_index_internal} accept \code{theory_db_connection=None}.
+For each gauged sector, \code{common.n2_theory_db.find_superconformal_index}
+matches the existing canonical Lagrangian hash and reads an index only if it
+is a JSON string with recorded \code{superconformal_index_order >= order}.
+Canonicalization retains the established full/half and conjugation conventions;
+factor IDs are ignored but input factor order remains significant.
+Missing/null indices and unknown/lower cutoffs are misses. A malformed index
+or one with negative $t$ powers is rejected by the caller and recalculated.
+The cutoff is never inferred from the highest surviving monomial.
+
+Misses use \code{_calculate_sector_index}: character basis, degree-bounded FORM
+expansion/cache and the existing LiE singlet projection. Free sectors bypass
+the theory lookup. No sector theories or indices are inserted. A supplied
+connection is borrowed read-only and is never committed, rolled back or closed
+by this calculation; it must belong to the calling process/thread and already
+have the current schema. GUI/database workers pass their own connection.
+Without one, sector splitting and multiplication still apply.
+
+The character-cache file is a distinct parameter:
+\code{char_cache_database_path=None}. It replaces \code{cache_directory} and
+\code{database_path} in the index API; the index and database-worker CLI use
+\code{--char-cache-database}. The independent FORM file uses
+\code{form_cache_database_path}. The standalone character-cache class/builder
+retain their own directory/file API and CLI. Saved GUI key
+\code{cache/character_database} is unchanged.
+
+\clearpage
+\sessionheading{Product-group bottlenecks and recorded evidence}
+The 14 September investigation found 39 full-index FORM timeouts in a
+32-worker run through $t^{18}$: 29 inputs had disconnected gauge sectors.
+The main isolated cost was constructing the joint formal-character exponential,
+before Python parsing, LiE projection or database writes. A printing-disabled
+control for disconnected $SU(3)\times SU(3)$ theory 9780 still took 516.16 s
+and retained 2,649,141 formal terms, whereas the final projected index has
+168 monomials. This locates that delay in symbolic computation, not an
+observed database deadlock. Large expansions also incur parsing and memory
+costs. The report's saved timeout setting was 60 s; the code default was 600 s.
+Those are dated observations, not assertions about the user's current settings.
+
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{39mm}Y@{}}
+\toprule Implementation & Effect and evidence\\\midrule
+Disconnected-sector split & Projects small independent sectors before
+multiplying their final polynomials. On 15 September, theory 9780 took
+13.753 s with one unique sector calculation and exact agreement with all
+168 saved combined-result monomials. Character cache was a private populated
+copy; FORM cache was empty; no MySQL connection was used.\\
+Degree-bounded FORM & Helps connected sectors too, by omitting products
+above the remaining degree budget. The 16 September matched bifundamental
+run is recorded in the FORM explanation.\\
+Remaining limits & Connected sectors can still have many formal monomials
+and expensive LiE intermediates. Concurrent misses can still duplicate one
+FORM program; no in-progress job claim or streaming projection was added.\\\bottomrule
+\end{tabularx}
+
+\textbf{Evidence files.} \code{output/benchmarks/product_form_20260914/report.md}
+retains the original profiling controls and inputs;
+\code{output/benchmarks/disconnected_sectors_20260915.json} records the
+implemented split. The earlier diagnostic degree-bounded variant became the
+production generator on 16 September. Historical timings with different
+printing or cache conditions are not interchangeable benchmarks.
+
+\textbf{Regression coverage.} \code{test/test_disconnected_index.py} tests
+transitive and trifundamental connectivity, isolated vectors, singlet matter,
+zero multiplicities, factor order, repeated sectors and exact comparison with
+an unsplit calculation. Database cases cover missing/null indices, unknown,
+lower, equal and higher cutoffs, canonical identity and borrowed-connection
+ownership. The recorded 15 September combined suite passed 353 tests in
+58.615 s with no skips. The subsequent cache-argument revision passed 355
+tests in 60.129 s. These are implementation-time results, not reruns performed
+for this document update.

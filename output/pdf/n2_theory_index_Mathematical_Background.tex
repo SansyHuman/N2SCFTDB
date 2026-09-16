@@ -35,7 +35,7 @@
 {\large N2SCFTDB / \texttt{n2\_theory\_index.py}}\par
 FORM and LiE computation of four-dimensional $\mathcal N=2$ indices\\
 Simple and semisimple product gauge groups\par
-\textbf{Index-package reference: 15 September 2026}
+\textbf{Index-package reference: 16 September 2026}
 \end{center}
 \vspace{3mm}
 \textbf{Purpose.} The canonical implementation computes the flavor-unrefined right
@@ -46,11 +46,13 @@ final singlet, independently for every simple gauge factor. SQLite stores exact
 parsed FORM expansions, decompositions and final singlet coefficients. Sage supplies input/representation
 data, the dual-label convention and the exact returned polynomial ring.
 
-The index/cache chapters describe commit \code{04bbe21} and its dated
-measurements. This guide covers the index-package algorithms and their
-validation. Property orchestration, MySQL persistence and GUI workflows are
-documented in the companion \emph{Mathematical background and implementation
-reference}. Mathematical equations are unchanged.
+This revision adds disconnected-sector factorization, optional stored-sector
+reuse, the single character-cache file argument, and a step-by-step explanation
+of degree-bounded FORM multiplication. Earlier cache measurements describe
+commit \code{04bbe21} and retain their dates. Property orchestration and GUI
+workflows belong to the companion implementation reference. Preserved pages
+2--4 present the original mathematical setup and baseline FORM recurrence;
+Section~\ref{sec:degree-bounded} gives the current generated code.
 
 \section*{Contents}
 \begin{tabularx}{\textwidth}{@{}Yr@{}}
@@ -59,8 +61,10 @@ reference}. Mathematical equations are unchanged.
 3 Matter characters for simple and product groups & 3\\
 4 Plethystic exponential and exact cutoffs & 3\\
 5 How FORM represents and expands the index & 3\\
+\quad Current degree-bounded loop, proof and example & \pageref{sec:degree-bounded}\\
 6 Adams operations and LiE decomposition & \pageref{sec:adams}\\
 7 Gauge-singlet projection for product groups & \pageref{sec:projection}\\
+\quad Disconnected sectors and stored-index reuse & \pageref{sec:disconnected}\\
 8 SQLite caches and complete Adams-cache builder & \pageref{sec:cache}\\
 9 Python functions and their mathematical roles & \pageref{sec:functions}\\
 10 JSON examples and command-line use & \pageref{sec:json}\\
@@ -82,6 +86,10 @@ The final substitution $z\mapsto1$, followed by adding the vacuum term, yields
 This is an ordinary exponential of a representation-valued series; Bose and Fermi
 statistics have already entered through the signed single-letter functions.
 
+\newcommand{\sessionheading}{\subsection}
+\input{form_degree_bound.tex}
+
+\clearpage
 \section{Adams operations and LiE decomposition}\label{sec:adams}
 \subsection{The representation-ring calculation}
 For each irrep $R$ and exponent vector $\mathbf n=(n_1,n_2,\ldots)$, the cache
@@ -221,6 +229,9 @@ $[\mathbf1](\psi^2\mathbf2)=-1$, while
 $[\mathbf1]((\psi^2\mathbf2)^2)=(-1)^2+1^2=2$.
 
 \clearpage
+\input{disconnected_index_sectors.tex}
+
+\clearpage
 \section{SQLite caches and complete Adams-cache builder}\label{sec:cache}
 For the exponent vector in Eq.~(21), define its total Adams order
 \begin{equation}
@@ -286,7 +297,8 @@ FORM expansion now has its own raw-program cache, described next.
 characters, and applies conjugation as in Eq.~(11).\\
 \code{_character_basis} & Assigns each pair $(a,R)$ one FORM function $C_p$ and
 records vector and matter character monomials.\\
-\code{_build_form_program} & Implements Eqs.~(7), (17), (14), and (20).\\
+\code{_build_form_program} & Implements Eqs.~(7), (17), (14), and (20), with
+the degree-bounded loop in Section~\ref{sec:degree-bounded}.\\
 \code{run_form} & Shared helper in \code{common/form_utils.py}; runs FORM in an
 isolated temporary directory and requires a successful, clean process result.\\
 \code{FormExpansionCache.}\newline\code{get_expansion} & Retrieves parsed terms by raw program;
@@ -316,7 +328,9 @@ size, recursively build two parts and pair dual labels.\\
 equal powers of $t,y,u$.\\
 \code{_to_sage_polynomial} & Returns an exact flat Laurent polynomial in
 $\mathbb Q[t^{\pm1},y^{\pm1},u^{\pm1}]$; performs no representation calculation.\\
-\code{calculate_index} & Coordinates the complete public in-memory calculation.\\
+\code{calculate_index} & Parses input, then delegates sector partition,
+optional stored-index reuse and truncated multiplication to
+\code{calculate_index_internal} (Section~\ref{sec:disconnected}).\\
 \code{calculate_index_from_file} & Loads JSON and delegates to \code{calculate_index}.\\\bottomrule
 \end{tabularx}
 
@@ -504,8 +518,10 @@ lecture notes (2024), Proposition 32.1 and Corollary 35.9.
 \bibitem{python-sqlite} Python Software Foundation, \emph{sqlite3: DB-API 2.0
 interface for SQLite databases}.
 \href{https://docs.python.org/3/library/sqlite3.html}{Official Python documentation}.
+\input{session_references.tex}
 \end{thebibliography}\endgroup
-New references were checked on 10 September 2026. The splitting heuristic,
+Earlier references were checked on 10 September; the added software references
+were checked on 16 September 2026. The splitting heuristic,
 function map and measurements are derived from the project source and local
 validation, rather than attributed to the representation-theory literature.
 \end{document}

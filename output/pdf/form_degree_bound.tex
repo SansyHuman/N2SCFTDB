@@ -1,0 +1,156 @@
+% Current FORM implementation; shared by both standalone references.
+% New displays are unnumbered to preserve the earlier equation numbering.
+\sessionheading{Degree-bounded FORM exponential: current implementation}
+\label{sec:degree-bounded}
+The 16 September implementation in \code{_build_form_program} evaluates the
+same finite exponential as the auxiliary-variable recurrence above, but avoids
+products that cannot survive the requested cutoff. Let $N$ denote that cutoff
+(called $D$ in the earlier formulas), and write
+\[
+ A=\texttt{itotal}=\sum_{d=2}^{N}A_d t^d,\qquad
+ [P]_N=\sum_{d\leq N}[t^d]P\,t^d,\qquad M=\lfloor N/2\rfloor.
+\]
+The coefficients $A_d$ contain Laurent monomials in $y,u$ and formal gauge
+characters. They contain no $t$. All powers of $t$ are nonnegative and the
+exponent starts at degree two. The target before gauge projection is
+$[\exp(A)]_N$. The derivation below follows the project's generated program.
+
+\textbf{Step 1: construct the derivative series and plethystic exponent.}
+The expression \code{J} is the truncated product of geometric series for
+$(1-t^3y)^{-1}(1-t^3/y)^{-1}$. Substituting the vector and hyper letters into
+\code{itotal} gives
+\[
+ A=\left[\sum_{j=1}^{M}\frac{1}{j}
+ \left(f_V(t^j,y^j,u^j)\sum_{p\in V}C_p(j)
+ +f_H(t^j,y^j,u^j)\sum_m N_m\prod_{p\in m}C_p(j)\right)\right]_N.
+\]
+Here $j$ is the Adams index. It differs from the outer Taylor-power index $i$
+below. Integer multiplicities $N_m$ are unchanged by Adams substitution.
+The bound on $j$ follows from $2j\leq N$; the derivative rectangle uses
+\code{order // 3}. The declaration \code{t(:N)} remains a final degree guard.
+
+\textbf{Step 2: organize the exponent and initialize the active power.}
+\begin{lstlisting}
+Bracket t;
+.sort
+Skip J,itotal;
+L I=z*itotal;
+.sort
+\end{lstlisting}
+\code{Bracket t} groups equal $t$ powers. A reference \code{itotal[t^d]}
+returns $A_d$, so multiplication must restore \code{t^d} explicitly.
+\code{Skip J,itotal;} preserves those expressions, including the bracket
+information, for the current module. They remain readable on the right-hand
+side. Repeat Skip after each module boundary; it is not a permanent freeze
+\cite[entries ``bracket'', ``skip'', and Chapter 9]{form-current}.
+
+Initially $I=zA$. The symbol $z$ marks the one Taylor order still eligible
+to generate the next order; unmarked terms have already been accumulated.
+Neither $z$ nor the temporary symbol $w$ is a physical fugacity.
+
+\clearpage
+\sessionheading{One exponential step, line by line}
+For example, at cutoff $N=8$ the following is the actual emitted loop and
+finalization block; Python substitutes the integer bounds before running FORM:
+\begin{lstlisting}
+#do i=2,4
+  Skip J,itotal;
+  #do k=2,6
+    if (count(t,1) == `k');
+      id z=1+w*sum_(idx1,2,8-`k',itotal[t^idx1]*t^idx1)/`i';
+    endif;
+  #enddo
+  id z=1;
+  id w=z;
+  .sort:step `i';
+#enddo
+
+L result=1+I;
+id z=1;
+.sort
+Print result;
+.end
+\end{lstlisting}
+\textbf{Step 3: select the current term's degree.}
+The inner preprocessor loop creates one branch for each $k=2,\ldots,N-2$.
+\code{count(t,1)} tests the current term's $t$ degree. An unmarked term is
+unchanged because it has no $z$ to replace. On a marked term $zct^k$, the
+substitution has the exact effect
+\[
+ zct^k\ \longmapsto\ ct^k+
+ \frac{w c}{i}\sum_{d=2}^{N-k}A_d t^{k+d}.
+\]
+The first branch retains the old Taylor contribution. The second produces
+the next contribution, dividing by $i$ to turn $(i-1)!$ into $i!$.
+Its summation bound is the condition $k+d\leq N$, enforced before forming
+the product rather than only when an excessive power is normalized away.
+
+\textbf{Step 4: protect newly generated terms.}
+New terms carry $w$, not $z$. A later $k$ branch in the same outer iteration
+can encounter one of their new degrees, but its \code{id z=...} cannot expand
+them again. Reusing $z$ immediately would allow a single Taylor step to
+multiply a newly produced term more than once.
+
+\textbf{Step 5: finalize old terms, then mark the new ones.}
+\code{id z=1;} removes any surviving old marker, including terms at degrees
+$N-1$ and $N$. Then \code{id w=z;} makes only the new generation active.
+Reversing this order would erase the new marker. Finally
+\code{.sort:step `i';} collects equal terms and ends the module; the step
+label is diagnostic. The next iteration reinstates Skip for its own module.
+
+\clearpage
+\sessionheading{Why the bounds and factorials are exact}
+For $2\leq i\leq M$, induction on the previous step gives
+\[
+ \begin{aligned}
+ I_1&=zA,\\
+ I_2&=A+z[A^2/2!]_N,\\
+ I_3&=A+[A^2/2!]_N+z[A^3/3!]_N,\\
+ I_i&=\sum_{r=1}^{i-1}[A^r/r!]_N+z[A^i/i!]_N.
+ \end{aligned}
+\]
+Only the last summand has a marker. Step $i+1$ retains it without a marker
+and multiplies it by $A/(i+1)$, keeping precisely the products of total degree
+at most $N$. This proves the invariant with exact rational coefficients.
+
+\textbf{Why the inner loop stops at $N-2$.}
+Every term of $A$ has degree at least two, so an old term of degree $k$ can
+produce a retained new term only when $k+2\leq N$. Terms of degree $N-1$ and
+$N$ are already present and are retained by \code{id z=1;}. Thus $N-2$ is a
+bound on terms that can be multiplied again, not a reduced output cutoff.
+
+\textbf{Why the outer loop stops at $\lfloor N/2\rfloor$.}
+$A^i$ has minimum degree $2i$. No higher power can contribute. Adding the
+vacuum and removing the last marker therefore gives
+\[
+ \texttt{result}=1+\sum_{r=1}^{M}[A^r/r!]_N=[\exp(A)]_N.
+\]
+The public API returns $1$ immediately for orders zero and one. Orders two
+and three need only $1+A$; Python omits the multiplication loop. These bounds
+use the full-index grading; a Hall--Littlewood letter beginning at degree one
+would require different bounds.
+
+\textbf{Worked example, $N=6$.} Set $A=a t^2+b t^3$, with commuting exact
+coefficients that may themselves be formal characters. Then
+\[
+ \begin{aligned}
+ I_2={}&a t^2+b t^3+
+ z\left(\frac{a^2}{2}t^4+ab t^5+\frac{b^2}{2}t^6\right),\\
+ I_3={}&a t^2+b t^3+\frac{a^2}{2}t^4+ab t^5+\frac{b^2}{2}t^6
+       +z\frac{a^3}{6}t^6.
+ \end{aligned}
+\]
+In step three, only the marked degree-four term can multiply again. The
+degree-five and degree-six contributions become unmarked without being lost.
+The final coefficient of $t^6$ is $b^2/2+a^3/6$, as in the ordinary exponential.
+
+\textbf{Validation and cache effect.} \code{test/test_form_degree_bound.py}
+checks 42 low-order formal expansions (seven cases at six cutoffs) and one
+connected bifundamental at order 18 against the former multiplication. The
+16 September recorded full run passed 357 tests in 64.117 s, with no skips.
+A matched, sequential FORM-only comparison at order 18 took 2.236 s before
+and 0.585 s afterward (3.82 times faster), with exactly the same 28,154 formal
+terms. This is one measurement, not a universal speedup. Evidence is retained
+in \code{output/benchmarks/degree_bounded_form_20260916.json}.
+The changed raw program has a new FORM-cache key. Existing rows remain valid
+for their original programs, and character-cache entries remain reusable.
