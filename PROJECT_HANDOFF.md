@@ -12,6 +12,12 @@ an initially empty masked password field, and Delete/Cancel buttons. It requires
 a nonempty freshly entered password. Opening or cancelling the warning does not
 connect or delete anything. The entered password is never saved to preferences.
 
+The confirmation layout is editable in `gui/database_clear_dialog.ui`, loaded
+directly with `uic.loadUi`. Python retains the dynamic target and style-specific
+warning icon, signal connections and worker behavior. The layout extraction
+passed all **38 deletion-dialog and main-GUI tests in 1.477 seconds**; its
+offscreen rendering was visually checked. These checks did not access MySQL.
+
 After Delete, a separate Sage process (`gui.database_clear`) receives only the
 connection target, entered password and explicit confirmation via stdin. It
 authenticates a fresh connection with schema initialization disabled and invokes

@@ -7,7 +7,7 @@ from pathlib import Path
 import shutil
 import sys
 
-from PyQt6 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets, uic
 
 from gui.logging_utils import redact_message
 
@@ -15,60 +15,27 @@ from gui.logging_utils import redact_message
 class DeleteDatabaseDialog(QtWidgets.QDialog):
     def __init__(self, settings, parent=None):
         super().__init__(parent)
+        uic.loadUi(str(Path(__file__).resolve().with_name("database_clear_dialog.ui")), self)
         self.settings = {key: value for key, value in settings.items()
                          if key.startswith("mysql/") and key != "mysql/password"}
         self.process = None
         self.deleted_count = None
         self._request = b""
         self._password = ""
-        self.setWindowTitle("Delete all database contents")
-        self.setMinimumWidth(510)
-        layout = QtWidgets.QVBoxLayout(self)
-        header = QtWidgets.QHBoxLayout()
-        icon = QtWidgets.QLabel(self)
-        icon.setPixmap(self.style().standardIcon(
+        self.warningIcon.setPixmap(self.style().standardIcon(
             QtWidgets.QStyle.StandardPixmap.SP_MessageBoxWarning).pixmap(40, 40))
-        header.addWidget(icon)
-        self.warningLabel = QtWidgets.QLabel(
-            "Permanently delete all stored theories and their properties, realizations, "
-            "matter data, indices and spectra?\n\n"
-            "This cannot be undone. The database structure and SQLite cache files will remain.", self,
-        )
-        self.warningLabel.setWordWrap(True)
-        header.addWidget(self.warningLabel, 1)
-        layout.addLayout(header)
         endpoint = (f"Unix socket: {self.settings['mysql/unix_socket']}"
                     if self.settings.get("mysql/unix_socket") else
                     f"Server: {self.settings['mysql/host']}:{self.settings['mysql/port']}")
-        self.targetLabel = QtWidgets.QLabel(
+        self.targetLabel.setText(
             f"Database: {self.settings['mysql/database']}\n{endpoint}\n"
-            f"Account: {self.settings['mysql/user']}", self,
+            f"Account: {self.settings['mysql/user']}",
         )
-        self.targetLabel.setTextFormat(QtCore.Qt.TextFormat.PlainText)
-        self.targetLabel.setWordWrap(True)
-        layout.addWidget(self.targetLabel)
-        label = QtWidgets.QLabel("Enter this account's current MySQL password:", self)
-        self.passwordEdit = QtWidgets.QLineEdit(self)
-        self.passwordEdit.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
-        label.setBuddy(self.passwordEdit)
-        layout.addWidget(label)
-        layout.addWidget(self.passwordEdit)
-        self.statusLabel = QtWidgets.QLabel(self)
-        self.statusLabel.setWordWrap(True)
-        self.statusLabel.setTextFormat(QtCore.Qt.TextFormat.PlainText)
-        layout.addWidget(self.statusLabel)
-        buttons = QtWidgets.QDialogButtonBox(self)
-        self.cancelButton = buttons.addButton(QtWidgets.QDialogButtonBox.StandardButton.Cancel)
-        self.deleteButton = buttons.addButton("Delete", QtWidgets.QDialogButtonBox.ButtonRole.DestructiveRole)
-        self.deleteButton.setAutoDefault(False)
-        self.deleteButton.setEnabled(False)
-        self.cancelButton.setDefault(True)
-        buttons.rejected.connect(self.reject)
+        self.cancelButton.clicked.connect(self.reject)
         self.deleteButton.clicked.connect(self._delete)
         self.passwordEdit.textChanged.connect(
             lambda text: self.deleteButton.setEnabled(bool(text) and self.process is None)
         )
-        layout.addWidget(buttons)
         self.passwordEdit.setFocus()
 
     def _delete(self):

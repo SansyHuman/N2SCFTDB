@@ -24,10 +24,10 @@ python gui/n2_db.py
 The shell itself does not require Sage, FORM, LiE or a
 MySQL connection. It also works with `python -m gui.n2_db` from the project root.
 
-Open `n2_db.ui` and `settings.ui` in Qt Creator / Qt Widgets Designer to edit
-their layouts. The main window contains the `anomaly` and `index`
+Open `n2_db.ui`, `settings.ui` and `database_clear_dialog.ui` in Qt Creator /
+Qt Widgets Designer to edit their layouts. The main window contains the `anomaly` and `index`
 tabs. Choose **Settings → Preferences…** (Ctrl+,) for settings; **File → Quit**
-(Ctrl+Q) closes the program. Python loads both UI files directly, so no code
+(Ctrl+Q) closes the program. Python loads these UI files directly, so no code
 generation step is needed.
 
 In **Settings → Preferences…**, the MySQL section has **Delete all database
