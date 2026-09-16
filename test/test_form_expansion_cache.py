@@ -116,7 +116,8 @@ class FormExpansionCacheTests(unittest.TestCase):
         cache = self.cache(form_executable="custom-form", timeout=17)
         with patch("index.form_expansion_cache.run_form", return_value="result = 1;") as run:
             self.assertEqual(cache.get_expansion(program), [constant_term(1)])
-            run.assert_called_once_with(program, form_executable="custom-form", timeout=17)
+            run.assert_called_once_with(program, form_executable="custom-form", timeout=17,
+                                        tform_executable="tform", form_threads=1)
         with sqlite3.connect(self.path) as connection:
             row = connection.execute(
                 "SELECT program, expansion_json FROM form_expansions"

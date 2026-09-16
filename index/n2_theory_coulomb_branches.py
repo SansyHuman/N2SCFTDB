@@ -40,7 +40,7 @@ from typing import Any
 from sage.all import Infinity, PuiseuxSeriesRing, QQ, WeylGroup, sage_eval
 
 from anomalies.check_n2_anomalies import GaugeFactorData
-from common.form_utils import run_form, split_signed_terms, split_top_level
+from common.form_utils import run_form, split_signed_terms, split_top_level, validate_form_threads
 from common.number_utils import (
     as_integer,
     as_nonnegative_fraction,
@@ -449,6 +449,8 @@ def calculate_plethystic_logarithm(
     max_dimension: Any,
     *,
     form_executable: str = "form",
+    tform_executable: str = "tform",
+    form_threads: int = 1,
     timeout: float = 600,
 ) -> Any:
     """Calculate the truncated plethystic logarithm of a Coulomb index.
@@ -458,6 +460,7 @@ def calculate_plethystic_logarithm(
     integral coefficients can describe relations.  ``max_dimension`` must
     not exceed the dimension through which the input index is known.
     """
+    form_threads = validate_form_threads(form_threads)
     maximum = as_nonnegative_fraction(max_dimension, "max_dimension")
     normalized = _normalize_coulomb_index(coulomb_branch_index, maximum)
     if not normalized or maximum == 0:
@@ -478,6 +481,7 @@ def calculate_plethystic_logarithm(
     output = run_form(
         program,
         form_executable=form_executable,
+        tform_executable=tform_executable, form_threads=form_threads,
         timeout=timeout,
     )
     ordinary_log = _parse_form_series(output)
@@ -496,6 +500,8 @@ def extract_coulomb_branch_spectrum_from_index(
     max_dimension: Any,
     *,
     form_executable: str = "form",
+    tform_executable: str = "tform",
+    form_threads: int = 1,
     timeout: float = 600,
 ) -> tuple[Fraction, ...]:
     """Extract a freely generated spectrum through ``max_dimension``.
@@ -509,6 +515,7 @@ def extract_coulomb_branch_spectrum_from_index(
         coulomb_branch_index,
         max_dimension,
         form_executable=form_executable,
+        tform_executable=tform_executable, form_threads=form_threads,
         timeout=timeout,
     )
     spectrum: list[Fraction] = []
@@ -542,6 +549,8 @@ def calculate_plethystic_exponential(
     max_dimension: Any,
     *,
     form_executable: str = "form",
+    tform_executable: str = "tform",
+    form_threads: int = 1,
     timeout: float = 600,
 ) -> Any:
     """Calculate a truncated exact plethystic exponential with FORM.
@@ -551,6 +560,7 @@ def calculate_plethystic_exponential(
     coefficients can describe relations.  The returned Sage Puiseux series
     contains every term of dimension at most ``max_dimension``.
     """
+    form_threads = validate_form_threads(form_threads)
     maximum = as_nonnegative_fraction(max_dimension, "max_dimension")
     normalized = {
         dimension: coefficient
@@ -575,6 +585,7 @@ def calculate_plethystic_exponential(
     output = run_form(
         program,
         form_executable=form_executable,
+        tform_executable=tform_executable, form_threads=form_threads,
         timeout=timeout,
     )
     form_terms = _parse_form_series(output)
@@ -644,6 +655,8 @@ def calculate_lagrangian_coulomb_branch_index(
     max_dimension: Any,
     *,
     form_executable: str = "form",
+    tform_executable: str = "tform",
+    form_threads: int = 1,
     timeout: float = 600,
 ) -> Any:
     """Calculate a Lagrangian Coulomb index from simple gauge-factor data.
@@ -658,6 +671,7 @@ def calculate_lagrangian_coulomb_branch_index(
         spectrum,
         max_dimension,
         form_executable=form_executable,
+        tform_executable=tform_executable, form_threads=form_threads,
         timeout=timeout,
     )
 
@@ -668,6 +682,8 @@ def calculate_coulomb_branch_index(
     *,
     full_index: Any | None = None,
     form_executable: str = "form",
+    tform_executable: str = "tform",
+    form_threads: int = 1,
     timeout: float = 600,
 ) -> Any:
     """Calculate a Coulomb-branch index from exactly one supported source.
@@ -696,5 +712,6 @@ def calculate_coulomb_branch_index(
         plethystic_log,
         max_dimension,
         form_executable=form_executable,
+        tform_executable=tform_executable, form_threads=form_threads,
         timeout=timeout,
     )

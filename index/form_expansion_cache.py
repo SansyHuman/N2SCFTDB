@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
 
-from common.form_utils import run_form, split_signed_terms, split_top_level
+from common.form_utils import run_form, split_signed_terms, split_top_level, validate_form_threads
 from index.char_decomposition_cache import AdamsPowers
 
 
@@ -52,8 +52,12 @@ class FormExpansionCache:
         *,
         database_path: str | Path | None = None,
         form_executable: str = "form",
+        tform_executable: str = "tform",
+        form_threads: int = 1,
         timeout: float | None = 600,
     ) -> None:
+        self.form_threads = validate_form_threads(form_threads)
+        self.tform_executable = tform_executable
         if database_path is not None:
             path = Path(database_path)
         else:
@@ -130,7 +134,8 @@ class FormExpansionCache:
             return self._decode_expansion(row[0])
 
         output = run_form(
-            program, form_executable=self.form_executable, timeout=self.timeout
+            program, form_executable=self.form_executable, timeout=self.timeout,
+            tform_executable=self.tform_executable, form_threads=self.form_threads,
         )
         terms = self.parse_form_output(output)
         payload = self._encode_expansion(terms)

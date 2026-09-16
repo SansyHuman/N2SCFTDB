@@ -144,6 +144,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--lie-executable", default=properties.LIE_EXECUTABLE)
     parser.add_argument("--form-executable", default=properties.FORM_EXECUTABLE)
+    parser.add_argument("--tform-executable", default=properties.TFORM_EXECUTABLE)
+    parser.add_argument("--form-threads", type=int, default=properties.FORM_THREADS,
+                        help="1 uses FORM; larger values use TFORM with this many workers")
     parser.add_argument("--timeout", type=float, default=properties.DEFAULT_TIMEOUT)
     parser.add_argument("--processes", type=int, default=properties.DEFAULT_PROCESS_COUNT)
     args = parser.parse_args(argv)
@@ -157,10 +160,14 @@ def main(argv: list[str] | None = None) -> int:
             as_nonnegative_int(args.limit, "limit")
         if args.processes < 1 or args.timeout <= 0:
             raise ValueError("processes and timeout must be positive")
+        from common.form_utils import validate_form_threads
+        form_threads = validate_form_threads(args.form_threads)
         if args.char_cache_database is not None:
             properties.CHAR_CACHE_DATABASE_PATH = args.char_cache_database
         properties.LIE_EXECUTABLE = args.lie_executable
         properties.FORM_EXECUTABLE = args.form_executable
+        properties.TFORM_EXECUTABLE = args.tform_executable
+        properties.FORM_THREADS = form_threads
         properties.DEFAULT_TIMEOUT = args.timeout
         properties.DEFAULT_PROCESS_COUNT = args.processes
         connection = database.connect_database(

@@ -1,0 +1,14 @@
+{
+  "selected": 16,
+  "eligible": 51,
+  "completed": 16,
+  "successes": 16,
+  "seed": 3329612950807171883,
+  "min_wall_seconds": 9.0,
+  "max_wall_seconds": 15.22,
+  "median_across_theories_seconds": 9.575,
+  "total_expansion_wall_seconds": 188.91,
+  "min_peak_rss_gib": 3.549072265625,
+  "max_peak_rss_gib": 5.503662109375,
+  "duplicate_program_checks": []
+}

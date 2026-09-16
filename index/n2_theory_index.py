@@ -46,6 +46,7 @@ from anomalies.lie_algebra import (
     get_lie_algebra,
 )
 from common.number_utils import as_nonnegative_int
+from common.form_utils import validate_form_threads
 from index.char_decomposition_cache import (
     AdamsPowers,
     CharacterDecompositionCache,
@@ -415,6 +416,8 @@ def calculate_index(
     form_cache_database_path: str | Path | None = None,
     lie_executable: str = "lie",
     form_executable: str = "form",
+    tform_executable: str = "tform",
+    form_threads: int = 1,
     timeout: float = 600,
     processes: int | None = None,
     theory_db_connection: Connection | None = None,
@@ -427,8 +430,11 @@ def calculate_index(
     directory, unless ``form_cache_database_path`` selects another file.
     ``theory_db_connection`` optionally reuses stored sector indices with
     sufficient recorded precision; it is separate from the SQLite caches.
+    ``form_threads=1`` uses FORM; larger counts use TFORM. This is separate
+    from ``processes``, which controls LiE cache generation.
     """
     order = as_nonnegative_int(order, "order")
+    form_threads = validate_form_threads(form_threads)
     factors, hypermultiplets = _parse_input(data)
 
     return calculate_index_internal(
@@ -439,6 +445,7 @@ def calculate_index(
         form_cache_database_path=form_cache_database_path,
         lie_executable=lie_executable,
         form_executable=form_executable,
+        tform_executable=tform_executable, form_threads=form_threads,
         timeout=timeout,
         processes=processes,
         theory_db_connection=theory_db_connection,
@@ -454,6 +461,8 @@ def calculate_index_internal(
     form_cache_database_path: str | Path | None = None,
     lie_executable: str = "lie",
     form_executable: str = "form",
+    tform_executable: str = "tform",
+    form_threads: int = 1,
     timeout: float = 600,
     processes: int | None = None,
     theory_db_connection: Connection | None = None,
@@ -467,6 +476,7 @@ def calculate_index_internal(
     this process/thread, with the current schema already initialized.
     """
     order = as_nonnegative_int(order, "order")
+    form_threads = validate_form_threads(form_threads)
 
     if order < 2:
         return _to_sage_polynomial({(0, 0, 0): Fraction(1)})
@@ -500,6 +510,7 @@ def calculate_index_internal(
                     char_cache_database_path=char_cache_database_path,
                     form_cache_database_path=form_cache_database_path,
                     lie_executable=lie_executable, form_executable=form_executable,
+                    tform_executable=tform_executable, form_threads=form_threads,
                     timeout=timeout, processes=processes,
                 )
             calculated[key] = _truncate_index(sector_index, order)
@@ -516,6 +527,8 @@ def _calculate_sector_index(
     form_cache_database_path: str | Path | None = None,
     lie_executable: str = "lie",
     form_executable: str = "form",
+    tform_executable: str = "tform",
+    form_threads: int = 1,
     timeout: float = 600,
     processes: int | None = None,
 ) -> Any:
@@ -542,6 +555,7 @@ def _calculate_sector_index(
         with FormExpansionCache(
             database_path=form_cache_database_path,
             form_executable=form_executable,
+            tform_executable=tform_executable, form_threads=form_threads,
             timeout=timeout,
         ) as form_cache:
             terms = form_cache.get_expansion(program)
@@ -585,6 +599,10 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         help="LiE cache-generation processes (default: available CPUs; 1 disables)",
     )
+    parser.add_argument("--form-executable", default="form")
+    parser.add_argument("--tform-executable", default="tform")
+    parser.add_argument("--form-threads", type=int, default=1,
+                        help="1 uses FORM; larger values use TFORM with this many workers")
     args = parser.parse_args(argv)
 
     try:
@@ -594,6 +612,8 @@ def main(argv: list[str] | None = None) -> int:
             char_cache_database_path=args.char_cache_database,
             form_cache_database_path=args.form_cache_database,
             processes=args.processes,
+            form_executable=args.form_executable,
+            tform_executable=args.tform_executable, form_threads=args.form_threads,
         )
     except (
         OSError,

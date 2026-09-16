@@ -1,0 +1,18 @@
+{
+  "order": 18,
+  "tform_workers": 32,
+  "timeout_seconds": 600,
+  "tform_version": "TFORM 5.0.0 (Jan 27 2026, v5.0.0)",
+  "generator_sha256": "ed693c24df8f0d267aea98fed81ddb38500c4967fd380e7dcec1ce6140506ebc",
+  "source_log": "logs/log_index_20260916_131926_021494.log",
+  "timing_scope": "TFORM startup, expansion and full textual output to local file; excludes Sage preparation, parsing, projection and cache operations",
+  "repetitions": 1,
+  "concurrent_theories": 1,
+  "hardware": {
+    "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+    "logical_cpus": 32,
+    "cpu_model": "AMD Ryzen 9 7950X 16-Core Processor",
+    "mem_total_kib": 31945288
+  },
+  "benchmark_sha256": "b3fc255870f1bbb751199f471f75d4e8d9158fc600a0f90164d9637364913293"
+}

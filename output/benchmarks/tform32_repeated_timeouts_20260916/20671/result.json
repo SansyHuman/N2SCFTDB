@@ -1,0 +1,32 @@
+{
+  "theory_id": 20671,
+  "gauge_group": "SU(5) x SU(6)",
+  "characters": 9,
+  "program_sha256": "c8ded68d6b90e880efa2d1480b2d32988df574df23c2f453fbb25c48dc2be5f5",
+  "command": [
+    "/usr/bin/time",
+    "-f",
+    "%e %U %S %M",
+    "-o",
+    "/home/subo-lee/PycharmProjects/N2SCFTDB/output/benchmarks/tform32_repeated_timeouts_20260916/20671/time.txt",
+    "/usr/bin/tform",
+    "-w32",
+    "-q",
+    "/home/subo-lee/PycharmProjects/N2SCFTDB/output/benchmarks/tform32_repeated_timeouts_20260916/20671/program.frm"
+  ],
+  "returncode": 0,
+  "timed_out": false,
+  "monitored_wall_seconds": 24.811730038985843,
+  "observed_max_threads": 63,
+  "sampled_peak_rss_kib": 7537164,
+  "stdout_bytes": 236964625,
+  "wall_seconds": 24.74,
+  "user_seconds": 192.62,
+  "system_seconds": 10.85,
+  "peak_rss_kib": 7532824,
+  "peak_rss_mib": 7356.2734375,
+  "stderr": "",
+  "stdout_sha256": "5bd15efc0154adcb74131ca89f2a83ff97ee546e530875d852290e14629dfcc6",
+  "output_complete": true,
+  "success": true
+}

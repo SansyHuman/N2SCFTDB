@@ -106,8 +106,9 @@ class IndexJobTests(unittest.TestCase):
         self.assertEqual(result["remaining_fields"], ["coulomb_branch_index", "coulomb_branch_spectrum"])
 
     def test_full_index_options_override_cache_filenames_and_disable_nested_workers(self):
-        options = settings()
+        options = dict(settings(), **{"tools/form_threads": 4, "tools/tform_executable": "/custom/tform"})
         with patch.multiple(properties, FORM_EXECUTABLE=properties.FORM_EXECUTABLE,
+                            TFORM_EXECUTABLE=properties.TFORM_EXECUTABLE, FORM_THREADS=properties.FORM_THREADS,
                             DEFAULT_TIMEOUT=properties.DEFAULT_TIMEOUT), \
              patch.object(calculator, "Finalize"), \
              patch.object(db, "connect_database", return_value=MagicMock()) as connect, \
@@ -116,12 +117,16 @@ class IndexJobTests(unittest.TestCase):
             try:
                 calculator._calculate_job(job())
                 calculator._calculate_job(job(2))
+                self.assertEqual(properties.FORM_THREADS, 4)
+                self.assertEqual(properties.TFORM_EXECUTABLE, "/custom/tform")
             finally:
                 calculator._close_connection()
         connect.assert_called_once()
         self.assertFalse(connect.call_args.kwargs["initialize_schema"])
         forwarded = calculate.call_args.kwargs["full_index_options"]
         self.assertEqual(forwarded["processes"], 1)
+        self.assertEqual(forwarded["form_threads"], 4)
+        self.assertEqual(forwarded["tform_executable"], "/custom/tform")
         self.assertEqual(forwarded["char_cache_database_path"], options["cache/character_database"])
         self.assertEqual(forwarded["form_cache_database_path"], options["cache/form_database"])
 
@@ -189,6 +194,28 @@ class IndexSchedulingTests(unittest.TestCase):
                            ([job()], dict(settings(), **{"index/coulomb_max_dimension": "-1/3"}))):
             with patch.object(calculator, "get_context") as spawn:
                 summary = calculator.run_calculation(jobs, opts, lambda r: None, lambda *args: None)
+                self.assertEqual(summary["status"], "failed")
+                spawn.assert_not_called()
+
+    def test_index_workers_share_the_cpu_budget_with_form_threads(self):
+        jobs = [job(i) for i in range(1, 65)]
+        for cpu_count, threads, expected in ((32, 1, 32), (32, 8, 4), (32, 32, 1),
+                                             (10, 4, 2), (2, 8, 1), (-1, 8, 4)):
+            options = dict(settings(), **{"tools/processes": cpu_count, "tools/form_threads": threads})
+            with self.subTest(cpu_count=cpu_count, threads=threads), \
+                 patch.object(calculator.os, "cpu_count", return_value=32):
+                normalized, workers = calculator._validate_request(jobs, options)
+                self.assertEqual(workers, expected)
+                self.assertEqual(normalized["tools/form_threads"], threads)
+                self.assertEqual(calculator._validate_request(jobs[:1], options)[1], 1)
+        with patch.object(calculator.os, "cpu_count", return_value=None):
+            self.assertEqual(calculator._validate_request(jobs, dict(settings(), **{"tools/processes": -1}))[1], 1)
+
+    def test_invalid_form_threads_never_spawn(self):
+        for threads in (0, -1, True, 2.0):
+            with self.subTest(threads=threads), patch.object(calculator, "get_context") as spawn:
+                options = dict(settings(), **{"tools/form_threads": threads})
+                summary = calculator.run_calculation([job()], options, lambda r: None, lambda *args: None)
                 self.assertEqual(summary["status"], "failed")
                 spawn.assert_not_called()
 

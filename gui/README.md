@@ -80,8 +80,9 @@ cutoffs does not. Results are not saved across application restarts.
 
 **Calculate index** uses the retained jobs for checked groups. A separate Sage
 coordinator distributes all selected theories across spawned worker processes,
-using the saved CPU limit (`-1` means all logical cores), capped at the selected
-theory count. Work is assigned dynamically, with at most twice that many jobs
+using `max(1, CPU budget // TFORM threads)` workers, capped at the selected
+theory count (`-1` CPU cores means all logical cores). Work is assigned
+dynamically, with at most twice that many jobs
 queued/running. Each worker owns its MySQL connection and runs its full-index
 cache calculations with one process, avoiding nested worker pools. Both saved
 cache filenames, executables, timeout and inclusive index cutoffs are honored.
@@ -275,16 +276,39 @@ Defaults mirror `index/char_decomposition_cache.py`,
 | MySQL connection timeout | `10` seconds |
 | LiE executable | `lie` (resolved through PATH) |
 | FORM executable | `form` (resolved through PATH) |
+| TFORM executable | `tform` (resolved through PATH) |
+| TFORM threads | `1` (serial FORM) |
 | LiE / FORM timeout | `600` seconds per invocation |
 | CPU cores | `-1` (all system cores) |
 
 **CPU cores** in **Computation tools** is saved as `tools/processes`. The default
 `-1` uses the system's logical CPU count (`os.cpu_count()`, falling back to one
 if unavailable), resolved when each build starts. A positive integer limits the
-number of worker processes; `1` runs serially and `0` is not allowed. This setting
+number of worker processes for anomaly builds; `0` is not allowed. This setting
 controls candidate checking, database insertion and character-cache generation
-in the anomaly build, and parallel theories in index calculation. Theory enumeration remains serial. Older settings files
-default to `-1` until saved.
+in the anomaly build, and supplies the CPU budget for index calculation. Theory
+enumeration remains serial. Older settings files default to `-1` until saved.
+
+**TFORM threads** is saved as `tools/form_threads`, with default `1` and a
+minimum of one. At `1`, both full-index and Coulomb-index expansion use the
+configured FORM executable. Larger values use the TFORM executable
+(`tools/tform_executable`) with `-wN`. Both executable fields accept a name on
+PATH or an absolute path; a wrapper script is unnecessary.
+
+Index calculation uses `max(1, resolved_CPU_count // form_threads)` simultaneous
+theory workers, also limited by the number of selected jobs. For a CPU budget
+of 32, thread counts 1, 8 and 32 give 32, 4 and 1 index workers respectively.
+Division rounds down; a thread count above the CPU budget still runs one theory
+with the requested TFORM count. LiE cache generation remains serial within each
+GUI index worker. The anomaly build does not use FORM and keeps its existing
+CPU allocation. Logs record the resulting index worker count and FORM threads.
+
+Older preferences use one FORM thread and `tform` until saved. Changing thread
+count does not change raw FORM programs or invalidate existing expansion-cache
+entries. Backend full-index/Coulomb APIs accept `form_threads` and
+`tform_executable`; the full-index and database-index CLIs also expose
+`--form-threads` and `--tform-executable`. CLI `--processes` continues to control
+LiE cache generation, rather than concurrent GUI theory jobs.
 
 The **Index truncation** section saves both inclusive cutoffs. Full-index order
 is a nonnegative integer; the Coulomb cutoff accepts nonnegative integers or

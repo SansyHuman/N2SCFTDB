@@ -5,14 +5,30 @@ import subprocess
 from pathlib import Path
 import time
 
+from common.number_utils import as_integer
+
+
+def validate_form_threads(value: int) -> int:
+    """Require a positive, exact worker count for FORM/TFORM selection."""
+    threads = as_integer(value, "FORM thread count")
+    if threads < 1:
+        raise ValueError("FORM thread count must be positive")
+    return threads
+
 
 def run_form(
     program: str,
     *,
     form_executable: str,
-    timeout: float,
+    timeout: float | None,
+    tform_executable: str = "tform",
+    form_threads: int = 1,
 ) -> str:
-    """Run FORM in an isolated temporary directory and return standard output."""
+    """Run FORM with one thread, or TFORM with the requested worker count."""
+    threads = validate_form_threads(form_threads)
+    executable = form_executable if threads == 1 else tform_executable
+    engine = "FORM" if threads == 1 else "TFORM"
+    command = [executable] + ([] if threads == 1 else [f"-w{threads}"])
     try:
         with tempfile.TemporaryDirectory(
             prefix="form-"
@@ -20,7 +36,7 @@ def run_form(
             script = Path(directory) / f"tmp_{time.time_ns()}.frm"
             script.write_text(program, encoding="utf-8")
             result = subprocess.run(
-                [form_executable, "-q", str(script)],
+                [*command, "-q", str(script)],
                 cwd=directory,
                 capture_output=True,
                 text=True,
@@ -29,14 +45,14 @@ def run_form(
             )
     except FileNotFoundError as exc:
         raise RuntimeError(
-            f"FORM executable {form_executable!r} was not found"
+            f"{engine} executable {executable!r} was not found"
         ) from exc
     except subprocess.TimeoutExpired as exc:
-        raise RuntimeError("FORM calculation timed out") from exc
+        raise RuntimeError(f"{engine} calculation timed out") from exc
 
     if result.returncode != 0 or result.stderr.strip():
         raise RuntimeError(
-            f"FORM failed with code {result.returncode}: "
+            f"{engine} failed with code {result.returncode}: "
             f"{result.stderr.strip() or result.stdout.strip()}"
         )
     return result.stdout

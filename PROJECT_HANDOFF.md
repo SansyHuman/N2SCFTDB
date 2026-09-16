@@ -2,6 +2,37 @@
 
 Last updated: **2026-09-16 (Asia/Seoul)**.
 
+## TFORM threads and index CPU allocation (16 September 2026)
+
+Settings now saves **TFORM threads** (`tools/form_threads`, default/minimum 1)
+and a **TFORM executable** (`tools/tform_executable`, default `tform`). Both
+full-index and Coulomb-index expansions use ordinary FORM at one thread and
+TFORM with `-wN` above one. Existing preferences retain serial FORM by default.
+The executable fields accept PATH names or full paths, including spaces.
+
+The GUI index coordinator allocates
+`min(selected_job_count, max(1, resolved_CPU_count // form_threads))` theory
+workers. CPU cores `-1` resolves to the system logical CPU count, with fallback
+one. Division rounds down; thread counts above the CPU budget still run one
+theory with the requested TFORM count. Inner LiE cache generation stays at one
+process per index worker; anomaly-build allocation is unchanged. Startup logs
+include the index worker count and FORM thread count.
+
+`common.form_utils.run_form` selects the executable and validates positive exact
+integer thread counts. Full-index and Coulomb APIs propagate `form_threads` and
+`tform_executable`; the full-index and database-index CLIs expose the matching
+`--form-threads` and `--tform-executable` flags. Raw FORM programs and expansion
+cache keys are unchanged, so existing results remain reusable across counts.
+
+Validation: unittest discovery ran **378 tests in 29.536 seconds: 340 passed,
+38 skipped**, with live MySQL testing disabled (`N2_TEST_MYSQL_DATABASE=`).
+Coverage includes actual FORM/TFORM equality for connected/disconnected full
+indices, exact fractional Coulomb PE/PL, cache reuse between engines, worker
+allocation, and settings persistence after a fresh-process reload. The Settings
+dialog was rendered and visually checked offscreen. A threaded full-index CLI
+smoke check used temporary caches; database CLI validation was checked with the
+connection mocked. Existing personal settings and MySQL contents were not changed.
+
 ## Complete session PDF refresh (16 September 2026)
 
 The canonical `output/pdf/n2_implementation_reference_summary.pdf` (54 pages)

@@ -52,6 +52,8 @@ def default_settings() -> dict[str, str | int | float]:
         "mysql/connect_timeout": 10,
         "tools/lie_executable": "lie",
         "tools/form_executable": "form",
+        "tools/tform_executable": "tform",
+        "tools/form_threads": 1,
         "tools/timeout": 600.0,
         "tools/processes": -1,
     }
@@ -191,6 +193,7 @@ class SettingsDialog(QtWidgets.QDialog):
             "mysql/password": self.passwordEdit,
             "tools/lie_executable": self.lieEdit,
             "tools/form_executable": self.formEdit,
+            "tools/tform_executable": self.tformEdit,
         }
         self.number_fields = {
             "index/full_max_order": self.fullIndexOrderSpin,
@@ -198,6 +201,7 @@ class SettingsDialog(QtWidgets.QDialog):
             "mysql/connect_timeout": self.connectTimeoutSpin,
             "tools/timeout": self.timeoutSpin,
             "tools/processes": self.coresSpin,
+            "tools/form_threads": self.formThreadsSpin,
         }
         values = store.load()
         for key, field in self.text_fields.items():
@@ -213,6 +217,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.formCacheBrowse.clicked.connect(lambda: self.browse_cache(self.formCacheEdit))
         self.lieBrowse.clicked.connect(lambda: self.browse_executable(self.lieEdit))
         self.formBrowse.clicked.connect(lambda: self.browse_executable(self.formEdit))
+        self.tformBrowse.clicked.connect(lambda: self.browse_executable(self.tformEdit))
         self.deleteDatabaseContentsButton.clicked.connect(self.delete_database_contents)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
@@ -306,6 +311,7 @@ class SettingsDialog(QtWidgets.QDialog):
         required = (
             "cache/character_database", "cache/form_database", "mysql/host",
             "mysql/user", "tools/lie_executable", "tools/form_executable",
+            "tools/tform_executable",
         )
         for key in required:
             values[key] = values[key].strip()

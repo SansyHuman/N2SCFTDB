@@ -64,6 +64,8 @@ C_INDEX_MAX_ORDER = 90
 CHAR_CACHE_DATABASE_PATH = DEFAULT_CHAR_CACHE_DATABASE
 LIE_EXECUTABLE = "lie"
 FORM_EXECUTABLE = "form"
+TFORM_EXECUTABLE = "tform"
+FORM_THREADS = 1
 DEFAULT_TIMEOUT = 600
 DEFAULT_PROCESS_COUNT = multiprocessing.cpu_count()
 
@@ -346,6 +348,7 @@ def _calculate_superconformal_index(
     defaults = dict(
         char_cache_database_path=CHAR_CACHE_DATABASE_PATH,
         lie_executable=LIE_EXECUTABLE, form_executable=FORM_EXECUTABLE,
+        tform_executable=TFORM_EXECUTABLE, form_threads=FORM_THREADS,
         timeout=DEFAULT_TIMEOUT, processes=DEFAULT_PROCESS_COUNT,
     )
     defaults.update(options)
@@ -367,6 +370,7 @@ def _calculate_coulomb_branch_index(
         factors,
         max_dimension,
         form_executable=FORM_EXECUTABLE,
+        tform_executable=TFORM_EXECUTABLE, form_threads=FORM_THREADS,
         timeout=DEFAULT_TIMEOUT,
     )
 

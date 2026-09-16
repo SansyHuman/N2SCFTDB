@@ -309,7 +309,7 @@ print(json.dumps({'log': 'Build stopped; writes kept.'}), flush=True)
         index = keyword_defaults("index/n2_theory_index.py", "calculate_index")
         for field in ("host", "port", "user", "password", "connect_timeout"):
             self.assertEqual(values[f"mysql/{field}"], mysql[field])
-        for field in ("lie_executable", "form_executable", "timeout"):
+        for field in ("lie_executable", "form_executable", "tform_executable", "form_threads", "timeout"):
             self.assertEqual(values[f"tools/{field}"], index[field])
         tree = ast.parse((PROJECT_ROOT / "common/n2_theory_properties.py").read_text())
         cutoffs = {
@@ -325,6 +325,9 @@ print(json.dumps({'log': 'Build stopped; writes kept.'}), flush=True)
         self.assertEqual(dialog.coulombMaxDimensionEdit.text(), str(cutoffs["C_INDEX_MAX_ORDER"]))
         self.assertEqual(values["tools/processes"], -1)
         self.assertEqual(dialog.coresSpin.value(), -1)
+        self.assertEqual(dialog.formThreadsSpin.value(), 1)
+        self.assertEqual(dialog.formThreadsSpin.minimum(), 1)
+        self.assertEqual(dialog.tformEdit.text(), "tform")
         self.assertEqual(values["mysql/database"], "")
         for key, module, constant in (
             ("cache/character_database", "char_decomposition_cache", "DEFAULT_CHAR_CACHE_DATABASE"),
@@ -442,6 +445,7 @@ print(json.dumps({'log': 'Build stopped; writes kept.'}), flush=True)
             "mysql/password": " fake secret = ; # 한글 ", "mysql/connect_timeout": 17,
             "tools/lie_executable": "/example tools/lie",
             "tools/form_executable": "/example tools/form", "tools/timeout": 123.75,
+            "tools/tform_executable": "/example tools/tform", "tools/form_threads": 2,
             "tools/processes": 3,
         }
         for key, field in dialog.text_fields.items():
@@ -511,6 +515,9 @@ window.close()
         self.assertEqual(dialog.fullIndexOrderSpin.value(), 18)
         self.assertEqual(dialog.coulombMaxDimensionEdit.text(), "90")
         self.assertEqual(dialog.coresSpin.value(), -1)
+        self.assertEqual(dialog.formThreadsSpin.value(), 1)
+        self.assertEqual(dialog.formThreadsSpin.minimum(), 1)
+        self.assertEqual(dialog.tformEdit.text(), "tform")
         dialog.reject()
         self.assertEqual(self.store.path.read_bytes(), before)
 

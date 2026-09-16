@@ -94,7 +94,8 @@ class SectorReuseTests(unittest.TestCase):
 
     def test_partial_hit_calculates_only_missing_sector_and_forwards_options(self):
         options = dict(char_cache_database_path="/unused/characters.sqlite", form_cache_database_path="/unused/form.sqlite",
-                       lie_executable="custom-lie", form_executable="custom-form", timeout=19, processes=1)
+                       lie_executable="custom-lie", form_executable="custom-form",
+                       tform_executable="custom-tform", form_threads=4, timeout=19, processes=1)
         with patch.object(db, "find_superconformal_index", side_effect=["1 + t^4", None]), \
              patch.object(idx, "_calculate_sector_index", return_value=idx.parse_index_polynomial("1 + t^6")) as calculate:
             actual = idx.calculate_index(product_of(SU2, SU3), 8, theory_db_connection=object(), **options)

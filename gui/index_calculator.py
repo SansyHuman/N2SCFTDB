@@ -56,6 +56,8 @@ def _calculate_job(job):
         # These globals are private to this spawned process. The full-index
         # cache runs serially inside each theory worker, avoiding nested pools.
         properties.FORM_EXECUTABLE = _settings["tools/form_executable"]
+        properties.TFORM_EXECUTABLE = _settings.get("tools/tform_executable", "tform")
+        properties.FORM_THREADS = _settings.get("tools/form_threads", 1)
         properties.DEFAULT_TIMEOUT = _settings["tools/timeout"]
         result = calculate_index_job(
             _connection, job, order=_settings["index/full_max_order"],
@@ -65,6 +67,8 @@ def _calculate_job(job):
                 "form_cache_database_path": _settings["cache/form_database"],
                 "lie_executable": _settings["tools/lie_executable"],
                 "form_executable": _settings["tools/form_executable"],
+                "tform_executable": properties.TFORM_EXECUTABLE,
+                "form_threads": properties.FORM_THREADS,
                 "timeout": _settings["tools/timeout"], "processes": 1,
             }, cancelled=_stopped.is_set, log=_worker_log,
         )
@@ -93,6 +97,7 @@ def _failed_job(job, exc):
 
 
 def _validate_request(jobs, settings):
+    from common.form_utils import validate_form_threads
     from common.n2_theory_db import _exact_cutoff
     from common.number_utils import as_integer
 
@@ -122,7 +127,9 @@ def _validate_request(jobs, settings):
         processes = os.cpu_count() or 1
     elif processes <= 0:
         raise ValueError("CPU core count must be -1 (all system cores) or positive")
-    return settings, min(processes, len(jobs))
+    threads = validate_form_threads(settings.get("tools/form_threads", 1))
+    settings["tools/form_threads"] = threads
+    return settings, min(max(1, processes // threads), len(jobs))
 
 
 def run_calculation(jobs, settings, emit, log, cancelled=lambda: False):
@@ -137,6 +144,7 @@ def run_calculation(jobs, settings, emit, log, cancelled=lambda: False):
     try:
         settings, workers = _validate_request(jobs, settings)
         log(f"Calculating {len(jobs)} selected theories with {workers} worker processes; "
+            f"FORM threads={settings['tools/form_threads']}; "
             f"full order={settings['index/full_max_order']}, "
             f"Coulomb cutoff={settings['index/coulomb_max_dimension']}.")
         spawn = get_context("spawn")

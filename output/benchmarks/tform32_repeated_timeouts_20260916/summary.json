@@ -1,0 +1,27 @@
+{
+  "completed": 16,
+  "successes": 16,
+  "min_wall_seconds": 23.94,
+  "max_wall_seconds": 38.33,
+  "median_wall_seconds": 25.19,
+  "total_expansion_wall_seconds": 473.42,
+  "max_peak_rss_gib": 8.842967987060547,
+  "duplicate_program_checks": [
+    {
+      "theory_ids": [
+        20517,
+        22475
+      ],
+      "program_sha256": "1b31af8bb17e70e8cae1a57aaf804707de4b36c84ffa290b6ef04b495e1803ad",
+      "identical_full_output": true
+    },
+    {
+      "theory_ids": [
+        20535,
+        22470
+      ],
+      "program_sha256": "bfbf42f452096d37ed1e1a6c8c795be19745d8b099bb9ce1c69e8730c2aab32f",
+      "identical_full_output": true
+    }
+  ]
+}
