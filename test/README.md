@@ -37,6 +37,14 @@ disposable test database, then omit the empty database assignment. Live tests
 reset their configured test tables. `all_test.sh` also discovers this directory
 and retains its existing local connection configuration.
 
+`test_gui_theory_download.py` exercises CSV fidelity, one row per realization,
+missing joins, fixed theory selection, bounded real spawned readers, deterministic
+serial/parallel output, theory-count progress, cancellation and atomic publication
+using a disposable SQLite fixture. `test_gui_search_tab.py` uses real Qt fixture
+processes to verify save-dialog cancellation, selected fields, progress percentages,
+error handling, cooperative shutdown and retention of searched IDs. These tests
+never access the configured MySQL database.
+
 To run only the window, index-tab and shared-logging tests:
 
 ```bash

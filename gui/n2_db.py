@@ -19,10 +19,12 @@ from gui.database_clear_dialog import DeleteDatabaseDialog
 if __package__:
     from .anomaly_tab import AnomalyTabController
     from .index_tab import IndexTabController
+    from .search_tab import SearchTabController
     from .password_store import PasswordStorageError, PasswordVault
 else:
     from anomaly_tab import AnomalyTabController
     from index_tab import IndexTabController
+    from search_tab import SearchTabController
     from password_store import PasswordStorageError, PasswordVault
 
 
@@ -347,31 +349,37 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
         self._settings_dialog = None
         self.anomaly_tab = AnomalyTabController(self, self.store, project_root=PROJECT_ROOT)
         self.index_tab = IndexTabController(self, self.store, project_root=PROJECT_ROOT)
+        self.search_tab = SearchTabController(self, self.store, project_root=PROJECT_ROOT)
         self.anomaly_tab.activeChanged.connect(self._sync_tab_availability)
         self.index_tab.activeChanged.connect(self._sync_tab_availability)
+        self.search_tab.activeChanged.connect(self._sync_tab_availability)
         self._sync_tab_availability()
 
     def _sync_tab_availability(self, *_):
         anomaly_active = self.anomaly_tab.process is not None
         index_active = self.index_tab.process is not None
-        self.anomaly_tab.set_available(not index_active)
-        self.index_tab.set_available(not anomaly_active)
-        self.actionSettings.setEnabled(not (anomaly_active or index_active))
-        if self._close_requested and not (anomaly_active or index_active):
+        search_active = self.search_tab.process is not None
+        self.anomaly_tab.set_available(not (index_active or search_active))
+        self.index_tab.set_available(not (anomaly_active or search_active))
+        self.search_tab.set_available(not (anomaly_active or index_active))
+        self.actionSettings.setEnabled(not (anomaly_active or index_active or search_active))
+        if self._close_requested and not (anomaly_active or index_active or search_active):
             self.close()
 
     def closeEvent(self, event):
         if self._settings_dialog is not None and self._settings_dialog.deletion_active:
             event.ignore()
             return
-        if self.anomaly_tab.process is not None or self.index_tab.process is not None:
+        if any(tab.process is not None for tab in (self.anomaly_tab, self.index_tab, self.search_tab)):
             self._close_requested = True
             self.anomaly_tab.stop()
             self.index_tab.cancel_for_close()
+            self.search_tab.cancel_for_close()
             event.ignore()
             return
         self.anomaly_tab.logger.close_file()
         self.index_tab.logger.close_file()
+        self.search_tab.logger.close_file()
         super().closeEvent(event)
 
     @property
@@ -380,7 +388,7 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
         return self.store.load()
 
     def open_settings(self) -> None:
-        if self.anomaly_tab.process is not None or self.index_tab.process is not None:
+        if any(tab.process is not None for tab in (self.anomaly_tab, self.index_tab, self.search_tab)):
             return
         try:
             dialog = SettingsDialog(self.store, self)
@@ -388,11 +396,14 @@ class N2DatabaseWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.critical(self, "Cannot load settings", str(exc))
             return
         dialog.databaseContentsDeleted.connect(self.index_tab.invalidate_after_database_deletion)
+        dialog.databaseContentsDeleted.connect(self.search_tab.invalidate_after_database_deletion)
         self._settings_dialog = dialog
         try:
             if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
                 try:
-                    self.index_tab.invalidate_if_database_changed(self.store.load())
+                    settings = self.store.load()
+                    self.index_tab.invalidate_if_database_changed(settings)
+                    self.search_tab.invalidate_if_database_changed(settings)
                 except OSError as exc:
                     QtWidgets.QMessageBox.critical(self, "Cannot load settings", str(exc))
         finally:

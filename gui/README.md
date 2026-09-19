@@ -25,8 +25,8 @@ The shell itself does not require Sage, FORM, LiE or a
 MySQL connection. It also works with `python -m gui.n2_db` from the project root.
 
 Open `n2_db.ui`, `settings.ui` and `database_clear_dialog.ui` in Qt Creator /
-Qt Widgets Designer to edit their layouts. The main window contains the `anomaly` and `index`
-tabs. Choose **Settings → Preferences…** (Ctrl+,) for settings; **File → Quit**
+Qt Widgets Designer to edit their layouts. The main window contains the `anomaly`,
+`index` and `search` tabs. Choose **Settings → Preferences…** (Ctrl+,) for settings; **File → Quit**
 (Ctrl+Q) closes the program. Python loads these UI files directly, so no code
 generation step is needed.
 
@@ -43,10 +43,99 @@ gauge/matter/flavor data, indices and spectra in one transaction. The tables,
 schema metadata, database account and SQLite cache files remain. A wrong password
 performs no deletion; database errors roll back the transaction. If a connection
 or worker failure leaves the outcome unconfirmed, inspect the database before
-retrying. After success the index tab's retained search results are cleared,
+retrying. After success both tabs' retained search results are cleared,
 even if Settings is subsequently cancelled. Settings/deletion are unavailable
 during an active build/search/calculation; an active deletion must finish before
 its dialog can close. This operation cannot be undone after it commits.
+
+In the **search** tab, **Search** finds distinct theories satisfying all supplied
+filters. Empty fields impose no restriction; with every filter empty and the
+index option unchecked, all theories are included, even theories without
+Lagrangian realizations or property rows.
+
+**Seed theories** accepts Cartan types with the backend's usual spelling rules:
+
+- `A1` matches any realization containing an A1 factor.
+- `A1, C2` requires both factors in the same realization, allowing extra factors.
+- `"A1, C2"` requires exactly those factors, in either order.
+- `A1, A1` requires at least two A1 factors; `"A1, A1"` requires exactly two.
+- `"A1"; A2, C2` matches either alternative. A theory with several matching
+  realizations is counted once.
+
+**Theory id** matches `theories.id`, not a realization ID. Exact central charges
+and inclusive range bounds accept integers, fractions and finite decimals.
+Exact inputs are reduced to fractions and serialized into the stored JSON
+format: `0.125` and `1/8` both become `{"numerator":1,"denominator":8}`. SQL
+`JSON_CONTAINS` compares these integer pairs in `central_charges_json`.
+Ranges use inclusive SQL comparisons on the indexed `central_charge_a_decimal`
+and `central_charge_c_decimal` columns. Endpoints are rounded to their 30-place
+decimal scale, so sufficiently close rational charges can match the same range.
+An empty range endpoint is unbounded. Exact and range conditions both apply if
+both are supplied. Invalid inputs and reversed ranges are rejected before a
+database connection is opened. All filtering happens in SQL; the query returns
+only matching theory IDs, without fetching charge JSON for Python filtering.
+
+**Only theories with non-empty indices** requires a non-whitespace full
+superconformal index string. SQL/JSON nulls and empty strings do not qualify;
+Coulomb indices, spectra and index precision metadata may be absent.
+
+`gui.search_tab.SearchTabController` launches `gui.theory_search` in a separate
+Sage process, using the saved MySQL connection settings without migrations or
+writes. The worker uses a streaming cursor over one SELECT. It sends only
+matching theory IDs to the controller, avoiding large index and input payloads
+in GUI memory. `window.search_tab.theory_ids` returns the immutable tuple from
+the last completed search; `database` and `conditions` return copies of its
+source and filters, without the password.
+
+The text box shows the final number of matches. **Download** becomes enabled after
+a successful nonempty search with at least one CSV field checked. It opens a
+save-file dialog with a `.csv` default extension and overwrite confirmation.
+Changing CSV fields does not change the search. Changing a filter, changing databases,
+deleting database contents, or starting another tab's work clears the snapshot.
+A new search clears previous results; failed or incomplete searches never
+publish partial IDs. The button becomes **Cancel** during search, and closing
+the window cancels the read-only worker asynchronously. Other tab operations
+and Preferences are disabled while searching.
+
+The result box's tooltip shows status/error details. Worker attempts write
+timestamped, password-redacted messages to
+`logs/log_search_YYYYMMDD_HHMMSS_ffffff.log`. The progress bar is reserved for
+CSV writing and stays at zero during search.
+
+`gui.theory_download` exports exactly the retained theory IDs, without repeating
+the search. All realizations of each matched theory are included, **one row per
+realization**, ordered by theory ID then realization ID. Theory properties repeat
+on each realization row. A theory without realizations still produces one row;
+missing realization or property values are blank cells. This row convention also
+applies when no realization fields are selected. If a searched theory has been
+deleted, the export fails and asks for a new search instead of omitting it.
+
+Only checked fields are fetched and written. Headers use the database column
+names, with `theory_id` and `lagrangian_realization_id` distinguishing the two IDs.
+The CSV uses UTF-8 with a BOM, standard quoting for commas/quotes/newlines, raw
+stored JSON text, exact decimal text and blank cells for SQL NULL. No floats or
+index calculations are introduced. Data values are read at download time; the
+retained IDs are fixed, but concurrent external database edits can be visible in
+different batches, so this is not a database-wide transactional snapshot.
+
+The separate worker keeps the GUI responsive. It streams batches of 32 theories
+with `min(CPU cores, number of batches)` spawned database readers, without a fixed
+process cap. CPU cores `-1` uses the machine's logical CPU count. Small downloads
+use one reader.
+Only counts pass between processes: each reader writes a temporary CSV chunk,
+and the coordinator merges chunks in order with bounded pending work. TFORM
+threads do not affect this export, which does not run FORM.
+
+Progress is the percentage of **theories written**, independently of CSV row
+count. It updates after each batch is merged; 100% appears only after the complete
+file has replaced the destination and the worker exits successfully. Temporary
+files are staged beside the destination, which is left unchanged on a failed or
+cancelled export. Download becomes **Cancel** while writing; window close also
+requests cancellation and waits for readers and temporary-file cleanup. An active
+database read may take time to return before cancellation completes. Searches,
+CSV-field edits, Preferences and other tab operations are disabled during export.
+Results remain available for another download afterward. Export messages use
+`logs/log_download_YYYYMMDD_HHMMSS_ffffff.log` and the result field's tooltip.
 
 In the **index** tab, **Search theories with empty indices** uses the saved
 MySQL settings and the existing `iter_lagrangian_index_jobs` iterator. A theory

@@ -1,6 +1,114 @@
 # N2SCFTDB Project Handoff
 
-Last updated: **2026-09-16 (Asia/Seoul)**.
+Last updated: **2026-09-18 (Asia/Seoul)**.
+
+## CSV download of searched theories (18 September 2026)
+
+`SearchTabController` now opens a save-file dialog and runs `gui.theory_download`
+for the retained theory IDs and selected CSV fields. The user chose **one row per
+Lagrangian realization**. All realizations of matched theories are exported,
+ordered by theory then realization ID, with shared theory properties repeated.
+Theories without realizations still get one row; absent joined data is blank.
+The 17 UI fields map to a fixed SQL whitelist; properties_json is excluded and
+the theory ID is included only once. CSV preserves JSON and exact decimal text,
+quotes commas/newlines, and uses UTF-8 with a BOM.
+
+No search is repeated, no schema initialization runs, and the worker only issues
+SELECTs. It reads batches of 32 theories using streaming cursors and
+`min(resolved CPU setting, number of batches)` spawned readers. The initial
+four-process cap was removed at the user's request; CPU cores `-1` uses all
+logical CPUs, subject to the available batch count.
+Each reader writes a disk chunk; only counts cross process boundaries. Pending
+work is bounded. Small downloads use one reader. TFORM settings do not affect
+CSV export. Values are fetched at export time and batches may see concurrent
+external edits; IDs remain fixed, but there is no global database snapshot.
+A missing searched theory fails the export rather than silently omitting it.
+
+Progress counts theories after their rows have been merged, not CSV rows. The
+worker stages files beside the destination, flushes/syncs and atomically replaces
+it only on success. The GUI reports 100% after confirmed successful worker exit.
+Download becomes Cancel, and window close waits for cooperative cancellation,
+reader shutdown and staging cleanup. Active reads can delay cancellation.
+An existing destination stays intact on failure/cancel; retained IDs can be
+downloaded again. The GUI blocks conflicting operations and CSV selection edits
+while exporting, requires at least one checked field, and checks database identity
+again before the save dialog. Logs use `logs/log_download_*.log` with redaction.
+
+Validation: unittest discovery ran **410 tests in 32.689 seconds: 372 passed,
+38 skipped**, with the existing live-database suite disabled. Export tests use
+real spawned processes and relational fixtures; GUI tests exercise actual Qt
+processes, dialog cancellation, field selection, progress, failures and shutdown.
+An additional disposable MySQL server with a SELECT-only export account verified
+257 theories / 258 CSV rows across all 17 fields, exact decimal and JSON content,
+byte-identical serial/parallel output, cancellation, missing-theory failure,
+destination preservation and closed reader connections. The 7,457,190-byte fixture
+took 0.214 seconds serially and 0.164 seconds with four readers; these are single
+synthetic checks, not a prediction for the user's database. The temporary server
+was shut down and removed; the user's database was not accessed.
+
+## SQL central-charge filtering (18 September 2026)
+
+`gui.theory_search.build_query` now evaluates every search condition in SQL.
+Range endpoints are converted to `Decimal`, rounded to 30 places, and bound
+directly in inclusive comparisons against the existing indexed
+`central_charge_a_decimal` and `central_charge_c_decimal` columns. Ranges are
+intentionally approximate; distinct fractions can share a decimal value.
+Exact inputs still use reduced `Fraction` values, serialized by the shared JSON
+helper into numerator/denominator pairs. SQL `JSON_CONTAINS` matches the requested
+charge pair(s) against `central_charges_json`. For example, decimal `0.125` and
+fraction `2/16` both compare as numerator 1, denominator 8.
+
+The worker selects only theory IDs, with no charge payload or per-row Python
+filter. Existing schema/index definitions, GUI controls, gauge matching,
+streaming, and then-deferred CSV export were unchanged. A temporary MySQL 8.0.46
+instance passed seven query cases and a real worker streaming check; `EXPLAIN`
+confirmed range access through each existing decimal charge index. The temporary
+server was removed; the user's MySQL database was not accessed.
+
+Validation: unittest discovery ran **396 tests in 30.362 seconds: 358 passed,
+38 skipped**, with existing live-database tests disabled. Tests distinguish exact
+JSON matches from approximate range matches and verify that only IDs are fetched.
+
+## Theory search controller and worker (17 September 2026)
+
+The `search` tab now uses `gui.search_tab.SearchTabController`, launched by
+`N2DatabaseWindow`, and the separate read-only Sage worker `gui.theory_search`.
+Search combines all filled conditions. Cartan expressions accept comma-separated
+product factors, double quotes for exact factor multisets, and semicolon-separated
+alternatives. Factor order is ignored; repeated factors retain their multiplicity.
+One realization must satisfy a gauge alternative, and each matching theory is
+counted once regardless of its number of realizations.
+
+Theory ID refers to `theories.id`. The initial implementation compared central
+charges and bounds as `Fraction` values in Python; the 18 September update above
+replaces this with SQL exact-JSON and approximate decimal-range comparisons.
+Missing bounds are unlimited.
+The nonempty-index checkbox requires only a non-whitespace full superconformal
+index string, independently of Coulomb data or cutoff metadata. Empty conditions
+include all theories, including ones without realizations or property rows.
+
+The worker validates conditions before connection, disables schema initialization,
+and streams one parameterized SELECT through a server-side cursor. It sends
+matching IDs instead of index/input payloads to limit memory use. The controller
+retains the immutable `theory_ids` tuple only after successful worker completion
+and displays the count. `database` and `conditions` expose copied metadata without
+the password. Filter changes, database changes/deletion, and another tab's work
+invalidate this result; failures and cancellation never publish partial results.
+
+Search becomes Cancel while active; window close cancels the read-only process.
+Preferences and other tab operations are mutually excluded during work. Status
+and error details appear in the result field's tooltip, with password-redacted
+logs in `logs/log_search_YYYYMMDD_HHMMSS_ffffff.log`. Download is enabled for a
+successful nonempty result. CSV writing was deferred at this stage and is now
+implemented by the 18 September CSV update above.
+
+Validation: **394 tests in 30.735 seconds: 356 passed, 38 skipped**, with live
+MySQL testing disabled. New tests execute the search SQL against an in-memory
+relational fixture and exercise actual Qt fixture processes, covering matching,
+exact boundaries, repeated factors, no duplicate theories, protocol failures,
+password redaction, cancellation and window integration. A real Sage worker CLI
+check also rejected an invalid fraction before database access. No live MySQL
+connection or user database write was performed during this implementation.
 
 ## TFORM threads and index CPU allocation (16 September 2026)
 

@@ -2,7 +2,7 @@
 <ui version="4.0">
  <class>N2DatabaseWindow</class>
  <widget class="QMainWindow" name="N2DatabaseWindow">
-  <property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>680</height></rect></property>
+  <property name="geometry"><rect><x>0</x><y>0</y><width>1040</width><height>960</height></rect></property>
   <property name="windowTitle"><string>N2SCFTDB</string></property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="mainLayout">
@@ -160,6 +160,361 @@ Number already in the database</string></property>
         </item>
        </layout>
       </widget>
+      <widget class="QWidget" name="searchTab">
+       <attribute name="title"><string>search</string></attribute>
+       <layout class="QVBoxLayout" name="searchTabLayout">
+        <item>
+         <widget class="QScrollArea" name="searchScrollArea">
+          <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+          <property name="widgetResizable"><bool>true</bool></property>
+          <widget class="QWidget" name="searchFormPanel">
+           <layout class="QVBoxLayout" name="searchFormLayout">
+            <property name="spacing"><number>18</number></property>
+            <property name="leftMargin"><number>16</number></property>
+            <property name="topMargin"><number>16</number></property>
+            <property name="rightMargin"><number>16</number></property>
+            <property name="bottomMargin"><number>16</number></property>
+            <item>
+             <layout class="QVBoxLayout" name="searchSeedLayout">
+              <property name="spacing"><number>8</number></property>
+              <item>
+               <widget class="QLabel" name="searchSeedLabel">
+                <property name="font"><font><bold>true</bold></font></property>
+                <property name="text"><string>Seed theories</string></property>
+                <property name="buddy"><cstring>searchGaugeGroupsEdit</cstring></property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLineEdit" name="searchGaugeGroupsEdit">
+                <property name="minimumSize"><size><width>0</width><height>34</height></size></property>
+                <property name="accessibleName"><string>Seed theory gauge groups in Cartan notation</string></property>
+                <property name="placeholderText"><string>e.g. A1; A2, C2; &quot;A1, A1&quot;</string></property>
+                <property name="toolTip"><string>Enter Cartan types. Commas join factors of a product gauge group. Double quotes require exactly that gauge group; unquoted expressions require all listed factors. Semicolons separate alternatives, any one of which may match. Leave empty for no gauge-group restriction.</string></property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="searchSeedHelpLabel">
+                <property name="text"><string>Use Cartan types: A1 for a single group, A1, C2 for a product. Double quotes, as in &quot;A1, C2&quot;, require an exact gauge group; unquoted expressions match theories containing all listed factors. Separate alternatives with semicolons; matching any alternative is sufficient.</string></property>
+                <property name="wordWrap"><bool>true</bool></property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QGridLayout" name="searchCriteriaLayout" columnstretch="1,1">
+              <property name="horizontalSpacing"><number>28</number></property>
+              <property name="verticalSpacing"><number>12</number></property>
+              <item row="0" column="0">
+               <widget class="QLabel" name="searchCentralChargeALabel">
+                <property name="font"><font><bold>true</bold></font></property>
+                <property name="text"><string>Central charge a (exact)</string></property>
+                <property name="buddy"><cstring>searchCentralChargeAEdit</cstring></property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QLabel" name="searchCentralChargeCLabel">
+                <property name="font"><font><bold>true</bold></font></property>
+                <property name="text"><string>Central charge c (exact)</string></property>
+                <property name="buddy"><cstring>searchCentralChargeCEdit</cstring></property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLineEdit" name="searchCentralChargeAEdit">
+                <property name="minimumSize"><size><width>0</width><height>34</height></size></property>
+                <property name="placeholderText"><string>e.g. 263/768</string></property>
+                <property name="toolTip"><string>Exact central charge a. Leave empty for no exact-value restriction.</string></property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QLineEdit" name="searchCentralChargeCEdit">
+                <property name="minimumSize"><size><width>0</width><height>34</height></size></property>
+                <property name="placeholderText"><string>e.g. 0.352865</string></property>
+                <property name="toolTip"><string>Exact central charge c. Leave empty for no exact-value restriction.</string></property>
+               </widget>
+              </item>
+              <item row="2" column="0">
+               <widget class="QLabel" name="searchCentralChargeARangeLabel">
+                <property name="font"><font><bold>true</bold></font></property>
+                <property name="text"><string>Range for a</string></property>
+                <property name="buddy"><cstring>searchCentralChargeAMinEdit</cstring></property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QLabel" name="searchCentralChargeCRangeLabel">
+                <property name="font"><font><bold>true</bold></font></property>
+                <property name="text"><string>Range for c</string></property>
+                <property name="buddy"><cstring>searchCentralChargeCMinEdit</cstring></property>
+               </widget>
+              </item>
+              <item row="3" column="0">
+               <layout class="QHBoxLayout" name="searchCentralChargeARangeLayout">
+                <property name="spacing"><number>8</number></property>
+                <item><widget class="QLineEdit" name="searchCentralChargeAMinEdit">
+                 <property name="minimumSize"><size><width>0</width><height>34</height></size></property>
+                 <property name="accessibleName"><string>Inclusive lower bound for central charge a</string></property>
+                 <property name="placeholderText"><string>lower bound</string></property>
+                 <property name="toolTip"><string>Inclusive lower bound for a. Leave empty for no lower bound.</string></property>
+                </widget></item>
+                <item><widget class="QLabel" name="searchCentralChargeARangeSeparator"><property name="text"><string>≤ a ≤</string></property></widget></item>
+                <item><widget class="QLineEdit" name="searchCentralChargeAMaxEdit">
+                 <property name="minimumSize"><size><width>0</width><height>34</height></size></property>
+                 <property name="accessibleName"><string>Inclusive upper bound for central charge a</string></property>
+                 <property name="placeholderText"><string>upper bound</string></property>
+                 <property name="toolTip"><string>Inclusive upper bound for a. Leave empty for no upper bound.</string></property>
+                </widget></item>
+               </layout>
+              </item>
+              <item row="3" column="1">
+               <layout class="QHBoxLayout" name="searchCentralChargeCRangeLayout">
+                <property name="spacing"><number>8</number></property>
+                <item><widget class="QLineEdit" name="searchCentralChargeCMinEdit">
+                 <property name="minimumSize"><size><width>0</width><height>34</height></size></property>
+                 <property name="accessibleName"><string>Inclusive lower bound for central charge c</string></property>
+                 <property name="placeholderText"><string>lower bound</string></property>
+                 <property name="toolTip"><string>Inclusive lower bound for c. Leave empty for no lower bound.</string></property>
+                </widget></item>
+                <item><widget class="QLabel" name="searchCentralChargeCRangeSeparator"><property name="text"><string>≤ c ≤</string></property></widget></item>
+                <item><widget class="QLineEdit" name="searchCentralChargeCMaxEdit">
+                 <property name="minimumSize"><size><width>0</width><height>34</height></size></property>
+                 <property name="accessibleName"><string>Inclusive upper bound for central charge c</string></property>
+                 <property name="placeholderText"><string>upper bound</string></property>
+                 <property name="toolTip"><string>Inclusive upper bound for c. Leave empty for no upper bound.</string></property>
+                </widget></item>
+               </layout>
+              </item>
+              <item row="4" column="0">
+               <widget class="QLabel" name="searchTheoryIdLabel">
+                <property name="font"><font><bold>true</bold></font></property>
+                <property name="text"><string>Theory id</string></property>
+                <property name="buddy"><cstring>searchTheoryIdEdit</cstring></property>
+               </widget>
+              </item>
+              <item row="4" column="1">
+               <widget class="QLabel" name="searchOptionsLabel">
+                <property name="font"><font><bold>true</bold></font></property>
+                <property name="text"><string>Options</string></property>
+                <property name="buddy"><cstring>searchNonEmptyIndicesCheckBox</cstring></property>
+               </widget>
+              </item>
+              <item row="5" column="0">
+               <widget class="QLineEdit" name="searchTheoryIdEdit">
+                <property name="minimumSize"><size><width>0</width><height>34</height></size></property>
+                <property name="placeholderText"><string>e.g. 16</string></property>
+                <property name="toolTip"><string>The ID of the theory, not a Lagrangian realization ID. Leave empty for no ID restriction.</string></property>
+               </widget>
+              </item>
+              <item row="5" column="1">
+               <widget class="QCheckBox" name="searchNonEmptyIndicesCheckBox">
+                <property name="text"><string>Only theories with non-empty indices</string></property>
+                <property name="toolTip"><string>Require a calculated full superconformal index. Coulomb branch indices and spectra may be empty.</string></property>
+                <property name="checked"><bool>false</bool></property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QLabel" name="searchConditionsHelpLabel">
+              <property name="text"><string>All entered conditions must match. Leave the filters empty and the option unchecked to search every theory in the database.</string></property>
+              <property name="wordWrap"><bool>true</bool></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QGroupBox" name="searchCsvFieldsGroup">
+              <property name="title"><string>CSV fields</string></property>
+              <layout class="QGridLayout" name="searchCsvFieldsLayout" columnstretch="1,1,1">
+               <property name="horizontalSpacing"><number>16</number></property>
+               <property name="verticalSpacing"><number>10</number></property>
+                <item row="0" column="0" colspan="3">
+                 <widget class="QLabel" name="searchCsvTheoriesLabel">
+                  <property name="font"><font><bold>true</bold></font></property>
+                  <property name="text"><string>theories</string></property>
+                 </widget>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QCheckBox" name="searchCsvTheoryIdCheckBox">
+                  <property name="text"><string>Theory id</string></property>
+                  <property name="toolTip"><string>theories.id</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="1" column="1">
+                 <widget class="QCheckBox" name="searchCsvTheoryNameCheckBox">
+                  <property name="text"><string>Name</string></property>
+                  <property name="toolTip"><string>theories.name</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="2" column="0" colspan="3">
+                 <widget class="QLabel" name="searchCsvRealizationsLabel">
+                  <property name="font"><font><bold>true</bold></font></property>
+                  <property name="text"><string>lagrangian_realizations</string></property>
+                 </widget>
+                </item>
+                <item row="3" column="0">
+                 <widget class="QCheckBox" name="searchCsvRealizationIdCheckBox">
+                  <property name="text"><string>Lagrangian realization id</string></property>
+                  <property name="toolTip"><string>lagrangian_realizations.id</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="3" column="1">
+                 <widget class="QCheckBox" name="searchCsvGaugeGroupCheckBox">
+                  <property name="text"><string>Gauge group</string></property>
+                  <property name="toolTip"><string>lagrangian_realizations.gauge_group</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="3" column="2">
+                 <widget class="QCheckBox" name="searchCsvInputJsonCheckBox">
+                  <property name="text"><string>Input JSON</string></property>
+                  <property name="toolTip"><string>lagrangian_realizations.input_json</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="4" column="0" colspan="3">
+                 <widget class="QLabel" name="searchCsvPropertiesLabel">
+                  <property name="font"><font><bold>true</bold></font></property>
+                  <property name="text"><string>theory_properties</string></property>
+                 </widget>
+                </item>
+                <item row="5" column="0">
+                 <widget class="QCheckBox" name="searchCsvFlavorSymmetryCheckBox">
+                  <property name="text"><string>Flavor symmetry</string></property>
+                  <property name="toolTip"><string>theory_properties.flavor_symmetry</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="5" column="1">
+                 <widget class="QCheckBox" name="searchCsvFlavorRankCheckBox">
+                  <property name="text"><string>Flavor rank</string></property>
+                  <property name="toolTip"><string>theory_properties.flavor_rank</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="5" column="2">
+                 <widget class="QCheckBox" name="searchCsvFlavorDimensionCheckBox">
+                  <property name="text"><string>Flavor dimension</string></property>
+                  <property name="toolTip"><string>theory_properties.flavor_dimension</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="6" column="0">
+                 <widget class="QCheckBox" name="searchCsvConformalManifoldDimensionCheckBox">
+                  <property name="text"><string>Conformal manifold dimension</string></property>
+                  <property name="toolTip"><string>theory_properties.conformal_manifold_dimension</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="6" column="1">
+                 <widget class="QCheckBox" name="searchCsvCentralChargesJsonCheckBox">
+                  <property name="text"><string>Central charges (JSON)</string></property>
+                  <property name="toolTip"><string>theory_properties.central_charges_json</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="6" column="2">
+                 <widget class="QCheckBox" name="searchCsvCentralChargeADecimalCheckBox">
+                  <property name="text"><string>Central charge a (decimal)</string></property>
+                  <property name="toolTip"><string>theory_properties.central_charge_a_decimal</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="7" column="0">
+                 <widget class="QCheckBox" name="searchCsvCentralChargeCDecimalCheckBox">
+                  <property name="text"><string>Central charge c (decimal)</string></property>
+                  <property name="toolTip"><string>theory_properties.central_charge_c_decimal</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="7" column="1">
+                 <widget class="QCheckBox" name="searchCsvCoulombBranchIndexJsonCheckBox">
+                  <property name="text"><string>Coulomb branch index (JSON)</string></property>
+                  <property name="toolTip"><string>theory_properties.coulomb_branch_index_json</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="7" column="2">
+                 <widget class="QCheckBox" name="searchCsvCoulombBranchSpectrumJsonCheckBox">
+                  <property name="text"><string>Coulomb branch spectrum (JSON)</string></property>
+                  <property name="toolTip"><string>theory_properties.coulomb_branch_spectrum_json</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="8" column="0">
+                 <widget class="QCheckBox" name="searchCsvSuperconformalIndexJsonCheckBox">
+                  <property name="text"><string>Full superconformal index (JSON)</string></property>
+                  <property name="toolTip"><string>theory_properties.superconformal_index_json</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="8" column="1">
+                 <widget class="QCheckBox" name="searchCsvSuperconformalIndexOrderCheckBox">
+                  <property name="text"><string>Full superconformal index order</string></property>
+                  <property name="toolTip"><string>theory_properties.superconformal_index_order</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+                <item row="8" column="2">
+                 <widget class="QCheckBox" name="searchCsvCoulombBranchIndexMaxDimensionJsonCheckBox">
+                  <property name="text"><string>Coulomb index maximum dimension (JSON)</string></property>
+                  <property name="toolTip"><string>theory_properties.coulomb_branch_index_max_dimension_json</string></property>
+                  <property name="checked"><bool>true</bool></property>
+                 </widget>
+                </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="searchResultsLayout" stretch="1,1">
+              <property name="spacing"><number>16</number></property>
+              <item>
+               <widget class="QLineEdit" name="searchResultCountEdit">
+                <property name="minimumSize"><size><width>0</width><height>34</height></size></property>
+                <property name="accessibleName"><string>Number of matching theories</string></property>
+                <property name="toolTip"><string>The number of theories satisfying the search conditions will appear here.</string></property>
+                <property name="readOnly"><bool>true</bool></property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QProgressBar" name="searchDownloadProgressBar">
+                <property name="minimumSize"><size><width>0</width><height>24</height></size></property>
+                <property name="accessibleName"><string>Theory CSV download progress</string></property>
+                <property name="toolTip"><string>Progress of writing the matching theories to a CSV file.</string></property>
+                <property name="minimum"><number>0</number></property>
+                <property name="maximum"><number>100</number></property>
+                <property name="value"><number>0</number></property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="searchButtonsLayout">
+              <property name="spacing"><number>12</number></property>
+              <item>
+               <widget class="QPushButton" name="searchTheoriesButton">
+                <property name="minimumSize"><size><width>100</width><height>36</height></size></property>
+                <property name="text"><string>Search</string></property>
+                <property name="toolTip"><string>Find all theories satisfying the search conditions.</string></property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="downloadTheoriesButton">
+                <property name="enabled"><bool>false</bool></property>
+                <property name="minimumSize"><size><width>100</width><height>36</height></size></property>
+                <property name="text"><string>Download</string></property>
+                <property name="toolTip"><string>After a search, save information for every matching theory to a CSV file.</string></property>
+               </widget>
+              </item>
+              <item><spacer name="searchButtonsSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+             </layout>
+            </item>
+            <item><spacer name="searchFormBottomSpacer"><property name="orientation"><enum>Qt::Vertical</enum></property><property name="sizeHint" stdset="0"><size><width>20</width><height>40</height></size></property></spacer></item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+       </layout>
+      </widget>
      </widget>
     </item>
    </layout>
@@ -197,6 +552,35 @@ Number already in the database</string></property>
   <tabstop>emptyIndexGaugeGroupsList</tabstop>
   <tabstop>indexCalculationLog</tabstop>
   <tabstop>calculateIndexButton</tabstop>
+  <tabstop>searchGaugeGroupsEdit</tabstop>
+  <tabstop>searchCentralChargeAEdit</tabstop>
+  <tabstop>searchCentralChargeCEdit</tabstop>
+  <tabstop>searchCentralChargeAMinEdit</tabstop>
+  <tabstop>searchCentralChargeAMaxEdit</tabstop>
+  <tabstop>searchCentralChargeCMinEdit</tabstop>
+  <tabstop>searchCentralChargeCMaxEdit</tabstop>
+  <tabstop>searchTheoryIdEdit</tabstop>
+  <tabstop>searchNonEmptyIndicesCheckBox</tabstop>
+  <tabstop>searchCsvTheoryIdCheckBox</tabstop>
+  <tabstop>searchCsvTheoryNameCheckBox</tabstop>
+  <tabstop>searchCsvRealizationIdCheckBox</tabstop>
+  <tabstop>searchCsvGaugeGroupCheckBox</tabstop>
+  <tabstop>searchCsvInputJsonCheckBox</tabstop>
+  <tabstop>searchCsvFlavorSymmetryCheckBox</tabstop>
+  <tabstop>searchCsvFlavorRankCheckBox</tabstop>
+  <tabstop>searchCsvFlavorDimensionCheckBox</tabstop>
+  <tabstop>searchCsvConformalManifoldDimensionCheckBox</tabstop>
+  <tabstop>searchCsvCentralChargesJsonCheckBox</tabstop>
+  <tabstop>searchCsvCentralChargeADecimalCheckBox</tabstop>
+  <tabstop>searchCsvCentralChargeCDecimalCheckBox</tabstop>
+  <tabstop>searchCsvCoulombBranchIndexJsonCheckBox</tabstop>
+  <tabstop>searchCsvCoulombBranchSpectrumJsonCheckBox</tabstop>
+  <tabstop>searchCsvSuperconformalIndexJsonCheckBox</tabstop>
+  <tabstop>searchCsvSuperconformalIndexOrderCheckBox</tabstop>
+  <tabstop>searchCsvCoulombBranchIndexMaxDimensionJsonCheckBox</tabstop>
+  <tabstop>searchResultCountEdit</tabstop>
+  <tabstop>searchTheoriesButton</tabstop>
+  <tabstop>downloadTheoriesButton</tabstop>
  </tabstops>
  <resources/>
  <connections/>
