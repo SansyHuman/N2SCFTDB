@@ -48,6 +48,63 @@ def _exit_worker(item):
 
 
 class IndexJobTests(unittest.TestCase):
+    def test_upgrade_recheck_compares_both_cutoffs_and_preserves_sufficient_or_unknown_values(self):
+        initial = dict.fromkeys(db._INDEX_COLUMNS.values())
+        initial.update(theory_id=1, properties_json='{}', superconformal_index_json='"1"',
+                       superconformal_index_order=4, coulomb_branch_index_json='"1"',
+                       coulomb_branch_index_max_dimension_json='{"numerator": 9, "denominator": 2}',
+                       coulomb_branch_spectrum_json='[]')
+        cases = [
+            (6, '9/2', {}, ['superconformal_index']),
+            (4, '451/100', {}, ['coulomb_branch_index']),
+            (6, '451/100', {}, ['superconformal_index', 'coulomb_branch_index']),
+            (4, '9/2', {}, []),
+            (2, '4', {}, []),
+            (6, '5', {'superconformal_index_order': None,
+                      'coulomb_branch_index_max_dimension_json': None}, []),
+            (4, '9/2', {'coulomb_branch_spectrum_json': None}, ['coulomb_branch_spectrum']),
+        ]
+        for order, maximum, changes, expected in cases:
+            saved_row = {**initial, **changes}
+            connection = MagicMock()
+            retained = job()
+            retained['unknown_precision'] = ['superconformal_index']
+            with self.subTest(order=order, maximum=maximum, changes=changes), \
+                 patch.object(db, '_fetchone', return_value=saved_row) as lookup, \
+                 patch.object(db, 'iter_lagrangian_index_jobs') as search, \
+                 patch.object(db, '_locked_index_row', return_value=saved_row), \
+                 patch.object(db, '_write_index_changes'), \
+                 patch.object(properties, 'calculate_superconformal_index', return_value='1') as full, \
+                 patch.object(properties, 'calculate_coulomb_branch_index', return_value='1') as coulomb, \
+                 patch.object(properties, 'calculate_coulomb_branch_spectrum', return_value=[]) as spectrum:
+                result = backend.calculate_index_job(connection, retained, order=order,
+                                                     max_dimension=maximum, recheck=True)
+            self.assertEqual(result['errors'], {})
+            self.assertEqual(result['remaining_fields'], [])
+            self.assertEqual([key for key in result['updated_fields'] if key in job()['needed_fields']], expected)
+            self.assertTrue(set(expected).isdisjoint(result['skipped_fields']))
+            self.assertEqual([name for name, function in (
+                ('superconformal_index', full), ('coulomb_branch_index', coulomb),
+                ('coulomb_branch_spectrum', spectrum)) if function.called], expected)
+            self.assertEqual(lookup.call_args.args[2], (1, 1))
+            search.assert_not_called()
+
+    def test_upgrade_write_rechecks_a_concurrent_higher_order_result(self):
+        initial = dict.fromkeys(db._INDEX_COLUMNS.values())
+        initial.update(theory_id=1, properties_json='{}', superconformal_index_json='"1"',
+                       superconformal_index_order=4, coulomb_branch_index_json='"1"',
+                       coulomb_branch_spectrum_json='[]')
+        newer = {**initial, 'superconformal_index_order': 10}
+        with patch.object(db, '_fetchone', return_value=initial), \
+             patch.object(db, '_locked_index_row', return_value=newer), \
+             patch.object(db, '_write_index_changes') as write, \
+             patch.object(properties, 'calculate_superconformal_index', return_value='1'):
+            result = backend.calculate_index_job(MagicMock(), job(), order=6,
+                                                 max_dimension='9/2', recheck=True)
+        self.assertEqual(result['updated_fields'], [])
+        self.assertEqual(result['skipped_fields']['superconformal_index'], 'lower_order')
+        self.assertEqual(write.call_args.args[2], {})
+
     def test_connection_monitor_records_successfully_retried_lock_failures(self):
         from test.test_gui_candidate_workers import _record_connections
 
@@ -124,6 +181,8 @@ class IndexJobTests(unittest.TestCase):
         connect.assert_called_once()
         self.assertFalse(connect.call_args.kwargs["initialize_schema"])
         forwarded = calculate.call_args.kwargs["full_index_options"]
+        self.assertTrue(calculate.call_args.kwargs['recheck'])
+        self.assertFalse(calculate.call_args.kwargs.get('missing_only', False))
         self.assertEqual(forwarded["processes"], 1)
         self.assertEqual(forwarded["form_threads"], 4)
         self.assertEqual(forwarded["tform_executable"], "/custom/tform")
@@ -324,7 +383,8 @@ class IndexCalculationMySQLTests(unittest.TestCase):
         self.assertEqual(remaining, jobs[2:])
         self.records.clear()
         self.settings["tools/form_executable"] = "/missing/form"
-        self.settings["index/full_max_order"] = 100  # A stale GUI selection must not upgrade.
+        # A stale selection at an already-sufficient cutoff must not recalculate.
+        self.settings["index/full_max_order"] = 4
         self.assertEqual(self.run_jobs(selected)["status"], "completed")
         self.assertTrue(all(not r["result"]["updated_fields"] for r in self.records if "result" in r))
         self.assertEqual(list(self.rollbacks), [], "index workers unexpectedly rolled back/retried")

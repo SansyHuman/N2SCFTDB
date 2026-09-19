@@ -357,7 +357,8 @@ class IndexUpdateMySQLTests(unittest.TestCase):
 
         before = snapshot()
         settings = {f"mysql/{key}": value for key, value in self.settings.items()}
-        settings.update({"mysql/database": MYSQL_TEST_DATABASE, "mysql/connect_timeout": 10})
+        settings.update({"mysql/database": MYSQL_TEST_DATABASE, "mysql/connect_timeout": 10,
+                         "index/full_max_order": 0, "index/coulomb_max_dimension": "0"})
         found = []
         with patch.object(db, "initialize_database", side_effect=AssertionError("search must not migrate")), \
              patch.object(db, "update_lagrangian_indices", side_effect=AssertionError("search must not write")), \
@@ -372,6 +373,16 @@ class IndexUpdateMySQLTests(unittest.TestCase):
         self.assertEqual(found[2][1]["needed_fields"], ["coulomb_branch_spectrum"])
         self.assertEqual(found[3][0], {"algebras": ["A1", "A1"], "label": "SU(2) × SU(2)"})
         self.assertEqual(found[3][1]["input"], product_input)
+        self.assertEqual(snapshot(), before)
+
+        settings.update({"index/full_max_order": 1, "index/coulomb_max_dimension": "1/2"})
+        found.clear()
+        count = search_index_jobs(settings, lambda group, job: found.append((group, job)), lambda _: None)
+        self.assertEqual(count, 5)
+        self.assertIn(records[2].theory_id, [job['theory_id'] for _, job in found])
+        self.assertNotIn(records[3].theory_id, [job['theory_id'] for _, job in found])
+        upgraded = next(job for _, job in found if job['theory_id'] == records[2].theory_id)
+        self.assertEqual(upgraded['needed_fields'], ['superconformal_index', 'coulomb_branch_index'])
         self.assertEqual(snapshot(), before)
 
     def test_legacy_migration_preserves_data_and_precision_can_be_recorded(self):

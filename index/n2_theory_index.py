@@ -166,7 +166,7 @@ def _character_basis(
     return character_specs, vector_characters, indexed_matter
 
 
-def _split_disconnected_sectors(
+def split_disconnected_sectors(
     factors: tuple[GaugeFactorData, ...],
     hypermultiplets: list[HyperData | ProductHyperData],
 ) -> list[tuple[tuple[GaugeFactorData, ...], list[HyperData | ProductHyperData]]]:
@@ -483,7 +483,7 @@ def calculate_index_internal(
 
     result = INDEX_POLYNOMIAL_RING.one()
     calculated = {}
-    for sector_factors, sector_hypers in _split_disconnected_sectors(factors, hypermultiplets):
+    for sector_factors, sector_hypers in split_disconnected_sectors(factors, hypermultiplets):
         # Identical sectors in one product need only one lookup/calculation.
         key = (tuple(f.algebra.cartan_type for f in sector_factors),
                tuple(sorted(_matter_character_multiplicities(sector_factors, sector_hypers).items())))

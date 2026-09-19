@@ -27,13 +27,15 @@ from common.number_utils import as_nonnegative_int
 
 
 def calculate_index_job(connection, job, *, order, max_dimension,
-                        missing_only=False, full_index_options=None,
+                        missing_only=False, recheck=False, full_index_options=None,
                         cancelled=lambda: False, log=lambda message, level="INFO": None):
     """Calculate a retained job outside transactions, committing each component.
 
-    In missing-only mode, an ID lookup rechecks stale selections without another
-    database search. Stop finishes/saves the active component, then returns the
-    remaining fields so the caller can retry without discarding useful work.
+    In missing-only mode or with ``recheck=True``, an ID lookup rechecks stale
+    selections without another database search. Upgrade rechecks compare the
+    current cutoffs and preserve unknown precision. Stop saves the active
+    component, then returns the remaining fields so the caller can retry without
+    discarding useful work.
     """
     result = {
         "theory_id": job["theory_id"],
@@ -44,12 +46,20 @@ def calculate_index_job(connection, job, *, order, max_dimension,
     }
     if cancelled():
         return result
-    if missing_only:
-        needed = database.missing_lagrangian_index_fields(
-            connection, job["lagrangian_realization_id"], theory_id=job["theory_id"],
-        )
+    if missing_only or recheck:
+        if missing_only:
+            needed = database.missing_lagrangian_index_fields(
+                connection, job["lagrangian_realization_id"], theory_id=job["theory_id"],
+            )
+        else:
+            needed = database.needed_lagrangian_index_fields(
+                connection, job["lagrangian_realization_id"], theory_id=job["theory_id"],
+                order=order, max_dimension=max_dimension,
+            )
         for key in set(job["needed_fields"]) - set(needed):
-            result["skipped_fields"][key] = "already_present"
+            result["skipped_fields"][key] = "already_present" if missing_only else "not_needed_at_requested_cutoff"
+        for key in needed:
+            result["skipped_fields"].pop(key, None)
         result["remaining_fields"] = needed
     for key in tuple(result["remaining_fields"]):
         if cancelled():

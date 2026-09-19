@@ -33,7 +33,7 @@ for number, row in enumerate(rows, 1):
     target = OUT / str(row['theory_id'])
     target.mkdir(exist_ok=True)
     factors, hypers = idx._parse_input(row['input'])
-    sectors = idx._split_disconnected_sectors(factors, hypers)
+    sectors = idx.split_disconnected_sectors(factors, hypers)
     assert len(sectors) == 1, 'Unexpected disconnected case'
     specs, vectors, matter = idx._character_basis(factors, hypers)
     program = idx._build_form_program(18, len(specs), vectors, matter)

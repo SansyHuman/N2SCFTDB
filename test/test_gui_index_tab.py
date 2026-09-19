@@ -67,7 +67,10 @@ import json, sys, time
 request = json.loads(sys.stdin.readline())
 assert request['settings']['mysql/database'] == 'isolated_test'
 if {jobs!r} is None:
-    assert all(key.startswith('mysql/') for key in request['settings'])
+    assert all(key.startswith('mysql/') or key in ('index/full_max_order', 'index/coulomb_max_dimension')
+               for key in request['settings'])
+    assert request['settings']['index/full_max_order'] == {self.settings['index/full_max_order']!r}
+    assert request['settings']['index/coulomb_max_dimension'] == {self.settings['index/coulomb_max_dimension']!r}
 else:
     assert request['jobs'] == {jobs!r}
     assert request['settings']['index/full_max_order'] == 18
@@ -233,6 +236,13 @@ sys.exit({exit_code!r})
         self.assertEqual(self.window.index_tab.retrieved_jobs, ())
         self.assertIsNone(self.window.index_tab.database)
         self.assertEqual(self.window.emptyIndexGaugeGroupsList.count(), 0)
+
+    def test_search_forwards_current_saved_cutoffs(self):
+        self.settings.update({'index/full_max_order': 24, 'index/coulomb_max_dimension': '13/3'})
+        self.store.save(self.settings)
+        self.search([record(1), {'complete': 1}])
+        self.assertEqual(len(self.window.index_tab.retrieved_jobs), 1)
+        self.assertIn('lower-order', self.window.searchEmptyIndicesButton.text())
 
     def test_missing_database_and_active_build_do_not_launch_search(self):
         with patch("gui.index_tab.QtCore.QProcess") as process:

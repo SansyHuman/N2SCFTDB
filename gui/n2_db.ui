@@ -112,8 +112,8 @@ Number already in the database</string></property>
             <property name="bottomMargin"><number>0</number></property>
             <item>
              <widget class="QPushButton" name="searchEmptyIndicesButton">
-              <property name="text"><string>Search theories with empty indices</string></property>
-              <property name="toolTip"><string>Search the database for theories whose indices have not been calculated.</string></property>
+              <property name="text"><string>Search missing or lower-order indices</string></property>
+              <property name="toolTip"><string>Find theories with missing indices or spectra, or full/Coulomb indices below the cutoffs in Settings. Indices with unknown saved cutoffs are preserved.</string></property>
              </widget>
             </item>
             <item>
@@ -125,7 +125,7 @@ Number already in the database</string></property>
             </item>
             <item>
              <widget class="QListWidget" name="emptyIndexGaugeGroupsList">
-              <property name="accessibleName"><string>Gauge groups of theories with empty indices</string></property>
+              <property name="accessibleName"><string>Gauge groups of theories with missing or lower-order indices</string></property>
               <property name="toolTip"><string>Gauge groups with theories awaiting index calculation will be listed here with checkboxes.</string></property>
               <property name="editTriggers"><set>QAbstractItemView::NoEditTriggers</set></property>
               <property name="selectionMode"><enum>QAbstractItemView::NoSelection</enum></property>

@@ -1340,8 +1340,8 @@ def _locked_index_row(connection: Connection, realization_id: int) -> dict[str, 
     return row
 
 
-def missing_lagrangian_index_fields(connection, realization_id, *, theory_id):
-    """Recheck a retained job by ID without rescanning the database or locking."""
+def _lagrangian_index_state(connection, realization_id, *, theory_id):
+    """Read one retained realization's index state without scanning or locking."""
     row = _fetchone(connection, """
         SELECT p.* FROM theory_properties AS p
         JOIN lagrangian_realizations AS lr ON lr.theory_id = p.theory_id
@@ -1349,8 +1349,28 @@ def missing_lagrangian_index_fields(connection, realization_id, *, theory_id):
     """, (realization_id, theory_id))
     if row is None:
         raise ValueError(f"unknown Lagrangian realization {realization_id} for theory {theory_id}")
-    state = _index_state(row)
+    return _index_state(row)
+
+
+def missing_lagrangian_index_fields(connection, realization_id, *, theory_id):
+    """Recheck a retained job by ID without rescanning the database or locking."""
+    state = _lagrangian_index_state(connection, realization_id, theory_id=theory_id)
     return [key for key in (*_INDEX_CUTOFFS, "coulomb_branch_spectrum") if state[key] is None]
+
+
+def needed_lagrangian_index_fields(connection, realization_id, *, theory_id, order, max_dimension):
+    """Recheck missing components and known lower cutoffs for one retained job."""
+    order = _exact_cutoff(order, full_index=True)
+    max_dimension = _exact_cutoff(max_dimension)
+    state = _lagrangian_index_state(connection, realization_id, theory_id=theory_id)
+    needed = []
+    for key, cutoff in (("superconformal_index", order), ("coulomb_branch_index", max_dimension)):
+        reason = _index_replacement_reason(state[key], state[_INDEX_CUTOFFS[key]], cutoff)
+        if reason in {"missing", "higher_order"}:
+            needed.append(key)
+    if state["coulomb_branch_spectrum"] is None:
+        needed.append("coulomb_branch_spectrum")
+    return needed
 
 
 def _run_index_transaction(connection, action):

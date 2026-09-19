@@ -159,9 +159,11 @@ class IndexTabController(QtCore.QObject):
             self.logger.set_secrets()
             return
         self._source = database_source(settings)
-        # Only connection fields cross the pipe; no credentials go in argv/files.
+        # Connection settings and target cutoffs cross the pipe, never argv/files.
         connection_settings = {key: value for key, value in settings.items() if key.startswith("mysql/")}
         connection_settings["mysql/unix_socket"] = self._source["unix_socket"]
+        for key in ("index/full_max_order", "index/coulomb_max_dimension"):
+            connection_settings[key] = settings[key]
         self._request = (json.dumps({"settings": connection_settings}) + "\n").encode("utf-8")
         self._pending = {}
         self._seen_ids = set()
@@ -183,7 +185,7 @@ class IndexTabController(QtCore.QObject):
             self.invalidate_if_database_changed(settings)
             jobs = self.selected_jobs
             if not jobs:
-                raise ValueError("Select at least one gauge group with missing indices.")
+                raise ValueError("Select at least one gauge group needing index calculation.")
             sibling = Path(sys.executable).with_name("sage")
             sage = str(sibling) if sibling.is_file() else shutil.which("sage")
             if sage is None:

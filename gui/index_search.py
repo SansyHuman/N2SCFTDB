@@ -1,4 +1,4 @@
-"""Read missing-index jobs in a separate Sage process; never calculate or write."""
+"""Read missing or lower-order index jobs in Sage; never calculate or write."""
 
 from __future__ import annotations
 
@@ -17,6 +17,8 @@ def search_index_jobs(settings, emit_job, log):
     from common import n2_theory_db as database
     from anomalies.lie_algebra import get_lie_algebra
 
+    order = database._exact_cutoff(settings["index/full_max_order"], full_index=True)
+    max_dimension = database._exact_cutoff(settings["index/coulomb_max_dimension"])
     connection = database.connect_database(
         name, host=settings["mysql/host"], port=settings["mysql/port"],
         user=settings["mysql/user"], password=settings["mysql/password"],
@@ -25,12 +27,15 @@ def search_index_jobs(settings, emit_job, log):
     )
     count = 0
     try:
-        log("Searching for missing full indices, Coulomb indices or Coulomb spectra…")
-        # Zero cutoffs are irrelevant in missing-only mode. A search must not
-        # depend on calculation settings or silently select higher-order upgrades.
+        log(f"Searching for missing indices/spectra or indices below full order {order} "
+            f"or Coulomb dimension {max_dimension}…")
         for job in database.iter_lagrangian_index_jobs(
-            connection, order=0, max_dimension=0, upgrade=False,
+            connection, order=order, max_dimension=max_dimension, upgrade=True,
         ):
+            # The backend also reports legacy unknown precision for diagnostics.
+            # It is not evidence of a lower order and cannot be upgraded safely.
+            if not job["needed_fields"]:
+                continue
             data = job["input"]
             factors = ([data["algebra"]] if "algebra" in data else
                        [factor["algebra"] for factor in data["gauge_groups"]])

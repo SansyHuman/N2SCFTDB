@@ -51,7 +51,7 @@ class SectorPartitionTests(unittest.TestCase):
         }
         factors, hypers = idx._parse_input(data)
         original = [asdict(h) for h in hypers]
-        sectors = idx._split_disconnected_sectors(factors, hypers)
+        sectors = idx.split_disconnected_sectors(factors, hypers)
         self.assertEqual([[f.factor_id for f in fs] for fs, _ in sectors], [list("abc"), ["d"], []])
         self.assertEqual([len(hs) for _, hs in sectors], [2, 1, 1])
         self.assertEqual([asdict(h) for h in hypers], original)
@@ -65,14 +65,14 @@ class SectorPartitionTests(unittest.TestCase):
     def test_half_trifundamental_connects_all_three_factors(self):
         data = {"gauge_groups": [{"id": name, "algebra": "A1"} for name in "abcd"],
                 "hypermultiplets": [{"representations": dict.fromkeys("abc", "fundamental"), "kind": "half"}]}
-        sectors = idx._split_disconnected_sectors(*idx._parse_input(data))
+        sectors = idx.split_disconnected_sectors(*idx._parse_input(data))
         self.assertEqual([[f.factor_id for f in fs] for fs, _ in sectors], [list("abc"), ["d"]])
         self.assertEqual(sectors[0][1][0].kind, "half")
         self.assertEqual(sectors[1][1], [])  # Retain the isolated vector sector.
 
     def test_simple_free_hyper_is_normalized_without_a_gauge_factor(self):
         data = {"algebra": "A1", "hypermultiplets": [{"representation": "singlet", "number": 3}]}
-        sectors = idx._split_disconnected_sectors(*idx._parse_input(data))
+        sectors = idx.split_disconnected_sectors(*idx._parse_input(data))
         self.assertEqual([len(fs) for fs, _ in sectors], [1, 0])
         self.assertEqual(idx._matter_character_multiplicities(*sectors[1]), {(): 6})
 

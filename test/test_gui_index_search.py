@@ -15,16 +15,19 @@ SETTINGS = {
     "mysql/database": "index_search_test", "mysql/host": "db.invalid",
     "mysql/port": 3311, "mysql/user": "reader", "mysql/password": "test secret",
     "mysql/unix_socket": "/tmp/test-mysql.sock", "mysql/connect_timeout": 17,
+    "index/full_max_order": 18, "index/coulomb_max_dimension": "9/2",
 }
 
 
-def row(theory_id, data, *, full=None, coulomb=None, spectrum=None):
+def row(theory_id, data, *, full=None, coulomb=None, spectrum=None, full_order=None, coulomb_max=None):
     result = {column: None for column in database._INDEX_COLUMNS.values()}
     result.update({
         "theory_id": theory_id, "realization_id": theory_id + 100,
         "input_json": json.dumps(data),
         "superconformal_index_json": full, "coulomb_branch_index_json": coulomb,
         "coulomb_branch_spectrum_json": spectrum,
+        "superconformal_index_order": full_order,
+        "coulomb_branch_index_max_dimension_json": json.dumps(coulomb_max),
     })
     return result
 
@@ -63,7 +66,7 @@ class IndexSearchTests(unittest.TestCase):
         self.assertEqual(jobs[2]["needed_fields"], ["coulomb_branch_spectrum"])
         self.assertEqual(jobs[2]["lagrangian_realization_id"], 103)
         self.assertEqual([call.args[1] for call in cursor.execute.call_args_list],
-                         [(0, False, 100), (102, False, 100), (103, False, 100)])
+                         [(0, True, 100), (102, True, 100), (103, True, 100)])
         connect.assert_called_once_with(
             "index_search_test", host="db.invalid", port=3311, user="reader",
             password="test secret", unix_socket="/tmp/test-mysql.sock",
@@ -74,11 +77,50 @@ class IndexSearchTests(unittest.TestCase):
         update.assert_not_called()
         calculate.assert_not_called()
 
+    def test_search_includes_only_missing_or_known_lower_precision_components(self):
+        connection = MagicMock()
+        data = {"algebra": "A1", "hypermultiplets": []}
+        complete = dict(full='"1"', coulomb='"1"', spectrum='[]', full_order=18,
+                        coulomb_max={"numerator": 9, "denominator": 2})
+        cases = [
+            {},  # equal cutoffs: already sufficient
+            {"full_order": 17},
+            {"coulomb_max": {"numerator": 449, "denominator": 100}},
+            {"full_order": 20, "coulomb_max": {"numerator": 451, "denominator": 100}},
+            {"full_order": None, "coulomb_max": None},  # unknown is not lower
+            {"full_order": 17, "coulomb_max": None},
+            {"spectrum": None},
+            {"full": None},
+            {"coulomb": 'null'},
+        ]
+        connection.cursor.return_value.__enter__.return_value.fetchall.side_effect = [
+            [row(i, data, **{**complete, **values}) for i, values in enumerate(cases, 1)], [],
+        ]
+        jobs = []
+        with patch.object(database, 'connect_database', return_value=connection):
+            count = index_search.search_index_jobs(SETTINGS, lambda group, job: jobs.append(job), lambda _: None)
+        self.assertEqual(count, 6)
+        self.assertEqual([job['theory_id'] for job in jobs], [2, 3, 6, 7, 8, 9])
+        self.assertEqual([job['needed_fields'] for job in jobs], [
+            ['superconformal_index'], ['coulomb_branch_index'], ['superconformal_index'],
+            ['coulomb_branch_spectrum'], ['superconformal_index'], ['coulomb_branch_index'],
+        ])
+        self.assertEqual(jobs[2]['unknown_precision'], ['coulomb_branch_index'])
+
+    def test_invalid_cutoffs_are_rejected_before_connecting(self):
+        for key, value in [('index/full_max_order', -1), ('index/full_max_order', 1.5),
+                           ('index/coulomb_max_dimension', '1/0'), ('index/coulomb_max_dimension', '-1')]:
+            with self.subTest(key=key, value=value), patch.object(database, 'connect_database') as connect:
+                with self.assertRaises(ValueError):
+                    index_search.search_index_jobs({**SETTINGS, key: value}, lambda *_: None, lambda _: None)
+                connect.assert_not_called()
+
     def test_failure_closes_connection_and_does_not_publish_completion(self):
         for mode in ("query", "group", "close"):
             with self.subTest(mode=mode):
                 connection = MagicMock()
-                jobs = [{"theory_id": 1, "input": {"algebra": "invalid"}}] if mode == "group" else []
+                jobs = [{"theory_id": 1, "input": {"algebra": "invalid"},
+                         "needed_fields": ["superconformal_index"]}] if mode == "group" else []
                 kwargs = {"side_effect": RuntimeError("test secret query error")} if mode == "query" else {"return_value": iter(jobs)}
                 if mode == "close":
                     connection.close.side_effect = RuntimeError("test secret close error")

@@ -1,6 +1,30 @@
 # N2SCFTDB Project Handoff
 
-Last updated: **2026-09-18 (Asia/Seoul)**.
+Last updated: **2026-09-19 (Asia/Seoul)**.
+
+## Index search and calculation upgrades (19 September 2026)
+
+The index tab's **Search missing or lower-order indices** now passes the saved
+full-index order and exact Coulomb maximum dimension to the read-only search
+worker. It uses `iter_lagrangian_index_jobs(upgrade=True)`, selecting missing
+indices/spectra or known cutoffs strictly below Settings. Full and Coulomb
+cutoffs compare independently. Unknown-only results from the backend are excluded
+from the GUI selection, since unknown precision is not evidence of a lower order.
+
+Calculate now uses `calculate_index_job(recheck=True)` with upgrades enabled.
+The new `needed_lagrangian_index_fields` lookup rechecks each retained ID against
+current settings, without a database-wide rescan, before calculating missing or
+lower-order components. Atomic writes still preserve equal/higher and unknown
+precision, including concurrent upgrades. The missing-only backend API remains
+available for other callers. A settings cutoff change keeps the retained list;
+rerun Search to include all theories qualifying at the new cutoffs.
+
+Validation: **415 tests in 32.600 seconds: 377 passed, 38 skipped**, with live
+database tests disabled. Six focused calculation tests also passed after the
+final stale-metadata reporting adjustment. Coverage includes forwarding current
+saved cutoffs, independent full/Coulomb upgrades, exact fractional comparisons,
+equal/higher/unknown precision, retained-job rechecks and concurrent higher-order
+writes. The user's database was not accessed.
 
 ## CSV download of searched theories (18 September 2026)
 
@@ -312,8 +336,9 @@ the existing backend. Exact cutoffs, both custom cache filenames, executables an
 tool timeout are honored; inner full-index work uses one process.
 
 The reusable `calculate_index_job` backend checks each retained theory/realization
-ID for currently missing components. Writes use `missing_only=True`, so concurrent
-fills and legacy results are preserved. Each component commits independently.
+ID for currently missing components. Initially writes used `missing_only=True`;
+the 19 September update above adds known lower-cutoff upgrades with current-state
+rechecks. Legacy unknown precision remains preserved. Each component commits independently.
 Confirmed finished jobs are removed from the GUI list after the run; failed,
 stopped and unconfirmed jobs remain selected for retry. **Stop** and window close
 let active components finish/save, cancel queued work, and wait for clean worker

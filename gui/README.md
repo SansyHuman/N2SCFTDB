@@ -137,11 +137,14 @@ CSV-field edits, Preferences and other tab operations are disabled during export
 Results remain available for another download afterward. Export messages use
 `logs/log_download_YYYYMMDD_HHMMSS_ffffff.log` and the result field's tooltip.
 
-In the **index** tab, **Search theories with empty indices** uses the saved
-MySQL settings and the existing `iter_lagrangian_index_jobs` iterator. A theory
-is listed if its full index, Coulomb index **or** Coulomb spectrum is missing
-(SQL NULL or JSON null). A complete result of lower or unknown precision is
-not selected for an upgrade by this search. One stored Lagrangian realization
+In the **index** tab, **Search missing or lower-order indices** uses the saved
+MySQL settings and index cutoffs with `iter_lagrangian_index_jobs(upgrade=True)`.
+A theory is listed if its full index, Coulomb index **or** Coulomb spectrum is
+missing (SQL NULL or JSON null), or if either index has a known saved cutoff
+strictly below the corresponding cutoff in Settings. Full-index order and exact
+Coulomb maximum dimension are compared independently; equal or higher cutoffs
+need no upgrade. Unknown saved precision is preserved and does not qualify by
+itself. One stored Lagrangian realization
 is retrieved per shared theory, then grouped by its gauge factors, with a
 theory count beside each checkbox. Product-factor order follows the database.
 Groups initially start unchecked. **Select all** checks or clears every group;
@@ -157,7 +160,7 @@ search is unavailable during an anomaly build. Worker timestamps are retained.
 Closing cancels the read-only search process and waits asynchronously for it to exit.
 
 A successful search retains the complete job inputs, theory and realization
-IDs, missing fields and unknown-precision metadata in memory for the lifetime
+IDs, missing/upgrade fields and unknown-precision metadata in memory for the lifetime
 of the window. `window.index_tab.retrieved_jobs` returns all retained jobs and
 `window.index_tab.selected_jobs` returns those in checked groups, without another
 database search. `window.index_tab.database` identifies their source without a
@@ -165,7 +168,8 @@ password. These accessors return copies. A successful refresh replaces the
 snapshot and preserves checks for groups still present; an empty successful
 search clears the list. Failed/incomplete searches keep the previous snapshot.
 Changing the source database in Preferences clears it; changing calculation
-cutoffs does not. Results are not saved across application restarts.
+cutoffs does not. Run Search again after changing cutoffs to find all theories
+that now qualify. Results are not saved across application restarts.
 
 **Calculate index** uses the retained jobs for checked groups. A separate Sage
 coordinator distributes all selected theories across spawned worker processes,
@@ -177,11 +181,13 @@ cache calculations with one process, avoiding nested worker pools. Both saved
 cache filenames, executables, timeout and inclusive index cutoffs are honored.
 Calculation uses the initialized database from the search, without migration.
 
-Each job rechecks its missing components by theory/realization ID, without
-repeating the database-wide search. It computes the full index, Coulomb index
-and complete Coulomb spectrum as needed. Existing components are preserved,
-including legacy results with unknown cutoffs and results filled by another
-client since the search. Each successful component commits independently.
+Each job rechecks missing components and stored cutoffs by theory/realization ID,
+using the current settings without repeating the database-wide search. It fills
+missing indices/spectra and upgrades only known lower-order full/Coulomb indices.
+Equal/higher precision and legacy unknown precision are preserved, including
+results completed by another client since the search. Writes recheck precision
+under a row lock so a concurrent higher-order result cannot be downgraded.
+Each successful component commits independently.
 Finished theories disappear from the retained list when the run ends; failed,
 stopped and unconfirmed jobs remain, with their group selections, for retry.
 Failures in one calculation component do not discard other completed components.

@@ -47,7 +47,7 @@ from index.n2_theory_coulomb_branches import (
     calculate_lagrangian_coulomb_branch_index,
     coulomb_branch_spectrum_from_gauge_factors,
 )
-from index.n2_theory_index import calculate_index_internal
+from index.n2_theory_index import calculate_index_internal, split_disconnected_sectors
 from index.char_decomposition_cache import DEFAULT_CHAR_CACHE_DATABASE
 
 if __package__:
@@ -337,6 +337,19 @@ def _extract_gauge_factors(
     return factors
 
 
+def _get_disconnected_sectors(
+    anomaly_result: dict[str, Any]
+) -> tuple[tuple[str]]:
+    """Return disconnected sectors for theories with gauge factors and hypermultiplets."""
+    factors = _extract_gauge_factors(anomaly_result)
+    hypermultiplets = anomaly_result["hypermultiplets"]
+    sector_data = split_disconnected_sectors(factors, hypermultiplets)
+    return tuple(
+        tuple(factor.factor_id for factor in sector_factors)
+        for sector_factors, _ in sector_data
+    )
+
+
 def _calculate_superconformal_index(
     anomaly_result: dict[str, Any],
     order: int,
@@ -417,6 +430,11 @@ def calculate_n2_theory_properties(data: dict[str, Any]) -> dict[str, Any]:
         if anomaly_result["lagrangian_scft_candidate"]
         else None
     )
+    disconnected_sectors = (
+        _get_disconnected_sectors(anomaly_result)
+        if anomaly_result["lagrangian_scft_candidate"]
+        else None
+    )
     return {
         "group": anomaly_result["group"],
         "lagrangian_scft_candidate": anomaly_result[
@@ -426,6 +444,7 @@ def calculate_n2_theory_properties(data: dict[str, Any]) -> dict[str, Any]:
         "conformal_manifold_dimension": conformal_dimension,
         "exactly_marginal_gauge_couplings": marginal_couplings,
         "central_charges": central_charges,
+        "disconnected_sectors": disconnected_sectors,
     }
 
 

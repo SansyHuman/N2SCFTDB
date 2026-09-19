@@ -61,7 +61,7 @@ def _calculate_job(job):
         properties.DEFAULT_TIMEOUT = _settings["tools/timeout"]
         result = calculate_index_job(
             _connection, job, order=_settings["index/full_max_order"],
-            max_dimension=_settings["index/coulomb_max_dimension"], missing_only=True,
+            max_dimension=_settings["index/coulomb_max_dimension"], recheck=True,
             full_index_options={
                 "char_cache_database_path": _settings["cache/character_database"],
                 "form_cache_database_path": _settings["cache/form_database"],
@@ -102,7 +102,7 @@ def _validate_request(jobs, settings):
     from common.number_utils import as_integer
 
     if not jobs:
-        raise ValueError("Select at least one gauge group with missing indices.")
+        raise ValueError("Select at least one gauge group needing index calculation.")
     seen = set()
     fields = {"superconformal_index", "coulomb_branch_index", "coulomb_branch_spectrum"}
     for job in jobs:
