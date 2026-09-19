@@ -7,7 +7,7 @@ import sys
 
 
 def clear_database(settings, password, *, confirmed=False):
-    """Use only the freshly entered password; never initialize/migrate a DB."""
+    """Use only the freshly entered password; never initialize the schema."""
     if confirmed is not True:
         raise ValueError("Database deletion was not confirmed.")
     if not isinstance(password, str) or not password:

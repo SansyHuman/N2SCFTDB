@@ -80,7 +80,7 @@ superconformal index string. SQL/JSON nulls and empty strings do not qualify;
 Coulomb indices, spectra and index precision metadata may be absent.
 
 `gui.search_tab.SearchTabController` launches `gui.theory_search` in a separate
-Sage process, using the saved MySQL connection settings without migrations or
+Sage process, using the saved MySQL connection settings without schema initialization or
 writes. The worker uses a streaming cursor over one SELECT. It sends only
 matching theory IDs to the controller, avoiding large index and input payloads
 in GUI memory. `window.search_tab.theory_ids` returns the immutable tuple from
@@ -151,7 +151,7 @@ Groups initially start unchecked. **Select all** checks or clears every group;
 checking individual groups also updates **Select all**.
 
 Search runs in a separate Sage process so the window stays responsive. It opens
-an existing initialized database without schema migration and performs no index
+an existing initialized database without schema initialization and performs no index
 calculation or database writes. It uses the saved host, port, user, password and
 connection timeout, plus `N2_DB_UNIX_SOCKET` when set. Errors and search progress
 appear in the right-hand log with the anomaly log's timestamp/level format and
@@ -179,7 +179,7 @@ dynamically, with at most twice that many jobs
 queued/running. Each worker owns its MySQL connection and runs its full-index
 cache calculations with one process, avoiding nested worker pools. Both saved
 cache filenames, executables, timeout and inclusive index cutoffs are honored.
-Calculation uses the initialized database from the search, without migration.
+Calculation uses the initialized database from the search, without repeating schema initialization.
 
 Each job rechecks missing components and stored cutoffs by theory/realization ID,
 using the current settings without repeating the database-wide search. It fills
@@ -233,7 +233,7 @@ and unsupported groups are reported with their line numbers. A single factor
 uses `enumerate_simple_theory_candidates`; comma-separated factors use
 `enumerate_product_theory_candidates`. Each candidate is checked with
 `calculate_n2_theory_properties`, and valid SCFTs are inserted through
-`store_lagrangian_theory`. The coordinator initializes/migrates the database
+`store_lagrangian_theory`. The coordinator initializes the database schema
 before dispatching candidates. Imports store basic properties; index and
 Coulomb-spectrum calculations remain separate.
 

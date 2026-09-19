@@ -337,7 +337,7 @@ class TheoryPropertyTests(unittest.TestCase):
         self.assertEqual(set(result), {
             "group", "lagrangian_scft_candidate", "flavor_symmetry",
             "conformal_manifold_dimension", "exactly_marginal_gauge_couplings",
-            "central_charges",
+            "central_charges", "disconnected_sectors",
         })
         self.calculate_index_internal.assert_not_called()
         self.calculate_lagrangian_coulomb_branch_index.assert_not_called()

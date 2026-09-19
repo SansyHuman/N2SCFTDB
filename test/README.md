@@ -45,6 +45,16 @@ processes to verify save-dialog cancellation, selected fields, progress percenta
 error handling, cooperative shutdown and retention of searched IDs. These tests
 never access the configured MySQL database.
 
+`test_n2_theory_db.py` checks fresh schema-1 initialization, acceptance of the
+current version and rejection of unsupported versions. Migration and backfill
+tests have been removed with their implementation.
+
+`test_n2_theory_db_sectors.py` checks input factor IDs and shared-property
+comparisons. Its opt-in MySQL cases verify connected, disconnected and free-sector
+JSON storage, and preservation of the first realization's factor names when
+other realizations or duplicate aliases are imported. Use only a disposable
+`N2_TEST_MYSQL_DATABASE` for these cases.
+
 To run only the window, index-tab and shared-logging tests:
 
 ```bash

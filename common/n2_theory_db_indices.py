@@ -163,7 +163,7 @@ def main(argv: list[str] | None = None) -> int:
     connection = None
     processed = failed = 0
     try:
-        # Reject invalid options before connecting, which may migrate a schema.
+        # Reject invalid options before connecting and initializing the schema.
         order = database._exact_cutoff(args.index_order, full_index=True)
         maximum = database._exact_cutoff(args.coulomb_max_dimension)
         if args.limit is not None:

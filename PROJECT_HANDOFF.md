@@ -2,6 +2,42 @@
 
 Last updated: **2026-09-19 (Asia/Seoul)**.
 
+## Production schema 1 baseline (19 September 2026)
+
+The complete current MySQL layout is now **schema 1**. Fresh databases include
+all current columns, including decimal central charges, index cutoff metadata
+and disconnected-sector metadata. Schema initialization creates missing tables,
+records version 1 for a new database and rejects any other recorded version.
+It never upgrades or relabels an existing database.
+
+The pre-release schema migration map, version-upgrade loop, sector backfill API,
+migration CLI and their tests have been removed. Normal import/index operations
+and tests remain. Earlier schema numbers and migration descriptions in dated
+notes and generated PDFs below are historical and superseded by this baseline.
+Existing user databases were not changed during this code cleanup.
+
+Validation: the full suite ran **414 tests: 374 passed, 40 skipped**. An isolated
+temporary MySQL server verified fresh schema-1 creation, all ten tables, current
+columns and repeated initialization; **20 integration tests passed, 2 skipped**
+(the skips require a password-protected test account). These cover sector
+storage, independent index upgrades and schema validation. The temporary server
+was shut down and removed after the run.
+
+### Disconnected-sector storage
+
+`theory_properties.disconnected_sector_count INT UNSIGNED NULL` and
+`disconnected_sectors_json JSON NULL` store nested lists of **input factor IDs**,
+for example `[["left", "middle"], ["right"]]` with count 2. A connected theory
+has count 1. The combined free-hyper sector is one empty list and contributes
+one to the count, following `split_disconnected_sectors`.
+
+The lists describe the **first stored realization** (smallest
+`lagrangian_realizations.id`) of the theory. Other realizations and duplicate
+imports with renamed factor IDs preserve these lists. Sector IDs are excluded
+from shared physical-property equality checks. New imports store both columns
+and matching `disconnected_sector_count` and `disconnected_sectors` keys in
+`properties_json` within the import transaction.
+
 ## Index search and calculation upgrades (19 September 2026)
 
 The index tab's **Search missing or lower-order indices** now passes the saved
@@ -330,7 +366,7 @@ statements below that the tab is empty or its calculation action is unwired.
 
 The Sage coordinator dynamically schedules one theory per task across spawned
 workers, with the saved CPU limit and at most twice the worker count outstanding.
-Each worker owns its connection, uses the initialized schema without migrations,
+Each worker owns its connection, uses the initialized schema,
 and calculates missing full/Coulomb indices and complete Coulomb spectra through
 the existing backend. Exact cutoffs, both custom cache filenames, executables and
 tool timeout are honored; inner full-index work uses one process.
@@ -847,6 +883,7 @@ File: `common/n2_theory_properties.py`
     "conformal_manifold_dimension": ...,
     "exactly_marginal_gauge_couplings": ...,
     "central_charges": ...,
+    "disconnected_sectors": ...,
 }
 ```
 
@@ -1449,7 +1486,7 @@ dependencies. Cache preparation also requires LiE.
 
 The GUI starts `gui.theory_builder` in a separate Sage process and sends
 credentials/settings through stdin. The coordinator validates the gauge lines,
-initializes/migrates MySQL once, and enumerates each group serially using
+initializes the MySQL schema once, and enumerates each group serially using
 `enumerate_simple_theory_candidates` or `enumerate_product_theory_candidates`
 from `common.n2_theory_iter`, with their existing defaults. Candidate lists are
 materialized; free all-singlet matter is omitted by the enumerator.
@@ -1522,7 +1559,7 @@ would not implement those choices.
 
 File: `common/n2_theory_db.py`
 
-The database uses the default PyMySQL client. The current schema version is 7.
+The database uses the default PyMySQL client. The current production schema version is 1.
 The tables are:
 
 - `schema_metadata`
@@ -1546,26 +1583,13 @@ Coulomb index as a JSON string in `coulomb_branch_index_json`, and the spectrum
 as an array of exact fractions in `coulomb_branch_spectrum_json`. All three also
 appear under their corresponding keys in the combined `properties_json`.
 
-Schema migration 1 to 2 added decimal central-charge columns. Migration 2 to 3
-renamed `superconformal_indices` and `superconformal_indices_json` to their
-singular forms.
-
-Migration 3 to 4 renamed the former Coulomb placeholder/index column
-`coulomb_branch_spectrum_json` to `coulomb_branch_index_json` and moved its JSON
-key. Migration 4 to 5 adds a new nullable `coulomb_branch_spectrum_json` column
-for actual generator dimensions, keeping the index separate. Migration 4 to 5
-does not compute spectra for existing rows.
-
-Migration 5 to 6 drops `full_hypermultiplets` and `half_hypermultiplets` from
-the theory-level `flavor_symmetry_factors` table, retaining `half_hyper_units`.
-The original split remains in the realization's `hypermultiplets` rows and
-input/anomaly JSON. This schema migration does not rehash or merge existing
-realizations, or eagerly rewrite their shared JSON.
-
-Migration 6 to 7 adds `superconformal_index_order BIGINT UNSIGNED NULL` and
-`coulomb_branch_index_max_dimension_json JSON NULL`. Existing results are
-preserved and legacy cutoffs remain unknown (NULL). Initialization applies
-migrations automatically when the database is next opened through the API.
+The production schema directly includes `superconformal_index_order BIGINT
+UNSIGNED NULL` and `coulomb_branch_index_max_dimension_json JSON NULL` for
+calculation cutoffs, plus `disconnected_sector_count` and
+`disconnected_sectors_json` described above. The shared flavor table stores
+`half_hyper_units`; the full/half split remains in each realization's
+`hypermultiplets` rows and input/anomaly JSON. Initialization creates this
+layout and validates version 1; no schema upgrades or data backfills are run.
 
 New imports put SQL NULL in all three index/spectrum columns and both cutoff
 columns; their combined JSON initially contains only basic properties.
@@ -1683,8 +1707,8 @@ availability or precision does not affect that comparison. A physical mismatch
 rolls back the insertion.
 
 New data insertion uses one explicit InnoDB transaction. A failure rolls back
-the theory-related DML, although schema initialization and migration occur
-before that transaction. Workers disable schema initialization after the
+the theory-related DML, although schema initialization occurs before that
+transaction. Workers disable schema initialization after the
 coordinator finishes it; they never run concurrent DDL for a build.
 
 ### Parallel insertion and deadlock repair (14 September 2026)

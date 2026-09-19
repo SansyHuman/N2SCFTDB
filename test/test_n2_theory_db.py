@@ -431,128 +431,28 @@ class TheoryDatabaseUnitTests(unittest.TestCase):
             for statement, parameters in connection.statements
             if "INSERT INTO schema_metadata" in statement
         )
-        self.assertEqual(metadata_parameters, ("schema_version", "7"))
+        self.assertEqual(metadata_parameters, ("schema_version", "1"))
 
-    def test_initialize_database_migrates_version_one_schema(self):
-        connection = _RecordingConnection(
-            select_rows=[{"metadata_value": "1"}]
-        )
+    def test_initialize_database_accepts_current_version_without_changing_data(self):
+        connection = _RecordingConnection(select_rows=[{"metadata_value": "1"}])
 
         database.initialize_database(connection)
 
-        migrations = [
-            statement
+        self.assertTrue(all(
+            statement.startswith(("CREATE TABLE IF NOT EXISTS", "SELECT"))
             for statement, _ in connection.statements
-            if statement.startswith("ALTER TABLE theory_properties")
-        ]
-        self.assertIn("central_charge_a_decimal", migrations[0])
-        self.assertIn("central_charge_c_decimal", migrations[0])
-        self.assertIn("superconformal_index_json", migrations[1])
-        self.assertIn("coulomb_branch_index_json", migrations[2])
-        metadata_parameters = [
-            parameters
-            for statement, parameters in connection.statements
-            if statement.startswith("UPDATE schema_metadata")
-        ]
-        self.assertEqual(
-            metadata_parameters,
-            [
-                ("2", "schema_version"),
-                ("3", "schema_version"),
-                ("4", "schema_version"),
-                ("5", "schema_version"),
-                ("6", "schema_version"),
-                ("7", "schema_version"),
-            ],
-        )
+        ))
 
-    def test_initialize_database_migrates_version_two_schema(self):
-        connection = _RecordingConnection(
-            select_rows=[{"metadata_value": "2"}]
-        )
-
-        database.initialize_database(connection)
-
-        statements = [statement for statement, _ in connection.statements]
-        rename = next(
-            statement
-            for statement in statements
-            if statement.startswith("ALTER TABLE theory_properties")
-        )
-        self.assertIn("superconformal_indices_json", rename)
-        self.assertIn("superconformal_index_json", rename)
-        self.assertTrue(
-            any(
-                statement.startswith("UPDATE theory_properties")
-                and "$.superconformal_index" in statement
-                for statement in statements
-            )
-        )
-
-    def test_initialize_database_migrates_version_three_schema(self):
-        connection = _RecordingConnection(
-            select_rows=[{"metadata_value": "3"}]
-        )
-
-        database.initialize_database(connection)
-
-        statements = [statement for statement, _ in connection.statements]
-        rename = next(
-            statement
-            for statement in statements
-            if statement.startswith("ALTER TABLE theory_properties")
-        )
-        self.assertIn("coulomb_branch_spectrum_json", rename)
-        self.assertIn("coulomb_branch_index_json", rename)
-        self.assertTrue(
-            any(
-                statement.startswith("UPDATE theory_properties")
-                and "$.coulomb_branch_index" in statement
-                for statement in statements
-            )
-        )
-        self.assertTrue(
-            any(
-                statement.startswith("ALTER TABLE theory_properties")
-                and "ADD COLUMN coulomb_branch_spectrum_json" in statement
-                for statement in statements
-            )
-        )
-
-    def test_initialize_database_migrates_version_four_schema(self):
-        connection = _RecordingConnection(
-            select_rows=[{"metadata_value": "4"}]
-        )
-
-        database.initialize_database(connection)
-
-        statements = [statement for statement, _ in connection.statements]
-        migration = next(
-            statement
-            for statement in statements
-            if statement.startswith("ALTER TABLE theory_properties")
-        )
-        self.assertIn("ADD COLUMN coulomb_branch_spectrum_json", migration)
-        metadata_parameters = next(
-            parameters
-            for statement, parameters in connection.statements
-            if statement.startswith("UPDATE schema_metadata")
-        )
-        self.assertEqual(metadata_parameters, ("5", "schema_version"))
-
-    def test_initialize_database_migrates_version_five_schema(self):
-        connection = _RecordingConnection(select_rows=[{"metadata_value": "5"}])
-        database.initialize_database(connection)
-        migrations = [
-            statement for statement, _ in connection.statements
-            if statement.startswith("ALTER TABLE")
-        ]
-        self.assertEqual(len(migrations), 2)
-        self.assertIn("ALTER TABLE flavor_symmetry_factors", migrations[0])
-        self.assertIn("DROP COLUMN full_hypermultiplets", migrations[0])
-        self.assertIn("DROP COLUMN half_hypermultiplets", migrations[0])
-        self.assertNotIn("half_hyper_units", migrations[0])
-        self.assertEqual(connection.statements[-1][1], ("7", "schema_version"))
+    def test_initialize_database_rejects_unsupported_versions_without_changing_data(self):
+        for version in ("0", "2", "8", "invalid"):
+            with self.subTest(version=version):
+                connection = _RecordingConnection(select_rows=[{"metadata_value": version}])
+                with self.assertRaisesRegex(RuntimeError, "unsupported database schema version"):
+                    database.initialize_database(connection)
+                self.assertTrue(all(
+                    statement.startswith(("CREATE TABLE IF NOT EXISTS", "SELECT"))
+                    for statement, _ in connection.statements
+                ))
 
     def test_connect_database_uses_pymysql_options(self):
         connection = MagicMock()

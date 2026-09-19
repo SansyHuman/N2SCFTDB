@@ -400,5 +400,5 @@ class IndexTabController(QtCore.QObject):
             self._cancelled = True
             self.log("Closing the window; cancelling the database search.")
             # This worker is read-only. Killing it releases its DB connection and
-            # cannot interrupt an import, migration or index write.
+            # cannot interrupt an import, schema initialization or index write.
             self.process.kill()

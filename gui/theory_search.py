@@ -174,7 +174,7 @@ def build_query(conditions):
 
 
 def search_theories(settings, values, emit_theory, log):
-    """Stream matching IDs through a server-side cursor; never migrate or write."""
+    """Stream matching IDs through a server-side cursor; never initialize or write."""
     conditions = parse_conditions(values)
     name = settings["mysql/database"].strip()
     if not name:

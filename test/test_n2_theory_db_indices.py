@@ -15,9 +15,7 @@ import pymysql
 from common import n2_theory_db as db
 from common import n2_theory_db_indices as worker
 from common import n2_theory_properties as properties
-from test.test_n2_theory_db import (
-    E6_SCFT, MYSQL_TEST_DATABASE, _RecordingConnection,
-)
+from test.test_n2_theory_db import E6_SCFT, MYSQL_TEST_DATABASE
 
 
 SU2 = {
@@ -72,16 +70,6 @@ class IndexUpdateUnitTests(unittest.TestCase):
              self.assertRaisesRegex(RuntimeError, "deadlock.*rollback failed.*closed"):
             db.update_lagrangian_indices(connection, 1, index_payload())
         connection.begin.assert_called_once()
-
-    def test_migration_adds_nullable_cutoffs_without_overwriting_legacy_indices(self):
-        connection = _RecordingConnection(select_rows=[{"metadata_value": "6"}])
-        db.initialize_database(connection)
-        alterations = [sql for sql, _ in connection.statements if sql.startswith("ALTER TABLE")]
-        self.assertEqual(len(alterations), 1)
-        self.assertIn("superconformal_index_order BIGINT UNSIGNED NULL", alterations[0])
-        self.assertIn("coulomb_branch_index_max_dimension_json JSON NULL", alterations[0])
-        self.assertFalse(any(sql.startswith("UPDATE theory_properties") for sql, _ in connection.statements))
-        self.assertEqual(connection.statements[-1][1], ("7", "schema_version"))
 
     def test_invalid_payloads_fail_before_transaction(self):
         connection = MagicMock()
@@ -360,7 +348,7 @@ class IndexUpdateMySQLTests(unittest.TestCase):
         settings.update({"mysql/database": MYSQL_TEST_DATABASE, "mysql/connect_timeout": 10,
                          "index/full_max_order": 0, "index/coulomb_max_dimension": "0"})
         found = []
-        with patch.object(db, "initialize_database", side_effect=AssertionError("search must not migrate")), \
+        with patch.object(db, "initialize_database", side_effect=AssertionError("search must not initialize schema")), \
              patch.object(db, "update_lagrangian_indices", side_effect=AssertionError("search must not write")), \
              patch.object(properties, "calculate_n2_theory_indices", side_effect=AssertionError("search must not calculate")):
             count = search_index_jobs(settings, lambda group, job: found.append((group, job)), lambda _: None)
@@ -385,21 +373,18 @@ class IndexUpdateMySQLTests(unittest.TestCase):
         self.assertEqual(upgraded['needed_fields'], ['superconformal_index', 'coulomb_branch_index'])
         self.assertEqual(snapshot(), before)
 
-    def test_legacy_migration_preserves_data_and_precision_can_be_recorded(self):
+    def test_unknown_precision_is_preserved_and_original_cutoffs_can_be_recorded(self):
         self.save(order=12, maximum=20)
         before = self.row()
-        # Reconstruct the version-6 shape on this dedicated test database.
         db._execute(self.connection, """
-            UPDATE theory_properties SET properties_json = JSON_REMOVE(
-                properties_json, '$.superconformal_index_order', '$.coulomb_branch_index_max_dimension')
-        """)
-        db._execute(self.connection, """
-            ALTER TABLE theory_properties DROP COLUMN superconformal_index_order,
-                DROP COLUMN coulomb_branch_index_max_dimension_json
-        """)
-        db._execute(self.connection, "UPDATE schema_metadata SET metadata_value = '6' WHERE metadata_key = 'schema_version'")
-        db.initialize_database(self.connection)
-        db.initialize_database(self.connection)
+            UPDATE theory_properties
+            SET superconformal_index_order = NULL,
+                coulomb_branch_index_max_dimension_json = NULL,
+                properties_json = JSON_REMOVE(
+                    properties_json, '$.superconformal_index_order',
+                    '$.coulomb_branch_index_max_dimension')
+            WHERE theory_id = %s
+        """, (self.stored.theory_id,))
         state = self.row()
         self.assertEqual(state["superconformal_index_json"], before["superconformal_index_json"])
         self.assertEqual(state["coulomb_branch_index_json"], before["coulomb_branch_index_json"])

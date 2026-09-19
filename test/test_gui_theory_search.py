@@ -127,7 +127,7 @@ class TheorySearchTests(unittest.TestCase):
         connection = ReadOnlyConnection(self.sqlite)
         found = []
         with patch.object(database, "connect_database", return_value=connection) as connect, \
-             patch.object(database, "initialize_database", side_effect=AssertionError("unexpected migration")):
+             patch.object(database, "initialize_database", side_effect=AssertionError("unexpected schema initialization")):
             count = search.search_theories(SETTINGS, conditions, found.append, lambda _: None)
         self.assertEqual(count, len(found))
         self.assertTrue(connection.closed)

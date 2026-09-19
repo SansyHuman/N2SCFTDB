@@ -137,7 +137,7 @@ def run_calculation(jobs, settings, emit, log, cancelled=lambda: False):
 
     Only completed job reports remove work from the GUI snapshot. A lost worker
     leaves its job retained; a later explicit retry rechecks current DB fields.
-    No schema migration or database-wide search occurs here.
+    No schema initialization or database-wide search occurs here.
     """
     processed = failed = 0
     status = "completed"

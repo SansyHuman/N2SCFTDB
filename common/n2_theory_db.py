@@ -54,7 +54,7 @@ from anomalies.check_n2_anomalies import (
 from anomalies.lie_algebra import conjugate_dynkin_labels
 
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 1
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_metadata (
@@ -129,6 +129,8 @@ CREATE TABLE IF NOT EXISTS theory_properties (
     superconformal_index_json JSON NULL,
     superconformal_index_order BIGINT UNSIGNED NULL,
     coulomb_branch_index_max_dimension_json JSON NULL,
+    disconnected_sector_count INT UNSIGNED NULL,
+    disconnected_sectors_json JSON NULL,
     properties_json JSON NOT NULL,
     PRIMARY KEY (theory_id),
     KEY idx_theory_properties_central_charge_a (
@@ -273,126 +275,6 @@ CREATE TABLE IF NOT EXISTS exactly_marginal_couplings (
 """
 
 
-SCHEMA_MIGRATIONS = {
-    1: (
-        """
-        ALTER TABLE theory_properties
-            ADD COLUMN central_charge_a_decimal DECIMAL(65, 30)
-                GENERATED ALWAYS AS (
-                    CAST(
-                        JSON_UNQUOTE(
-                            JSON_EXTRACT(
-                                central_charges_json,
-                                '$.a.numerator'
-                            )
-                        ) AS DECIMAL(65, 30)
-                    )
-                    / NULLIF(
-                        CAST(
-                            JSON_UNQUOTE(
-                                JSON_EXTRACT(
-                                    central_charges_json,
-                                    '$.a.denominator'
-                                )
-                            ) AS DECIMAL(65, 30)
-                        ),
-                        0
-                    )
-                ) STORED AFTER central_charges_json,
-            ADD COLUMN central_charge_c_decimal DECIMAL(65, 30)
-                GENERATED ALWAYS AS (
-                    CAST(
-                        JSON_UNQUOTE(
-                            JSON_EXTRACT(
-                                central_charges_json,
-                                '$.c.numerator'
-                            )
-                        ) AS DECIMAL(65, 30)
-                    )
-                    / NULLIF(
-                        CAST(
-                            JSON_UNQUOTE(
-                                JSON_EXTRACT(
-                                    central_charges_json,
-                                    '$.c.denominator'
-                                )
-                            ) AS DECIMAL(65, 30)
-                        ),
-                        0
-                    )
-                ) STORED AFTER central_charge_a_decimal,
-            ADD KEY idx_theory_properties_central_charge_a (
-                central_charge_a_decimal
-            ),
-            ADD KEY idx_theory_properties_central_charge_c (
-                central_charge_c_decimal
-            )
-        """,
-    ),
-    2: (
-        """
-        ALTER TABLE theory_properties
-            CHANGE COLUMN superconformal_indices_json
-            superconformal_index_json JSON NULL
-        """,
-        """
-        UPDATE theory_properties
-        SET properties_json = JSON_SET(
-            JSON_REMOVE(properties_json, '$.superconformal_indices'),
-            '$.superconformal_index',
-            JSON_EXTRACT(properties_json, '$.superconformal_indices')
-        )
-        WHERE JSON_CONTAINS_PATH(
-            properties_json,
-            'one',
-            '$.superconformal_indices'
-        )
-        """,
-    ),
-    3: (
-        """
-        ALTER TABLE theory_properties
-            CHANGE COLUMN coulomb_branch_spectrum_json
-            coulomb_branch_index_json JSON NULL
-        """,
-        """
-        UPDATE theory_properties
-        SET properties_json = JSON_SET(
-            JSON_REMOVE(properties_json, '$.coulomb_branch_spectrum'),
-            '$.coulomb_branch_index',
-            JSON_EXTRACT(properties_json, '$.coulomb_branch_spectrum')
-        )
-        WHERE JSON_CONTAINS_PATH(
-            properties_json,
-            'one',
-            '$.coulomb_branch_spectrum'
-        )
-        """,
-    ),
-    4: (
-        """
-        ALTER TABLE theory_properties
-            ADD COLUMN coulomb_branch_spectrum_json JSON NULL
-            AFTER coulomb_branch_index_json
-        """,
-    ),
-    5: (
-        """
-        ALTER TABLE flavor_symmetry_factors
-            DROP COLUMN full_hypermultiplets,
-            DROP COLUMN half_hypermultiplets
-        """,
-    ),
-    6: (
-        """
-        ALTER TABLE theory_properties
-            ADD COLUMN superconformal_index_order BIGINT UNSIGNED NULL,
-            ADD COLUMN coulomb_branch_index_max_dimension_json JSON NULL
-        """,
-    ),
-}
-
-
 class TheoryCheckError(ValueError):
     """Raised when an input is not a consistent conformal Lagrangian theory."""
 
@@ -438,7 +320,7 @@ def _insert(
 
 
 def initialize_database(connection: Connection) -> None:
-    """Create or migrate the current MySQL schema on an open connection."""
+    """Create the production schema or validate its existing version."""
     for statement in SCHEMA_SQL.split(";"):
         if statement.strip():
             _execute(connection, statement)
@@ -463,30 +345,10 @@ def initialize_database(connection: Connection) -> None:
         )
         return
 
-    current_version = int(version["metadata_value"])
-    if current_version > SCHEMA_VERSION:
+    if version["metadata_value"] != str(SCHEMA_VERSION):
         raise RuntimeError(
             "unsupported database schema version "
             f"{version['metadata_value']}; expected {SCHEMA_VERSION}"
-        )
-
-    while current_version < SCHEMA_VERSION:
-        statements = SCHEMA_MIGRATIONS.get(current_version)
-        if statements is None:
-            raise RuntimeError(
-                f"no migration from database schema version {current_version}"
-            )
-        for statement in statements:
-            _execute(connection, statement)
-        current_version += 1
-        _execute(
-            connection,
-            """
-            UPDATE schema_metadata
-            SET metadata_value = %s
-            WHERE metadata_key = %s
-            """,
-            (str(current_version), "schema_version"),
         )
 
 
@@ -729,6 +591,8 @@ def _shared_flavor_symmetry(flavor: dict[str, Any]) -> dict[str, Any]:
 
 
 def _shared_properties(properties: dict[str, Any]) -> dict[str, Any]:
+    # Sector factor IDs belong to the first stored realization, so they must
+    # not participate in physical-property comparisons for other realizations.
     return {
         "flavor_symmetry": _shared_flavor_symmetry(properties["flavor_symmetry"]),
         "conformal_manifold_dimension": properties[
@@ -736,6 +600,26 @@ def _shared_properties(properties: dict[str, Any]) -> dict[str, Any]:
         ],
         "central_charges": properties["central_charges"],
     }
+
+
+def _store_disconnected_sectors(connection, theory_id, realization_id, properties):
+    """Fill sector metadata once, using the first stored realization's IDs."""
+    sectors = properties["disconnected_sectors"]
+    if sectors is None:
+        raise ValueError("cannot store sectors for a non-SCFT theory")
+    serialized = _json_text(sectors)
+    count = len(sectors)
+    return _execute(connection, """
+        UPDATE theory_properties
+        SET disconnected_sector_count = %s, disconnected_sectors_json = %s,
+            properties_json = JSON_SET(properties_json,
+                '$.disconnected_sector_count', %s,
+                '$.disconnected_sectors', CAST(%s AS JSON))
+        WHERE theory_id = %s
+          AND (disconnected_sector_count IS NULL OR disconnected_sectors_json IS NULL
+               OR JSON_TYPE(disconnected_sectors_json) = 'NULL')
+          AND %s = (SELECT MIN(id) FROM lagrangian_realizations WHERE theory_id = %s)
+    """, (count, serialized, count, serialized, theory_id, realization_id, theory_id))
 
 
 def _checked_results(
@@ -1215,6 +1099,7 @@ def store_lagrangian_theory(
                 connection, stored_theory_id, canonical_hash, data,
                 anomaly_result, properties,
             )
+            _store_disconnected_sectors(connection, stored_theory_id, realization_id, properties)
             _execute(
                 connection,
                 """
