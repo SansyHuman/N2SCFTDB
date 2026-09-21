@@ -1,6 +1,36 @@
 # N2SCFTDB Project Handoff
 
-Last updated: **2026-09-19 (Asia/Seoul)**.
+Last updated: **2026-09-21 (Asia/Seoul)**.
+
+## Search order/sector filters and sector CSV fields (21 September 2026)
+
+The search tab now replaces the nonempty-index checkbox with **Minimum
+full-index order**, default `0`. Zero adds no index restriction, including for
+theories without indices, cutoff metadata or property rows. Positive values
+require a non-whitespace full-index JSON string and a recorded
+`superconformal_index_order >= minimum_index_order`; unknown precision is
+excluded. The filter uses stored cutoff metadata, never the last nonzero term.
+Coulomb data does not affect this filter.
+
+**Only theories with one disconnected sector** adds the SQL condition
+`disconnected_sector_count = 1`, excluding unknown counts. All search conditions
+combine, including when the order is zero. Both new controls invalidate retained
+results when changed and are disabled during search, export and conflicting work.
+The read-only worker protocol uses `minimum_index_order` and `only_single_sector`.
+
+The CSV selection/SQL whitelist now has **19 fields**, adding
+`disconnected_sector_count` and `disconnected_sectors_json`, both checked by
+default. These shared values describe the first stored realization and repeat
+unchanged for every realization row. JSON text is preserved; missing SQL values
+remain blank. Changing CSV selection does not invalidate search results.
+
+Validation: **70 tests passed in 4.682 seconds** across theory search, theory
+download, search controller and main GUI tests. These cover inclusive thresholds,
+zero/unknown/empty indices, combined sector filters, request validation, nested
+JSON fidelity, real spawned CSV readers and actual Qt fixture subprocesses.
+The updated tab was rendered and visually checked offscreen. No live MySQL
+database was accessed. GUI/test READMEs were updated; canonical PDFs were not
+rebuilt for this change.
 
 ## Complete session documentation refresh (19 September 2026)
 
@@ -112,9 +142,9 @@ for the retained theory IDs and selected CSV fields. The user chose **one row pe
 Lagrangian realization**. All realizations of matched theories are exported,
 ordered by theory then realization ID, with shared theory properties repeated.
 Theories without realizations still get one row; absent joined data is blank.
-The 17 UI fields map to a fixed SQL whitelist; properties_json is excluded and
-the theory ID is included only once. The later `disconnected_sector_count` and
-`disconnected_sectors_json` columns are not yet in the CSV whitelist or GUI.
+The initial 17 UI fields map to a fixed SQL whitelist; properties_json is excluded and
+the theory ID is included only once. The 21 September update above adds
+`disconnected_sector_count` and `disconnected_sectors_json` to the whitelist and GUI.
 CSV preserves JSON and exact decimal text,
 quotes commas/newlines, and uses UTF-8 with a BOM.
 
@@ -2273,8 +2303,8 @@ Temporary copies of the first paper were downloaded as
 - Implement HL/Higgs calculations if requested, following the qualifications
   and reuse opportunities above; flavor refinement remains optional.
 - Search/export actions and missing-or-lower-order index actions are implemented.
-  The 17-field CSV selection still omits the two newly stored sector fields;
-  extending it would require a separate requested implementation.
+  The 21 September search update adds minimum full-index order, a single-sector
+  filter and the two sector CSV fields; the CSV selection now has 19 fields.
 - Add non-Lagrangian theory support beyond the placeholder table.
 - Avoid the duplicate anomaly-check call in the database/property path.
 - Imports no longer calculate indices. A future optimization could avoid

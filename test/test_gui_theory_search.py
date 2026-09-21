@@ -75,22 +75,24 @@ class TheorySearchTests(unittest.TestCase):
             CREATE TABLE theory_properties(theory_id INTEGER PRIMARY KEY, central_charges_json TEXT,
                                            superconformal_index_json TEXT,
                                            central_charge_a_decimal TEXT COLLATE DECIMAL,
-                                           central_charge_c_decimal TEXT COLLATE DECIMAL);
+                                           central_charge_c_decimal TEXT COLLATE DECIMAL,
+                                           superconformal_index_order INTEGER,
+                                           disconnected_sector_count INTEGER);
             CREATE TABLE lagrangian_realizations(id INTEGER PRIMARY KEY, theory_id INTEGER);
             CREATE TABLE gauge_factors(lagrangian_realization_id INTEGER, cartan_type TEXT);
         """)
         specs = {
-            1: ([('A1',)], Fraction(1, 3), Fraction(1, 2), '"1"'),
-            2: ([('A1', 'C2'), ('A2',)], Fraction(2, 3), Fraction(3, 4), None),
-            3: ([('C2', 'A1')], Fraction(1), Fraction(2), '""'),
-            4: ([('A1', 'A1')], Fraction(1, 3) + Fraction(1, 10**40), Fraction(1, 2), '"1+t^4"'),
-            5: ([('A1', 'A1', 'C2')], None, None, 'null'),
-            6: ([], Fraction(1, 3), Fraction(1, 2), '"1"'),
-            7: ([('A2',), ('A1',), ('C2',)], Fraction(1), Fraction(2), '[]'),
-            8: ([], None, None, None),
-            9: ([('D4',)], Fraction(1, 8), Fraction(0), json.dumps('\t \n')),
+            1: ([('A1',)], Fraction(1, 3), Fraction(1, 2), '"1"', 18, 1),
+            2: ([('A1', 'C2'), ('A2',)], Fraction(2, 3), Fraction(3, 4), None, 24, 2),
+            3: ([('C2', 'A1')], Fraction(1), Fraction(2), '""', 24, 1),
+            4: ([('A1', 'A1')], Fraction(1, 3) + Fraction(1, 10**40), Fraction(1, 2), '"1+t^4"', 24, 2),
+            5: ([('A1', 'A1', 'C2')], None, None, 'null', 24, 0),
+            6: ([], Fraction(1, 3), Fraction(1, 2), '"1"', None, 1),
+            7: ([('A2',), ('A1',), ('C2',)], Fraction(1), Fraction(2), '[]', 24, 1),
+            8: ([], None, None, None, None, None),
+            9: ([('D4',)], Fraction(1, 8), Fraction(0), json.dumps('\t \n'), 24, None),
         }
-        for theory_id, (realizations, a, c, index) in specs.items():
+        for theory_id, (realizations, a, c, index, order, sectors) in specs.items():
             self.sqlite.execute("INSERT INTO theories VALUES (?)", (theory_id,))
             if theory_id != 8:
                 charges = None if a is None else json.dumps({
@@ -101,8 +103,8 @@ class TheorySearchTests(unittest.TestCase):
                     decimals = [None if value is None else str(
                         (Decimal(value.numerator) / Decimal(value.denominator)).quantize(
                             Decimal('1e-30'), rounding=ROUND_HALF_UP)) for value in (a, c)]
-                self.sqlite.execute("INSERT INTO theory_properties VALUES (?, ?, ?, ?, ?)",
-                                    (theory_id, charges, index, *decimals))
+                self.sqlite.execute("INSERT INTO theory_properties VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                    (theory_id, charges, index, *decimals, order, sectors))
             for offset, factors in enumerate(realizations, 1):
                 realization_id = 100 * theory_id + offset
                 self.sqlite.execute("INSERT INTO lagrangian_realizations VALUES (?, ?)", (realization_id, theory_id))
@@ -194,10 +196,39 @@ class TheorySearchTests(unittest.TestCase):
         self.assertNotIn(5, self.find(a_min='-1'))
         self.assertEqual(self.find(c_min='0', c_max='0'), [9])
 
-    def test_only_full_index_is_required_and_conditions_are_anded(self):
-        self.assertEqual(self.find(only_nonempty_indices=True), [1, 4, 6])
-        self.assertEqual(self.find(gauge_groups='A1', a='1/3', c='0.5', only_nonempty_indices=True), [1])
+    def test_minimum_full_index_order_is_inclusive_and_requires_present_known_index(self):
+        # Stored cutoff, rather than the last nonzero monomial, determines order.
+        for minimum, expected in ((0, list(range(1, 10))), (1, [1, 4]), (18, [1, 4]),
+                                  (19, [4]), (24, [4]), (25, [])):
+            with self.subTest(minimum=minimum):
+                self.assertEqual(self.find(minimum_index_order=minimum), expected)
+        self.sqlite.execute('UPDATE theory_properties SET superconformal_index_order = 0 WHERE theory_id = 6')
+        self.assertEqual(self.find(minimum_index_order=1), [1, 4])
+        self.assertEqual(self.find(minimum_index_order=0), list(range(1, 10)))
+
+    def test_zero_order_removes_index_predicates_and_unnecessary_property_join(self):
+        sql, parameters = search.build_query(search.parse_conditions({'minimum_index_order': 0}))
+        self.assertNotIn('theory_properties', sql)
+        self.assertNotIn('superconformal_index', sql)
+        self.assertEqual(parameters, ())
+        self.assertEqual(self.find(minimum_index_order=0, theory_id='8'), [8])
+
+    def test_single_sector_filter_uses_stored_count_and_combines_with_other_filters(self):
+        self.assertEqual(self.find(only_single_sector=True), [1, 3, 6, 7])
+        self.assertEqual(self.find(only_single_sector=True, minimum_index_order=0), [1, 3, 6, 7])
+        self.assertEqual(self.find(only_single_sector=True, minimum_index_order=18), [1])
+        self.assertEqual(self.find(only_single_sector=True, minimum_index_order=24), [])
+        self.assertEqual(self.find(only_single_sector=True, gauge_groups='A1, C2'), [3])
+        self.assertEqual(self.find(gauge_groups='A1', a='1/3', c='0.5', minimum_index_order=18,
+                                   only_single_sector=True), [1])
         self.assertEqual(self.find(gauge_groups='A1', theory_id='6'), [])
+
+    def test_minimum_order_and_sector_count_are_bound_in_sql(self):
+        sql, parameters = search.build_query(search.parse_conditions({
+            'minimum_index_order': 2**64 - 1, 'only_single_sector': True}))
+        self.assertIn('p.superconformal_index_order >= %s', sql)
+        self.assertIn('p.disconnected_sector_count = %s', sql)
+        self.assertEqual(parameters, (2**64 - 1, 1))
 
     def test_values_are_bound_parameters(self):
         sql, parameters = search.build_query(search.parse_conditions({'gauge_groups': '"A1, C2"; E8', 'theory_id': '123'}))
@@ -212,8 +243,8 @@ class TheorySearchTests(unittest.TestCase):
         ] + [{'a': text} for text in ('nan', 'inf', '1/0', '1+2', '1;DROP TABLE theories', 0.5)] + [
             {'theory_id': '0'}, {'theory_id': '-1'}, {'theory_id': '1.0'},
             {'theory_id': str(2**64)}, {'theory_id': '1 OR 1=1'}, {'a_min': '2', 'a_max': '1'},
-            {'only_nonempty_indices': 'true'},
-        ]
+        ] + [{'minimum_index_order': value} for value in (-1, 2**64, True, 1.0, '18', None, [])] + [
+            {'only_single_sector': value} for value in ('true', 1, None)]
         for conditions in invalid:
             with self.subTest(conditions=conditions), patch.object(database, 'connect_database') as connect:
                 with self.assertRaises(ValueError):

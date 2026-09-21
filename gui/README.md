@@ -49,9 +49,9 @@ during an active build/search/calculation; an active deletion must finish before
 its dialog can close. This operation cannot be undone after it commits.
 
 In the **search** tab, **Search** finds distinct theories satisfying all supplied
-filters. Empty fields impose no restriction; with every filter empty and the
-index option unchecked, all theories are included, even theories without
-Lagrangian realizations or property rows.
+filters. Empty text fields impose no restriction; with every text filter empty,
+minimum full-index order zero and the sector option unchecked, all theories are
+included, even theories without Lagrangian realizations or property rows.
 
 **Seed theories** accepts Cartan types with the backend's usual spelling rules:
 
@@ -75,9 +75,19 @@ both are supplied. Invalid inputs and reversed ranges are rejected before a
 database connection is opened. All filtering happens in SQL; the query returns
 only matching theory IDs, without fetching charge JSON for Python filtering.
 
-**Only theories with non-empty indices** requires a non-whitespace full
-superconformal index string. SQL/JSON nulls and empty strings do not qualify;
-Coulomb indices, spectra and index precision metadata may be absent.
+**Minimum full-index order** defaults to `0`, which imposes no index restriction
+and includes empty indices and unknown cutoffs. A positive value requires a
+non-whitespace full superconformal index string with recorded
+`superconformal_index_order` greater than or equal to the input. SQL/JSON nulls,
+empty strings, non-string values and unknown cutoffs do not qualify. The cutoff
+comes from stored metadata, never the highest nonzero monomial. Coulomb indices
+and spectra do not affect this filter.
+
+**Only theories with one disconnected sector** requires
+`disconnected_sector_count = 1`. Unknown counts are excluded when checked.
+This uses the stored sector count, including a free-hyper sector where present;
+it does not count gauge factors. The option combines with every other filter,
+including when minimum index order is zero.
 
 `gui.search_tab.SearchTabController` launches `gui.theory_search` in a separate
 Sage process, using the saved MySQL connection settings without schema initialization or
@@ -112,6 +122,10 @@ deleted, the export fails and asks for a new search instead of omitting it.
 
 Only checked fields are fetched and written. Headers use the database column
 names, with `theory_id` and `lagrangian_realization_id` distinguishing the two IDs.
+The 19 available fields include `disconnected_sector_count` and
+`disconnected_sectors_json`, both selected by default. These shared sector values
+describe the first stored realization and repeat unchanged on every realization's
+CSV row; factor IDs are not remapped to later realizations.
 The CSV uses UTF-8 with a BOM, standard quoting for commas/quotes/newlines, raw
 stored JSON text, exact decimal text and blank cells for SQL NULL. No floats or
 index calculations are introduced. Data values are read at download time; the

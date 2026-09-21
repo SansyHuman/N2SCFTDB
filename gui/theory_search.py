@@ -32,7 +32,8 @@ class SearchConditions:
     # Each charge has (exact value, inclusive lower bound, inclusive upper bound).
     a: tuple[Fraction | None, Fraction | None, Fraction | None]
     c: tuple[Fraction | None, Fraction | None, Fraction | None]
-    only_nonempty_indices: bool
+    minimum_index_order: int
+    only_single_sector: bool
 
     @property
     def needs_charges(self):
@@ -102,10 +103,14 @@ def parse_conditions(values):
         if lower is not None and upper is not None and lower > upper:
             raise ValueError(f"The lower bound for {charge} must not exceed the upper bound.")
         charges[charge] = exact, lower, upper
-    only_indices = values.get("only_nonempty_indices", False)
-    if type(only_indices) is not bool:
-        raise ValueError("Only theories with non-empty indices must be true or false.")
-    return SearchConditions(groups, theory_id, charges["a"], charges["c"], only_indices)
+    minimum_order = values.get("minimum_index_order", 0)
+    if type(minimum_order) is not int or not 0 <= minimum_order <= 2**64 - 1:
+        raise ValueError("Minimum full-index order must be an integer between 0 and 18446744073709551615.")
+    only_single_sector = values.get("only_single_sector", False)
+    if type(only_single_sector) is not bool:
+        raise ValueError("Only theories with one disconnected sector must be true or false.")
+    return SearchConditions(groups, theory_id, charges["a"], charges["c"],
+                            minimum_order, only_single_sector)
 
 
 def _decimal_bound(value):
@@ -125,7 +130,7 @@ def build_query(conditions):
     the total number of factors to agree. Factor order is immaterial.
     """
     statement = "SELECT t.id AS theory_id FROM theories AS t"
-    if conditions.needs_charges or conditions.only_nonempty_indices:
+    if conditions.needs_charges or conditions.minimum_index_order > 0 or conditions.only_single_sector:
         statement += " JOIN theory_properties AS p ON p.theory_id = t.id"
     predicates, parameters = [], []
     if conditions.theory_id is not None:
@@ -163,11 +168,17 @@ def build_query(conditions):
         if upper is not None:
             predicates.append(f"p.central_charge_{charge}_decimal <= %s")
             parameters.append(_decimal_bound(upper))
-    if conditions.only_nonempty_indices:
-        # Both SQL NULL and JSON null are absent. The saved full index is a
-        # nonempty JSON string; Coulomb data and precision metadata are irrelevant.
+    if conditions.minimum_index_order > 0:
+        # Use the recorded inclusive cutoff, never the last nonzero term.
+        # Unknown precision and absent/non-string indices cannot meet a positive
+        # minimum. Zero adds no index restriction or property join of its own.
         predicates.append("JSON_TYPE(p.superconformal_index_json) = 'STRING' "
                           "AND JSON_UNQUOTE(p.superconformal_index_json) REGEXP '[^[:space:]]'")
+        predicates.append("p.superconformal_index_order >= %s")
+        parameters.append(conditions.minimum_index_order)
+    if conditions.only_single_sector:
+        predicates.append("p.disconnected_sector_count = %s")
+        parameters.append(1)
     if predicates:
         statement += " WHERE " + " AND ".join(predicates)
     return statement + " ORDER BY t.id", tuple(parameters)

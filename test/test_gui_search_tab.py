@@ -86,10 +86,11 @@ sys.exit({exit_code!r})
         window.searchCentralChargeCMinEdit.setText('1/4')
         window.searchCentralChargeCMaxEdit.setText('3/4')
         window.searchTheoryIdEdit.setText('17')
-        window.searchNonEmptyIndicesCheckBox.setChecked(True)
+        window.searchMinimumIndexOrderSpinBox.setValue(18)
+        window.searchSingleSectorCheckBox.setChecked(True)
         expected = {'gauge_groups': 'A1; "C2, A1"', 'a': '1/3', 'c': '0.5', 'a_min': '0',
                     'a_max': '2', 'c_min': '1/4', 'c_max': '3/4', 'theory_id': '17',
-                    'only_nonempty_indices': True}
+                    'minimum_index_order': 18, 'only_single_sector': True}
         with self.fixture([{'theory_id': 17}, {'complete': 1}], expected=expected, delay=0.1,
                           stderr='warning private dummy\n'):
             window.searchTheoriesButton.click()
@@ -97,6 +98,8 @@ sys.exit({exit_code!r})
             self.assertEqual(window.searchResultCountEdit.text(), 'Searching…')
             self.assertFalse(window.downloadTheoriesButton.isEnabled())
             self.assertFalse(window.searchGaugeGroupsEdit.isEnabled())
+            self.assertFalse(window.searchMinimumIndexOrderSpinBox.isEnabled())
+            self.assertFalse(window.searchSingleSectorCheckBox.isEnabled())
             self.assertFalse(window.buildTheoriesButton.isEnabled())
             self.assertFalse(window.searchEmptyIndicesButton.isEnabled())
             self.assertFalse(window.actionSettings.isEnabled())
@@ -115,6 +118,8 @@ sys.exit({exit_code!r})
         self.assertEqual(window.downloadTheoriesButton.receivers(window.downloadTheoriesButton.clicked), 1)
         self.assertEqual(window.searchDownloadProgressBar.value(), 0)
         self.assertTrue(window.actionSettings.isEnabled())
+        self.assertTrue(window.searchMinimumIndexOrderSpinBox.isEnabled())
+        self.assertTrue(window.searchSingleSectorCheckBox.isEnabled())
         self.assertEqual(self.launches[0][1], ['-python', '-B', '-u', '-m', 'gui.theory_search'])
         log = self.controller.logger.path.read_text()
         self.assertIn('[redacted]', log)
@@ -140,8 +145,29 @@ sys.exit({exit_code!r})
     def test_csv_selection_does_not_change_search_conditions_or_results(self):
         self.search([{'theory_id': 1}, {'complete': 1}])
         self.window.searchCsvTheoryIdCheckBox.setChecked(False)
+        self.window.searchCsvDisconnectedSectorCountCheckBox.setChecked(False)
+        self.window.searchCsvDisconnectedSectorsJsonCheckBox.setChecked(False)
         self.assertEqual(self.controller.theory_ids, (1,))
         self.assertTrue(self.window.downloadTheoriesButton.isEnabled())
+
+    def test_default_order_and_sector_filters_include_all_theories(self):
+        self.search([{'complete': 0}])
+        self.assertEqual(self.controller.conditions['minimum_index_order'], 0)
+        self.assertFalse(self.controller.conditions['only_single_sector'])
+        self.assertTrue(self.window.searchCsvDisconnectedSectorCountCheckBox.isChecked())
+        self.assertTrue(self.window.searchCsvDisconnectedSectorsJsonCheckBox.isChecked())
+
+    def test_order_and_sector_changes_invalidate_retained_results(self):
+        changes = (lambda: self.window.searchMinimumIndexOrderSpinBox.setValue(18),
+                   lambda: self.window.searchMinimumIndexOrderSpinBox.setValue(0),
+                   lambda: self.window.searchSingleSectorCheckBox.setChecked(True),
+                   lambda: self.window.searchSingleSectorCheckBox.setChecked(False))
+        for change in changes:
+            self.search([{'theory_id': 1}, {'complete': 1}])
+            change()
+            self.assertEqual(self.controller.theory_ids, ())
+            self.assertEqual(self.window.searchResultCountEdit.text(), '')
+            self.assertFalse(self.window.downloadTheoriesButton.isEnabled())
 
     def test_failures_and_invalid_protocol_discard_partial_results(self):
         cases = [([{'theory_id': 1}], 0), ([{'theory_id': 1}, {'complete': 1}], 1),
@@ -207,7 +233,8 @@ sys.exit({exit_code!r})
     def prepare_download(self):
         self.search([{'theory_id': 1}, {'theory_id': 7}, {'theory_id': 99}, {'complete': 3}])
         for field in CSV_FIELDS:
-            getattr(self.window, field.widget).setChecked(field.name in ('theory_id', 'input_json'))
+            getattr(self.window, field.widget).setChecked(field.name in (
+                'theory_id', 'input_json', 'disconnected_sector_count', 'disconnected_sectors_json'))
         self.destination = self.root / 'saved theories.csv'
 
     def choose_destination(self, accepted=True):
@@ -221,7 +248,7 @@ sys.exit({exit_code!r})
 import json, sys, time
 request = json.loads(sys.stdin.readline())
 assert request['theory_ids'] == [1, 7, 99]
-assert request['fields'] == ['theory_id', 'input_json']
+assert request['fields'] == ['theory_id', 'input_json', 'disconnected_sector_count', 'disconnected_sectors_json']
 assert request['destination'] == {str(self.destination)!r}
 assert set(request['settings']) <= {{'tools/processes'}} | {{key for key in request['settings'] if key.startswith('mysql/')}}
 if {stop!r}:
@@ -258,6 +285,7 @@ sys.exit({exit_code!r})
             dialog.assert_called_once()
             self.assertEqual(self.window.downloadTheoriesButton.text(), 'Cancel')
             for control in (self.window.searchTheoriesButton, self.window.searchGaugeGroupsEdit,
+                            self.window.searchMinimumIndexOrderSpinBox, self.window.searchSingleSectorCheckBox,
                             self.window.searchCsvFieldsGroup, self.window.buildTheoriesButton,
                             self.window.searchEmptyIndicesButton, self.window.actionSettings):
                 self.assertFalse(control.isEnabled())

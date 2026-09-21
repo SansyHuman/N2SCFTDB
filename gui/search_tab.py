@@ -47,7 +47,8 @@ class SearchTabController(QtCore.QObject):
         window.downloadTheoriesButton.clicked.connect(self.download)
         for field in self._fields.values():
             field.textChanged.connect(self.invalidate)
-        window.searchNonEmptyIndicesCheckBox.toggled.connect(self.invalidate)
+        window.searchMinimumIndexOrderSpinBox.valueChanged.connect(self.invalidate)
+        window.searchSingleSectorCheckBox.toggled.connect(self.invalidate)
         for field in CSV_FIELDS:
             getattr(window, field.widget).toggled.connect(self._sync_controls)
         self._sync_controls()
@@ -71,7 +72,8 @@ class SearchTabController(QtCore.QObject):
 
     def _read_conditions(self):
         return {**{key: field.text().strip() for key, field in self._fields.items()},
-                "only_nonempty_indices": self.window.searchNonEmptyIndicesCheckBox.isChecked()}
+                "minimum_index_order": self.window.searchMinimumIndexOrderSpinBox.value(),
+                "only_single_sector": self.window.searchSingleSectorCheckBox.isChecked()}
 
     def invalidate(self, *_):
         self._theory_ids = ()
@@ -100,7 +102,8 @@ class SearchTabController(QtCore.QObject):
         downloading = busy and self._mode == "download"
         for field in self._fields.values():
             field.setEnabled(self._available and not busy)
-        self.window.searchNonEmptyIndicesCheckBox.setEnabled(self._available and not busy)
+        self.window.searchMinimumIndexOrderSpinBox.setEnabled(self._available and not busy)
+        self.window.searchSingleSectorCheckBox.setEnabled(self._available and not busy)
         self.window.searchCsvFieldsGroup.setEnabled(self._available and not busy)
         self.window.searchTheoriesButton.setText(
             "Cancelling…" if busy and not downloading and self._cancelled

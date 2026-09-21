@@ -79,6 +79,8 @@ class TheoryDownloadTests(unittest.TestCase):
         self.ids = tuple(range(1, 98))
         self.records = []
         self.names = [field.name for field in download.CSV_FIELDS]
+        self.sectors = [['left, "quoted"', 'Σ\nright'], []]
+        self.sectors_json = json.dumps(self.sectors, ensure_ascii=False)
         self.connections = []
         self.addCleanup(download._close_connection)
         with sqlite3.connect(self.database) as db:
@@ -96,8 +98,9 @@ class TheoryDownloadTests(unittest.TestCase):
             db.execute('INSERT INTO lagrangian_realizations VALUES (101, 1, ?, ?)',
                        ('A2, C2', '{"matter": "dual"}'))
             db.execute('INSERT INTO theory_properties '
-                       '(theory_id, central_charge_a_decimal, superconformal_index_json) VALUES (1, ?, ?)',
-                       ('0.333333333333333333333333333333', json.dumps('1 + t^2/u')))
+                       '(theory_id, central_charge_a_decimal, superconformal_index_json, '
+                       'disconnected_sector_count, disconnected_sectors_json) VALUES (1, ?, ?, ?, ?)',
+                       ('0.333333333333333333333333333333', json.dumps('1 + t^2/u'), 2, self.sectors_json))
 
     def connect(self, settings):
         connection = fixture_connect(settings)
@@ -129,11 +132,22 @@ class TheoryDownloadTests(unittest.TestCase):
         self.assertEqual(json.loads(rows[1]['input_json']), {'matter': 'dual'})
         self.assertEqual(rows[0]['central_charge_a_decimal'], '0.333333333333333333333333333333')
         self.assertEqual(json.loads(rows[0]['superconformal_index_json']), '1 + t^2/u')
+        for row in rows[:2]:
+            self.assertEqual(row['disconnected_sector_count'], '2')
+            self.assertEqual(row['disconnected_sectors_json'], self.sectors_json)
+            self.assertEqual(json.loads(row['disconnected_sectors_json']), self.sectors)
         self.assertTrue(all(rows[2][name] == '' for name in self.names[2:]))
         self.assertEqual(result['written'], 2)
         self.assertEqual(result['rows'], 3)
         self.assertEqual(self.records, [{'download_complete': result}])
         self.assertTrue(self.target.read_bytes().startswith(b'\xef\xbb\xbf'))
+        self.assert_clean()
+
+    def test_sector_fields_can_be_selected_without_other_properties(self):
+        names = ['disconnected_sector_count', 'disconnected_sectors_json']
+        self.run_download(ids=(1, 2), names=names)
+        self.assertEqual(self.read_csv(), [dict(zip(names, ('2', self.sectors_json)))] * 2
+                         + [dict.fromkeys(names, '')])
         self.assert_clean()
 
     def test_progress_counts_theories_and_publishes_only_complete_file(self):

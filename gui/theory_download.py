@@ -47,6 +47,8 @@ CSV_FIELDS = (
     CsvField("superconformal_index_json", "searchCsvSuperconformalIndexJsonCheckBox", "p.superconformal_index_json"),
     CsvField("superconformal_index_order", "searchCsvSuperconformalIndexOrderCheckBox", "p.superconformal_index_order"),
     CsvField("coulomb_branch_index_max_dimension_json", "searchCsvCoulombBranchIndexMaxDimensionJsonCheckBox", "p.coulomb_branch_index_max_dimension_json"),
+    CsvField("disconnected_sector_count", "searchCsvDisconnectedSectorCountCheckBox", "p.disconnected_sector_count"),
+    CsvField("disconnected_sectors_json", "searchCsvDisconnectedSectorsJsonCheckBox", "p.disconnected_sectors_json"),
 )
 BATCH_SIZE = 32
 _connection = None

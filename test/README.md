@@ -37,7 +37,13 @@ disposable test database, then omit the empty database assignment. Live tests
 reset their configured test tables. `all_test.sh` also discovers this directory
 and retains its existing local connection configuration.
 
-`test_gui_theory_download.py` exercises CSV fidelity, one row per realization,
+`test_gui_theory_search.py` checks inclusive full-index order thresholds, zero
+disabling the index restriction, absent indices/unknown cutoffs, and the stored
+single-sector count filter in combination with gauge and charge conditions.
+It executes the search SQL against an isolated relational fixture.
+
+`test_gui_theory_download.py` exercises CSV fidelity (including shared sector
+counts and nested factor-ID JSON), one row per realization,
 missing joins, fixed theory selection, bounded real spawned readers, deterministic
 serial/parallel output, theory-count progress, cancellation and atomic publication
 using a disposable SQLite fixture. `test_gui_search_tab.py` uses real Qt fixture
