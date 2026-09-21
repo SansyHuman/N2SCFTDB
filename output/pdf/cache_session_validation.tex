@@ -85,9 +85,10 @@ tensor calls, with multiple worker PIDs. This verifies the operation-count claim
 on the tested build; no broad prebuild speedup has been measured.
 
 The full suite rerun during the 10 September 2026 cache-documentation update ran \textbf{209 tests: 207 passed and
-two live-MySQL tests skipped}. It uses actual Sage/FORM/LiE for backend tests;
-MySQL migration and insertion unit tests use mocks unless a test server is
-explicitly configured. The new modules are
+two live-MySQL tests skipped}. That run used actual Sage/FORM/LiE for backend tests;
+its MySQL migration and insertion unit tests used mocks unless a test server
+was explicitly configured. Schema migration tests were later removed when
+the production layout was reset to schema 1. The new modules are
 \code{test_form_expansion_cache.py}, \code{test_cached_decomposition_planning.py}
 and \code{test_build_decomposition_cache.py}. These measurements and algorithms
 are source-derived project evidence, not results attributed to external papers.

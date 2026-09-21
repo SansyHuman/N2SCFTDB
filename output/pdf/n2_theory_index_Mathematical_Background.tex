@@ -35,7 +35,7 @@
 {\large N2SCFTDB / \texttt{n2\_theory\_index.py}}\par
 FORM and LiE computation of four-dimensional $\mathcal N=2$ indices\\
 Simple and semisimple product gauge groups\par
-\textbf{Index-package reference: 16 September 2026}
+\textbf{Index-package reference: 19 September 2026}
 \end{center}
 \vspace{3mm}
 \textbf{Purpose.} The canonical implementation computes the flavor-unrefined right
@@ -46,12 +46,11 @@ final singlet, independently for every simple gauge factor. SQLite stores exact
 parsed FORM expansions, decompositions and final singlet coefficients. Sage supplies input/representation
 data, the dual-label convention and the exact returned polynomial ring.
 
-This revision adds disconnected-sector factorization, optional stored-sector
-reuse, the single character-cache file argument, and a step-by-step explanation
-of degree-bounded FORM multiplication. Earlier cache measurements describe
-commit \code{04bbe21} and retain their dates. Property orchestration and GUI
-workflows belong to the companion implementation reference. Preserved pages
-2--4 present the original mathematical setup and baseline FORM recurrence;
+This revision adds FORM/TFORM execution controls, CPU allocation and the
+dated 32-worker benchmarks; the public sector API is documented as well.
+Earlier mathematical and cache material is retained. GUI/search/export and
+production schema 1 belong to the companion implementation reference.
+Preserved pages 2--4 contain the original setup and baseline recurrence;
 Section~\ref{sec:degree-bounded} gives the current generated code.
 
 \section*{Contents}
@@ -62,6 +61,7 @@ Section~\ref{sec:degree-bounded} gives the current generated code.
 4 Plethystic exponential and exact cutoffs & 3\\
 5 How FORM represents and expands the index & 3\\
 \quad Current degree-bounded loop, proof and example & \pageref{sec:degree-bounded}\\
+\quad TFORM controls and 32-worker measurements & \pageref{sec:tform-runtime}\\
 6 Adams operations and LiE decomposition & \pageref{sec:adams}\\
 7 Gauge-singlet projection for product groups & \pageref{sec:projection}\\
 \quad Disconnected sectors and stored-index reuse & \pageref{sec:disconnected}\\
@@ -88,6 +88,7 @@ statistics have already entered through the signed single-letter functions.
 
 \newcommand{\sessionheading}{\subsection}
 \input{form_degree_bound.tex}
+\input{tform_session_runtime.tex}
 
 \clearpage
 \section{Adams operations and LiE decomposition}\label{sec:adams}
@@ -299,7 +300,7 @@ characters, and applies conjugation as in Eq.~(11).\\
 records vector and matter character monomials.\\
 \code{_build_form_program} & Implements Eqs.~(7), (17), (14), and (20), with
 the degree-bounded loop in Section~\ref{sec:degree-bounded}.\\
-\code{run_form} & Shared helper in \code{common/form_utils.py}; runs FORM in an
+\code{run_form} & Shared helper in \code{common/form_utils.py}; runs FORM/TFORM in an
 isolated temporary directory and requires a successful, clean process result.\\
 \code{FormExpansionCache.}\newline\code{get_expansion} & Retrieves parsed terms by raw program;
 executes, parses and stores a miss.\\
@@ -328,6 +329,8 @@ size, recursively build two parts and pair dual labels.\\
 equal powers of $t,y,u$.\\
 \code{_to_sage_polynomial} & Returns an exact flat Laurent polynomial in
 $\mathbb Q[t^{\pm1},y^{\pm1},u^{\pm1}]$; performs no representation calculation.\\
+\code{split_disconnected_sectors} & Public graph partition; returns factor tuples
+and hyper lists, retaining one free sector.\\
 \code{calculate_index} & Parses input, then delegates sector partition,
 optional stored-index reuse and truncated multiplication to
 \code{calculate_index_internal} (Section~\ref{sec:disconnected}).\\

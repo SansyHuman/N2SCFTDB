@@ -8,7 +8,7 @@ hypermultiplet $h$, define its gauge support
 \[
  S_h=\{a:\ R_{h,a}\ne\mathbf1\}.
 \]
-\code{_split_disconnected_sectors} builds an undirected NetworkX graph with
+\code{split_disconnected_sectors} builds an undirected NetworkX graph with
 one vertex per gauge factor. For a support $(a_1,\ldots,a_r)$, it inserts
 the $r-1$ edges $(a_1,a_2),\ldots,(a_1,a_r)$. A star joins every vertex of
 that support by a path; a complete clique would give the same connected
@@ -21,6 +21,14 @@ component. The code preserves factor order, restricts representation and beta
 contribution dictionaries, and converts a one-factor product hyper into
 \code{HyperData}. Multi-factor components retain \code{ProductHyperData}.
 No discarded spectator singlet contributes an extra dimension factor.
+
+\textbf{Public API.} \code{split_disconnected_sectors(factors, hypermultiplets)}
+returns a list of pairs: a tuple of \code{GaugeFactorData} and a list of
+\code{HyperData} or \code{ProductHyperData}. Input factor IDs and order are
+retained. The basic property calculator materializes these IDs as a tuple of
+tuples, not lazy iterators; it returns \code{None} for a non-SCFT candidate.
+The free sector contributes an empty tuple, serialized as an empty JSON array.
+Database ownership of those IDs is described in the implementation reference.
 
 Let $L_\alpha$ denote the letters of component $\alpha$ and $L_0$ all matter
 with empty gauge support. The exponent splits because Adams substitution and

@@ -2,6 +2,40 @@
 
 Last updated: **2026-09-19 (Asia/Seoul)**.
 
+## Complete session documentation refresh (19 September 2026)
+
+The two canonical PDFs and their retained LaTeX sources now document all
+implemented work from this session. The implementation reference owns
+GUI/database operations; the mathematical-background guide owns index
+algorithms and execution. This update changes documentation only.
+
+| Session work | Current implementation and documentation |
+| --- | --- |
+| FORM/TFORM selection | Settings default to one FORM thread; larger counts run TFORM. Full/Coulomb APIs and CLIs propagate the settings. |
+| CPU allocation | Index theory workers use `min(jobs, max(1, CPUs // TFORM threads))`; CSV readers use the CPU setting independently with no fixed cap. |
+| Timeout benchmarks | Both 16-theory cohorts, sampling provenance, all per-case measurements and historical full-save ratios are in the PDFs; report paths and limitations are below. |
+| Search GUI | Editable `gui/n2_db.ui`, `1040x960` default window, theory ID, gauge grammar, nonempty-full-index option, result/progress area and CSV field controls. |
+| Search actions | `SearchTabController` plus `gui/theory_search.py`; SQL exact fraction matching, approximate decimal ranges, read-only streaming and retained theory IDs. |
+| CSV download | Save dialog, selected fields, one row per realization, bounded spawned readers, theory-based progress, cancellation and atomic publication. |
+| Index upgrades | Search and calculation include missing components and known lower independent cutoffs; retained jobs are rechecked before calculating. |
+| Public sector API | `split_disconnected_sectors` and materialized factor-ID tuples in basic properties; first-realization sector metadata stored with imports. |
+| Production baseline | Complete current schema numbered 1; migrations/backfills/CLI and their tests removed. |
+| Portability discussion | macOS and LAN MySQL remain assessments, not verified deployment or configuration changes. |
+
+The updated canonical files are
+`output/pdf/n2_implementation_reference_summary.pdf` (**61 pages**) and
+`index/n2_theory_index_Mathematical_Background.pdf` (**29 pages**).
+The previous 16 September documentation entry below is historical.
+
+All 90 final pages were rendered for layout review. Revised material was also
+checked at reading resolution. References resolve, no overfull boxes remain,
+and all 48 reference/15 guide equation blocks are unchanged. Embedded guide
+pages 2–4 retain identical extracted text. `output/pdf/BUILD.md` records the
+page map, retained inputs and reproducible build steps. New inputs are
+`tform_session_runtime.tex` (both PDFs) and `gui_search_export_workflow.tex`
+(reference only). This refresh does not rerun the application suite or TFORM
+benchmarks; it preserves their original dates and conditions.
+
 ## Production schema 1 baseline (19 September 2026)
 
 The complete current MySQL layout is now **schema 1**. Fresh databases include
@@ -13,7 +47,8 @@ It never upgrades or relabels an existing database.
 The pre-release schema migration map, version-upgrade loop, sector backfill API,
 migration CLI and their tests have been removed. Normal import/index operations
 and tests remain. Earlier schema numbers and migration descriptions in dated
-notes and generated PDFs below are historical and superseded by this baseline.
+notes below are historical and superseded by this baseline. The current PDFs
+now describe schema 1 directly.
 Existing user databases were not changed during this code cleanup.
 
 Validation: the full suite ran **414 tests: 374 passed, 40 skipped**. An isolated
@@ -27,9 +62,9 @@ was shut down and removed after the run.
 
 `theory_properties.disconnected_sector_count INT UNSIGNED NULL` and
 `disconnected_sectors_json JSON NULL` store nested lists of **input factor IDs**,
-for example `[["left", "middle"], ["right"]]` with count 2. A connected theory
-has count 1. The combined free-hyper sector is one empty list and contributes
-one to the count, following `split_disconnected_sectors`.
+for example `[["left", "middle"], ["right"]]` with count 2. One connected
+gauged component contributes one sector. The combined free-hyper sector is
+one empty list and contributes one to the count, following `split_disconnected_sectors`.
 
 The lists describe the **first stored realization** (smallest
 `lagrangian_realizations.id`) of the theory. Other realizations and duplicate
@@ -37,6 +72,14 @@ imports with renamed factor IDs preserve these lists. Sector IDs are excluded
 from shared physical-property equality checks. New imports store both columns
 and matching `disconnected_sector_count` and `disconnected_sectors` keys in
 `properties_json` within the import transaction.
+
+`index.n2_theory_index.split_disconnected_sectors(factors, hypermultiplets)`
+is public. It returns a list of `(factor_tuple, hyper_list)` pairs, preserving
+input factor order within and between components. The property calculator
+materializes `disconnected_sectors` as a tuple of factor-ID tuples rather than
+lazy `map` iterators. A simple input uses `gauge` as its factor ID; the optional
+free sector gives `()`. JSON serialization turns these into arrays. Non-SCFT
+candidates receive `None`; no full index, Coulomb index or spectrum is calculated.
 
 ## Index search and calculation upgrades (19 September 2026)
 
@@ -70,7 +113,9 @@ Lagrangian realization**. All realizations of matched theories are exported,
 ordered by theory then realization ID, with shared theory properties repeated.
 Theories without realizations still get one row; absent joined data is blank.
 The 17 UI fields map to a fixed SQL whitelist; properties_json is excluded and
-the theory ID is included only once. CSV preserves JSON and exact decimal text,
+the theory ID is included only once. The later `disconnected_sector_count` and
+`disconnected_sectors_json` columns are not yet in the CSV whitelist or GUI.
+CSV preserves JSON and exact decimal text,
 quotes commas/newlines, and uses UTF-8 with a BOM.
 
 No search is repeated, no schema initialization runs, and the worker only issues
@@ -200,6 +245,58 @@ allocation, and settings persistence after a fresh-process reload. The Settings
 dialog was rendered and visually checked offscreen. A threaded full-index CLI
 smoke check used temporary caches; database CLI validation was checked with the
 connection mocked. Existing personal settings and MySQL contents were not changed.
+
+## TFORM 32-worker benchmark evidence (16 September 2026)
+
+Both cohorts ran one theory at a time through `t^18`, with the current
+degree-bounded generator and `/usr/bin/tform -w32`, a 600-second limit, and
+one observation per theory. Hardware was a Ryzen 9 7950X, 32 logical CPUs,
+30.5 GiB RAM; TFORM was 5.0.0. GNU time includes startup, expansion and complete
+text output to a local file, with compression afterward. It excludes Sage
+preparation, output parsing, LiE projection, final polynomial construction and
+database/cache operations. Inputs were read without schema initialization;
+existing application data and caches were not changed.
+
+- **16 repeated failures:** all succeeded, 23.94–38.33 seconds each, median
+  across theories 25.19 seconds, total 473.42 seconds, peak TFORM RSS up to
+  8.84 GiB. The retry log ran 32 theories concurrently and its start-to-timeout
+  intervals cannot serve as an isolated serial baseline.
+  `output/benchmarks/tform32_repeated_timeouts_20260916/report.md` retains the
+  full table; the directory contains inputs, logs, hashes and compressed output.
+- **16 randomly selected recovered cases:** sampled from 51 initial failures
+  with explicit later full-index save messages, among 210 initial timeouts.
+  The reproducible draw was
+  `random.Random(3329612950807171883).sample(sorted(eligible_ids), 16)`.
+  All succeeded in 9.00–15.22 seconds; total 188.91 seconds, median across
+  theories 9.575 seconds, RSS 3.55–5.50 GiB.
+  `output/benchmarks/tform32_recovered_random16_20260916/report.md` includes
+  each later full-index save interval and both ratio columns.
+
+The ratios use unrounded times:
+`100 * T_TFORM / T_save` is 1.35–19.45%, and `T_save / T_TFORM` is
+5.14–73.97. Historical save intervals include the whole index pipeline and
+database save with 16 or 32 concurrent theories. These are elapsed-time
+comparisons of different workloads, not controlled FORM or full-index
+speedups. The benchmarks did not repeat gauge projection or serial-FORM
+comparison for every case. Raw-program duplicates in the repeated-failure
+cohort produced identical complete outputs.
+
+`-w32` requests 32 TFORM workers; observed OS thread counts reached 63.
+Peak RSS excludes the Sage parent, page cache and later projection/parsing.
+The benchmark scripts overwrite their own output directories; copy them and
+change their output paths before rerunning. No benchmarks were rerun during
+the documentation refresh.
+
+## Portability and LAN database discussion (assessment only)
+
+The session assessed running on macOS and using this PC's database over a LAN;
+neither deployment was tested and no server configuration was changed.
+The second machine needs compatible Sage/PyQt6, FORM/TFORM and LiE, plus its
+own executable/cache paths. A remote MySQL client must use the server's LAN
+address over TCP instead of a local Unix socket. The server listener,
+firewall and database-scoped account must permit the intended client.
+The earlier server-listener observation was session-specific, not a current
+configuration claim.
 
 ## Complete session PDF refresh (16 September 2026)
 
@@ -2164,7 +2261,7 @@ Temporary copies of the first paper were downloaded as
 
 - Update the remaining implementation reference chapters for Tits reality,
   representation/theory enumeration and current dependencies; the database
-  structure, schema-6 behavior and the current index/cache algorithm are documented.
+  structure, production schema 1 and the current index/cache algorithm are documented.
 - Reduce Python object reconstruction cost for large cached FORM expansions
   if later profiling justifies a format change; current exact JSON loading can
   dominate warm runs. Preserve raw-program equality and concurrent writes.
@@ -2175,8 +2272,9 @@ Temporary copies of the first paper were downloaded as
   any pre-existing duplicate theory rows during that migration.
 - Implement HL/Higgs calculations if requested, following the qualifications
   and reuse opportunities above; flavor refinement remains optional.
-- The separate index worker now fills missing spectra and indices; the GUI
-  index tab still needs actions if requested.
+- Search/export actions and missing-or-lower-order index actions are implemented.
+  The 17-field CSV selection still omits the two newly stored sector fields;
+  extending it would require a separate requested implementation.
 - Add non-Lagrangian theory support beyond the placeholder table.
 - Avoid the duplicate anomaly-check call in the database/property path.
 - Imports no longer calculate indices. A future optimization could avoid

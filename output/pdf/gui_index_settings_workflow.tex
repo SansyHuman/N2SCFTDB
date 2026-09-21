@@ -10,22 +10,25 @@ selection, calculation and retained results. Both are \code{QObject}s;
 their action methods are connected to widgets loaded from \code{gui/n2_db.ui}.
 
 The index tab has two side-by-side areas. The left contains
-\textbf{Search theories with empty indices}, \textbf{Select all}, and
+\textbf{Search missing or lower-order indices}, \textbf{Select all}, and
 checkboxes grouped by the theory's ordered gauge-group factors, with counts.
 The right contains a read-only log and \textbf{Calculate index}, which becomes
 \textbf{Stop} during calculation. Select all checks or clears every listed
 group; individual selections update its state too.
 
 \code{gui/index_search.py} runs as a separate Sage process. It uses the saved
-MySQL settings and \code{iter_lagrangian_index_jobs}, without schema migration
-or writes. An index job is selected when its full index, Coulomb index
-\emph{or} Coulomb spectrum is SQL NULL or JSON null. A complete record of
-lower or unknown precision is not an ``empty'' result and is not selected by
-this GUI search. The separate CLI's upgrade mode remains available.
+MySQL settings and \code{iter_lagrangian_index_jobs(upgrade=True)}, without
+schema initialization or writes. It passes the saved full-index order $N$
+and exact Coulomb cutoff $D$. A job qualifies when a full index, Coulomb
+index or spectrum is SQL NULL/JSON null, or when a recorded full/Coulomb
+cutoff is strictly below its own requested cutoff. The two comparisons are
+independent; a high Coulomb cutoff does not satisfy a low full-index order.
+Equal/higher known cutoffs need no upgrade. Unknown precision alone does not
+qualify; a missing other component can still select that theory.
 One Lagrangian realization is retrieved for each shared theory.
 
 Successful searches retain complete theory/realization IDs, factor and hyper
-inputs, missing-field metadata and source identity in the controller.
+inputs, needed-field metadata and source identity in the controller.
 \code{retrieved_jobs} returns all jobs and \code{selected_jobs} returns checked
 groups' jobs as copies. The next calculation uses this snapshot without a
 second database-wide search. New groups begin unchecked; a successful refresh
@@ -52,29 +55,34 @@ is reported on screen without stopping the work. The anomaly prefix remains
 \subsection{Multiprocessing index calculation and partial progress}
 \code{gui/index_calculator.py} is the Sage coordinator started by
 \textbf{Calculate index}. It distributes the selected retained theories across
-spawned processes. With $C$ selected theories and CPU limit $P$, the pool uses
-at most $\min(C,P)$ workers and at most twice that many outstanding tasks.
-One task contains one theory; workers receive further tasks dynamically.
-The setting $-1$ resolves to all logical CPUs, with a one-worker fallback.
+spawned processes. With $C$ selected theories, resolved CPU budget $P$
+and TFORM count $T$, at most
+$\min(C,\max(1,\lfloor P/T\rfloor))$ workers run, with at most twice that many
+outstanding tasks. One task contains one theory; scheduling is dynamic.
+The setting $-1$ resolves to all logical CPUs, with fallback one.
+Section~\ref{sec:tform-runtime} explains engine selection and memory limits.
 
 Each worker owns its MySQL connection, opened against the initialized schema,
 and closes it at normal shutdown. Connections never cross process boundaries.
 The worker calls \code{common.n2_theory_db_indices.calculate_index_job} with
 saved full/Coulomb cutoffs, executable paths, timeout and both cache filenames.
-Inner full-index calculations use one process to avoid nested worker pools.
+Inner LiE/character work uses one process; FORM receives the selected thread count.
 The worker passes its own theory connection to the disconnected-sector reuse
 path described in Section~\ref{sec:disconnected}.
 
 \begin{enumerate}
-\item Recheck the retained theory/realization IDs for fields currently missing.
-This is a targeted stale-job check, not another search of all empty theories.
-\item Compute missing full index, Coulomb index and complete Coulomb spectrum
-outside write transactions. A stored full index does not limit the separate
-Coulomb calculation's requested precision.
-\item Save each successful component independently using
-\code{missing_only=True}. A concurrent fill, sufficient result or legacy
-unknown-precision value is preserved. A failure in one component does not
-erase successful components already committed.
+\item Recheck each retained theory/realization using
+\code{needed_lagrangian_index_fields} with the current saved $N,D$.
+This targeted check can add newly needed components after settings change
+or omit work already completed by another writer. It does not repeat the
+database-wide search or expand the retained theory selection.
+\item Compute missing or lower-order components outside write transactions.
+A stored full index does not constrain the separate Coulomb cutoff.
+The complete spectrum is filled only when absent.
+\item Save each successful component independently with upgrades enabled
+(\code{missing_only=False}). Locked comparisons preserve concurrent
+equal/higher results and unknown precision; a failure in another component
+does not erase successful commits.
 \item Publish outcomes. Confirmed complete jobs are removed from the retained
 selection when the run ends. Failed, stopped or unconfirmed jobs remain for
 retry; a later retry rechecks which components still need work.
@@ -159,7 +167,7 @@ through stdin, never through command-line arguments or saved preferences.
 \item The worker authenticates a fresh MySQL connection using the entered
 password and \code{initialize_schema=False}. This is database authentication,
 not comparison with the previously saved credential.
-\item \code{delete_all_theory_data} checks schema version 7, starts a transaction,
+\item \code{delete_all_theory_data} checks production schema version 1, starts a transaction,
 executes \texttt{DELETE FROM theories}, and commits. Foreign-key cascades remove
 the associated property, realization, gauge, hyper, flavor, index and spectrum
 data. Tables, schema metadata, account and SQLite caches remain. There is no

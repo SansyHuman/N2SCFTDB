@@ -4,9 +4,10 @@
 The PyQt6 window loads \code{gui/n2_db.ui} and \code{gui/settings.ui} directly.
 The anomaly tab has two side-by-side areas: editable multiline gauge input and
 \textbf{Load theories...} on the left; a character-cache checkbox, read-only
-progress log and \textbf{Build}/\textbf{Stop} controls on the right. Both tabs
-now have controllers; the implemented index workflow and Settings deletion
-are described in Sections~\ref{sec:index-gui} and \ref{sec:delete-settings}.
+progress log and \textbf{Build}/\textbf{Stop} controls on the right. The anomaly,
+index and search tabs have separate controllers; index work, search/CSV export
+and deletion are described in Sections~\ref{sec:index-gui},
+\ref{sec:theory-search} and \ref{sec:delete-settings}.
 
 Enter one gauge-group specification per nonempty line, separating factors by
 commas. These are instructions to enumerate matter contents, not complete
@@ -33,11 +34,17 @@ Coulomb maximum dimension & $90$ & Inclusive nonnegative exact rational;
 Fractions such as \code{6/5} are reduced and stored as strings.\\
 CPU cores & $-1$ & \code{tools/processes}; all logical CPUs via
 \code{os.cpu_count()}, or one if unavailable. Positive values bound workers;
-$1$ is serial and $0$ is invalid.\\\bottomrule
+$1$ is serial and $0$ is invalid.\\
+TFORM threads & $1$ & \code{tools/form_threads}; exact positive integer.
+One selects FORM; above one selects TFORM.\\
+TFORM executable & \code{tform} & \code{tools/tform_executable};
+PATH name or full path.\\\bottomrule
 \end{tabularx}
 Older settings files receive these defaults until saved. OK saves immediately;
 Cancel discards edits. A build uses a fixed settings/input snapshot. Existing
 QSettings persistence and native keyring credential handling are retained.
+Index workers divide the CPU budget by the TFORM count; anomaly workers do
+not. Existing preferences default to serial FORM until changed.
 
 Activate any Sage environment providing the GUI requirements, then run from
 the project root:
@@ -158,7 +165,7 @@ character-cache generation; it is not a guarantee of proportional speedup.
 Each theory import is one explicit InnoDB transaction. Equivalent concurrent
 imports are resolved by existing unique keys: a losing duplicate-key transaction
 rolls back and returns the committed winner with \code{inserted=False}.
-Neither schema version 7 nor the server isolation level changes in this fix.
+That 14 September fix changed neither the then-current schema nor server isolation.
 
 The former fresh-import path selected a properties row before inserting it:
 \begin{lstlisting}[language=SQL]

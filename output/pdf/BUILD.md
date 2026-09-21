@@ -1,6 +1,85 @@
 # PDF sources and rebuilding
 
-## Current revision: 16 September 2026
+## Current revision: 19 September 2026
+
+The canonical outputs are the **61-page implementation reference** at
+`output/pdf/n2_implementation_reference_summary.pdf` and the **29-page index
+mathematical background** at `index/n2_theory_index_Mathematical_Background.pdf`.
+The implementation reference covers GUI/database behavior; the guide remains
+focused on index algorithms and execution.
+
+This revision incorporates the entire 16–19 September session:
+
+- FORM at one thread; TFORM above one, with settings/API/CLI propagation and
+  CPU-based index worker allocation.
+- Both 16-theory TFORM benchmark cohorts, all per-case tables, sampling seed,
+  RSS, timings and full-index save ratios, with their scope limitations.
+- The search tab layout, controller/worker split, gauge grammar, exact JSON
+  charge conditions and indexed approximate decimal ranges.
+- Retained theory-ID searches, selectable CSV fields, one row per realization,
+  save dialog, CPU-based readers without a fixed cap, theory-count progress,
+  cancellation, staging and atomic publication.
+- Missing-or-lower-order index search and targeted calculation rechecks.
+- Public sector partition API, materialized factor-ID tuples and first-realization
+  storage of sector count/factors.
+- Complete production schema 1, removal of migration/backfill APIs, CLI and
+  tests, and rejection of other recorded schema versions.
+- The session's macOS/LAN discussion, explicitly recorded as an assessment
+  rather than a completed deployment.
+
+The CSV selection remains the implemented 17-field whitelist. The newer sector
+columns are documented as stored but not yet selectable for export.
+
+### Retained sources and page map
+
+New shared input `tform_session_runtime.tex` supplies controls and benchmark
+tables to both PDFs. New reference-only input `gui_search_export_workflow.tex`
+covers search, export and progress. Existing `disconnected_index_sectors.tex`,
+`property_database_workflow.tex`, `gui_anomaly_workflow.tex` and
+`gui_index_settings_workflow.tex` have been revised to current contracts.
+Both main sources retain the earlier mathematics and bibliography. No extra
+asset or network access is required to rebuild.
+
+Physical PDF pages (the reference's printed page numbers are one lower):
+
+| Topic | Implementation reference | Index guide |
+| --- | --- | --- |
+| TFORM controls and both complete benchmark tables | 12–14 | 8–10 |
+| Public sector partition | 25 | 14 |
+| Basic sector property | 36 | 14 |
+| Current schema/table catalog and baseline | 39–41 | Reference only |
+| Persisted sector metadata | 44 | Reference only |
+| Settings and CPU allocation | 46, 52 | Execution rule on 8 |
+| Missing-or-lower-order index search/calculation | 51–52 | Reference only |
+| Search layout, SQL predicates, retained IDs and CSV | 55–57 | Reference only |
+| Current validation and portability assessment | 58–59 | Dated index checks retained |
+
+### Build and verification
+
+Use the retained `pdflatex` commands below from `output/pdf`. Build until local
+references stabilize, then inspect logs and render before replacing the canonical
+files. The build and QA directory for this update is
+`/tmp/n2-session-pdfs-20260919/`; it is not needed for future rebuilds.
+
+Final checks verify all **90 pages** rendered and visually reviewed, with revised
+tables/pages additionally inspected at reading resolution. The final logs have
+no undefined citations/references, duplicate labels or overfull boxes.
+The reference retains its existing mild underfull diagnostic in the Coulomb API
+table; it has no visible clipping. A validation-paragraph spill was removed.
+All **48 reference and 15 guide equation/align blocks** match the prior sources
+verbatim. Embedded guide pages **2–4 have identical extracted text**. Benchmark
+tables were generated directly from the two retained reports, preserving all
+32 case rows and ratio values.
+
+Application source, settings, databases and caches were not changed. This
+documentation-only update did not rerun application tests or benchmarks.
+The PDFs separately record the preceding 19 September baseline validation:
+414 tests (374 passed, 40 skipped), plus 20 passed and two skipped on an
+isolated temporary MySQL server. Earlier measurements keep their original
+dates and conditions.
+
+
+## Historical revision: 16 September 2026
 
 The canonical outputs are the **54-page implementation reference** and the
 **26-page index mathematical background**. This revision documents the complete

@@ -1,4 +1,4 @@
-% Shared property/database workflow, inspected 12 September 2026.
+% Property/database workflow, refreshed 19 September 2026.
 % New displays are unnumbered to preserve the mathematical equation sequence.
 \subsection{Independent precision and replacement rules}
 The database stores one set of physical properties per theory. A Lagrangian
@@ -50,10 +50,9 @@ that update call. This policy differs from comparison of truncated indices.
 cutoff contract, not an additional physical conjecture.}
 
 \clearpage
-\subsection{Schema 7, legacy data and atomic writes}
-Schema 7 keeps the same ten tables and adds two nullable columns to
-\code{theory_properties}. Central charges and all existing index data are
-preserved by the migration.
+\subsection{Production precision metadata and atomic writes}
+Schema 1 directly includes the full-index and Coulomb precision columns in
+\code{theory_properties}. Their role is independent of schema versioning.
 \begin{tabularx}{\textwidth}{@{}Y>{\raggedright\arraybackslash}p{57mm}@{}}
 \toprule Column / result key & Stored representation\\\midrule
 \code{superconformal_index_order} & \texttt{BIGINT UNSIGNED}; inclusive integer $N$.\\
@@ -65,10 +64,8 @@ The three computed values still use \code{superconformal_index_json},
 Successful updates mirror changed values and cutoffs into \code{properties_json}
 while preserving basic properties and other computed components.
 
-Migration $6\to7$ adds the columns without guessing legacy cutoffs, recomputing
-indices, rehashing realizations or merging theories. Initialization applies
-migrations when the database is next opened through the database API. MySQL
-schema DDL precedes the explicit data transaction and is not rolled back with it.
+No schema migration or automatic data backfill is implemented. Fresh-schema
+DDL precedes the explicit data transaction and is not rolled back with it.
 
 When an old result's original requested cutoff is independently known, record
 it before normal upgrades:
@@ -97,6 +94,53 @@ Calculations run before this lock is acquired. Thus a slower low-order worker
 cannot overwrite a higher-order result committed while it was calculating.
 Use an initialized connection with no caller-owned transaction for update and
 legacy-cutoff APIs. These APIs manage their own commit/rollback boundary.
+
+\clearpage
+\subsection{Disconnected-sector properties and persisted factor IDs}
+\label{sec:sector-storage}
+The public \code{split_disconnected_sectors} partitions the gauge/matter graph
+as described in Section~\ref{sec:disconnected}. The basic property calculator
+returns a materialized tuple of tuples of input factor IDs:
+\begin{lstlisting}[language=Python]
+"disconnected_sectors": (("left", "middle"), ("right",), ())
+\end{lstlisting}
+The example has two interacting components and one combined free-hyper sector.
+IDs are input keys, not Cartan types. Zero-multiplicity matter does not connect
+components; all free hypers are assigned once to the final empty-factor sector.
+A single simple input normally uses factor ID \code{gauge}.
+The property is \code{None} for a non-SCFT candidate and does not require index
+or Coulomb-spectrum calculation.
+
+\begin{tabularx}{\textwidth}{@{}Yp{72mm}@{}}
+\toprule Stored field & Value for the example\\\midrule
+\code{disconnected_sector_count} & \code{3}\\
+\code{disconnected_sectors_json} &
+\code{[["left","middle"],["right"],[]]}\\
+\code{properties_json} keys &
+\code{disconnected_sector_count} and \code{disconnected_sectors}\\\bottomrule
+\end{tabularx}
+The dedicated columns are nullable \code{INT UNSIGNED} and \code{JSON}.
+Count is the number of returned sectors, including the optional combined
+free sector. NULL denotes unknown/unpopulated data.
+
+Factor IDs belong to realizations. The stored description therefore uses the
+first stored realization (smallest \code{lagrangian_realizations.id}) for that
+theory. Other realizations and duplicate aliases preserve it; the sector IDs
+are excluded from shared physical-property equality checks. This prevents
+equivalent input names from making the theory-level sector record ambiguous.
+
+A successful new import inserts the realization, then
+\code{_store_disconnected_sectors} writes both dedicated columns and their
+combined-JSON keys inside the import transaction. The helper only fills
+missing metadata for that first realization, preserving existing values and
+computed indices/cutoffs. Failures roll back with the import. Normal duplicate
+imports do not serve as a bulk enrichment operation.
+
+The earlier sector schema-upgrade/backfill implementation was removed when
+the full layout became production schema 1. No initializer now scans saved
+inputs to populate old rows, and the removed migration CLI must not be used.
+\code{test_n2_theory_db_sectors.py} retains normal storage tests for connected,
+disconnected and free sectors, plus first-realization and duplicate-name behavior.
 
 \clearpage
 \subsection{Separate worker, partial retries and reproducible use}
