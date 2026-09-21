@@ -1,0 +1,155 @@
+% Search/controller/SQL/export contracts inspected 19 September 2026.
+\clearpage
+\subsection{Theory search: layout, gauge expressions and SQL conditions}
+\label{sec:theory-search}
+The third tab is named \textbf{search}. Its editable layout lives in
+\code{gui/n2_db.ui}; \code{SearchTabController} in \code{gui/search_tab.py}
+owns the actions, and \code{gui/theory_search.py} is a separate Sage worker.
+The default window is $1040\times960$, enlarged to fit the search layout in
+the validated offscreen environment. Font scaling and smaller screens may
+still require scrolling.
+
+Seed theories spans the top. Exact $a,c$ and their lower/upper bounds occupy
+two columns, followed by \textbf{Theory id} and
+\textbf{Only theories with non-empty indices}. CSV field checkboxes are below
+the conditions. A read-only count/status box and a percentage progress bar
+sit horizontally above \textbf{Search} and \textbf{Download}.
+
+\begin{tabularx}{\textwidth}{@{}p{37mm}Y@{}}
+\toprule Gauge expression & Meaning for one Lagrangian realization\\\midrule
+\code{A1} & Contains at least one $A_1$ gauge factor.\\
+\code{A1, C2} & Contains both factors, allowing additional factors.\\
+\code{"A1, C2"} & Exactly that multiset of gauge factors.\\
+\code{A1, A1} & Requires at least two $A_1$ factors.\\
+\code{"A1"; C2} & Exact $A_1$, or any realization containing $C_2$.\\\bottomrule
+\end{tabularx}
+Factor order is ignored; multiplicities are preserved. SQL uses \code{EXISTS}
+with factor counts so all factors of an alternative belong to one realization.
+Different matching realizations never duplicate a theory ID. Semicolon
+alternatives are OR-ed; all other supplied conditions are AND-ed.
+
+\textbf{Charges.} Integer, fraction and finite-decimal inputs are parsed as
+exact \code{Fraction}s. For an exact condition, \code{0.125} and \code{2/16}
+both serialize to \code{numerator=1, denominator=8}.
+\code{JSON_CONTAINS} compares the requested $a,c$ pairs against
+\code{central_charges_json} in MySQL. Range bounds are intentionally
+approximate: endpoints are rounded half-up to 30 decimal places and bound
+directly to inclusive comparisons on the indexed
+\code{central_charge_a_decimal} and \code{central_charge_c_decimal} columns.
+Distinct fractions can have the same decimal value. Blank endpoints are
+unbounded; exact and range predicates can be combined. Invalid input and
+reversed bounds fail before connecting.
+
+\textbf{Other conditions.} Theory id means \code{theories.id}, never the
+realization ID. The index checkbox requires a non-whitespace JSON string in
+\code{superconformal_index_json}; Coulomb index, spectrum and precision
+metadata may be absent. With every condition empty/unchecked, every theory
+qualifies, including theories without realization or property rows.
+
+The worker disables schema initialization and streams one parameterized
+SELECT through \code{SSDictCursor}, returning only ordered theory IDs.
+It does not load index/input payloads to filter them in Python. Temporary
+MySQL checks on 18 September confirmed the exact/approximate distinction and
+range-index access using \code{EXPLAIN}; they did not access the user's database.
+
+\clearpage
+\subsection{Retained search results and selectable CSV fields}
+Search becomes Cancel while the worker runs. Only a successful completed
+search publishes the immutable \code{theory_ids} tuple and its count;
+failed, cancelled or incomplete searches publish no partial snapshot.
+Filters, database changes/deletion and other-tab work invalidate it.
+\code{database} and \code{conditions} return copied metadata without passwords.
+Download is disabled initially and enabled after a successful nonempty search.
+Preferences and conflicting tab work are blocked during operations.
+Search errors/status appear in the count box tooltip; redacted messages are
+written under \code{logs/log_search_*.log}.
+
+Download opens a save-file dialog for the destination name and location.
+Cancelling that dialog leaves the result available. At least one CSV field
+must be checked; database identity is rechecked before opening the dialog.
+The fixed whitelist below is the current implemented selection, in UI order.
+The theory ID appears once and \code{properties_json} is excluded.
+
+{\small
+\begin{tabularx}{\textwidth}{@{}p{42mm}Y@{}}
+\toprule Source table & CSV column names\\\midrule
+\code{theories} &
+\code{theory_id} (from \code{id}), \code{name}.\\[3pt]
+\code{lagrangian_}\newline\code{realizations} &
+\code{lagrangian_realization_id} (from \code{id}),
+\code{gauge_group}, \code{input_json}.\\[3pt]
+\code{theory_properties}\newline Basic properties &
+\code{flavor_symmetry}, \code{flavor_rank}, \code{flavor_dimension},
+\code{conformal_manifold_dimension}, \code{central_charges_json},
+\code{central_charge_a_decimal}, \code{central_charge_c_decimal}.\\[3pt]
+\code{theory_properties}\newline Indices and cutoffs &
+\code{coulomb_branch_index_json}, \code{coulomb_branch_spectrum_json},
+\code{superconformal_index_json}, \code{superconformal_index_order},
+\code{coulomb_branch_index_max_dimension_json}.\\\bottomrule
+\end{tabularx}}
+There are 17 selectable fields. The subsequently added sector count and
+factor-ID columns (Section~\ref{sec:sector-storage}) are stored in the database
+but have not been added to this whitelist or GUI.
+
+The user selected \textbf{one row per Lagrangian realization}. All realizations
+of each matched theory are exported, even when only one satisfied the gauge
+filter. Shared properties repeat on those rows. A theory without a realization
+still has one row, with blank realization fields; missing joined properties
+are also blank. Rows are ordered by theory ID, then realization ID.
+SQL NULL becomes an empty cell. Python's CSV writer preserves JSON and exact
+decimal text and quotes commas, quotes and newlines. The final file is UTF-8
+with a BOM and a header containing the selected column names.
+
+The completed search fixes the set of IDs. Export fetches their current
+values and does not run the search again. Readers may observe external edits
+at different times; there is no global database snapshot spanning search
+and download. A searched theory that has disappeared causes failure instead
+of silent omission. Field selections can change between repeated downloads.
+
+\clearpage
+\subsection{CSV multiprocessing, progress and atomic publication}
+\label{sec:csv-export}
+\code{gui/theory_download.py} runs without Sage/Qt imports. A batch contains
+32 theory IDs. For $M>0$ retained theories and resolved CPU budget $P$:
+\[
+ B=\left\lceil M/32\right\rceil,\qquad W_{\rm CSV}=\min(P,B).
+\]
+The initial four-process limit was removed at the user's request. CPU cores
+\code{-1} uses all logical CPUs (fallback one). There is no fixed process cap;
+the batch count still limits useful workers. The TFORM thread setting does
+not reduce this export count. One worker uses a serial path; multiple workers
+use spawned processes with at most one pending batch per worker.
+
+Each reader owns a lazily opened, streaming MySQL connection and writes a CSV
+chunk to disk. Only row/theory counts cross process boundaries, avoiding large
+index strings in the parent process. Queries use the fixed column whitelist
+and bound IDs, with no schema initialization or database writes. Chunks merge
+in submission order, so serial and parallel output have the same ordering.
+
+If $m$ complete theories have been merged, progress is based on
+\[
+ p=100\,m/M.
+\]
+The denominator counts theories, not realization rows or bytes. Progress can
+advance in batches and pause behind a slow earlier batch. The last 100\% is
+reserved for successful publication and confirmed worker exit.
+
+A staging directory is created beside the chosen destination. The complete
+file is flushed and synced, then published with \code{os.replace} only after
+every batch succeeds. Failure or cancellation removes staging and preserves
+any existing destination. Download becomes Cancel; close waits for cooperative
+cancellation and reader shutdown. Active reads may delay cancellation (reader
+network timeouts are 30 s). Export locks field selections and conflicting
+actions while running. Search IDs remain available for another download.
+Redacted logs use \code{logs/log_download_*.log}.
+
+\textbf{Recorded validation.} The 18 September suite ran 410 tests
+(372 passed, 38 skipped). Export fixtures exercised actual spawned readers,
+CSV fidelity, ordering, progress, cancellation and atomic replacement;
+Qt fixture processes checked the dialog and controller lifecycle. A separate
+disposable MySQL server with a SELECT-only account exported 257 theories into
+258 rows across all 17 fields. The 7,457,190-byte output matched byte-for-byte
+between serial and four-reader runs, observed at 0.214 s and 0.164 s.
+These are single synthetic measurements, not a performance guarantee for the
+user's data. Missing-theory failure and connection cleanup were also checked.
+No production data was changed.

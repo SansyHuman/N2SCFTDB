@@ -1,0 +1,171 @@
+% Shared 16-19 September session: runtime controls and dated benchmark evidence.
+% All new displays are unnumbered.
+\clearpage
+\sessionheading{FORM or TFORM: execution controls and CPU allocation}
+\label{sec:tform-runtime}
+The symbolic program and exact projection algorithm are unchanged by choosing
+TFORM. \code{run_form} in \code{common/form_utils.py} validates \code{form_threads} as an
+exact positive integer. With one thread it invokes ordinary FORM; above one
+it invokes the separate TFORM executable:
+\begin{lstlisting}[language=bash]
+form -q program.frm
+tform -w32 -q program.frm
+\end{lstlisting}
+Both run in a temporary working directory. Missing executables, timeout,
+nonzero exit status or nonempty stderr are reported as errors. The production
+wrapper captures complete stdout in Python; selecting TFORM does not make
+parsing, projection or database writes threaded.
+
+Full-index and Coulomb-index/PE/PL entry points propagate
+\code{form_threads=1} and \code{tform_executable="tform"}. The full-index and
+database-index CLIs expose \code{--form-threads} and
+\code{--tform-executable}, alongside the existing FORM path and timeout.
+For example, from the project root:
+\begin{lstlisting}[language=bash]
+sage -python -m index.n2_theory_index theory.json \
+  --order 18 --form-threads 32 --tform-executable tform \
+  --processes 1 --char-cache-database /tmp/characters.db \
+  --form-cache-database /tmp/expansions.db
+\end{lstlisting}
+Use a new empty FORM cache when measuring an expansion. The raw program is
+the cache key and does not include the engine, its version or thread count.
+A hit can therefore reuse a prior engine's parsed result without running
+TFORM. Stored-sector reuse can bypass the expansion too.
+
+\textbf{Two levels of parallelism.} The index coordinator uses the saved CPU
+budget $P$ and FORM worker count $T$ together. For $C>0$ selected theories:
+\[
+ W_{\rm index}=\min\!\left(C,\max\!\left(1,
+                    \left\lfloor P/T\right\rfloor\right)\right).
+\]
+Here CPU cores \code{-1} resolves to the logical CPU count, or one if unavailable.
+On a 32-CPU host, $T=1,8,32$ gives at most $32,4,1$ simultaneous theory workers.
+If $T>P$, one theory still runs with the requested $T$ threads; the setting
+does not silently clamp TFORM. Each theory worker keeps inner LiE/character
+work at one process. Anomaly enumeration and CSV export use their own CPU
+allocation rules. These are implementation contracts, not mathematical identities.
+
+\textbf{Memory and scope.} A single expansion with many TFORM workers can still
+consume several GiB. Requested workers and observed OS thread counts differ;
+the recorded 32-worker runs reached up to 63 OS threads. The measured RSS is
+the complete TFORM process, excluding the Sage parent, page cache and later
+parsing/projection. The controls allow concentrating CPU work on one index;
+they do not establish a RAM bound.
+
+\textbf{Recorded checks, 16 September.} Connected/disconnected full indices,
+fractional Coulomb PE/PL, engine-independent cache reuse, settings reload and
+worker allocation were checked in the implementation run: 340 passed, 38
+skipped. See \code{test/test_form_threads.py}. The measurements on the next
+pages are separate one-run-per-theory experiments, not those regression tests.
+
+\clearpage
+\sessionheading{TFORM benchmark: 16 repeated timeout failures}
+\label{sec:tform-repeated}
+Measured 16 September 2026 on an AMD Ryzen 9 7950X (32 logical CPUs, 30.5 GiB
+RAM), with TFORM 5.0.0. The user selected the 16 cases that timed out again in
+\code{log_index_20260916_131926_021494.log}. All have one connected gauge sector.
+Each case ran separately through $t^{18}$ using the production degree-bounded
+generator, \code{tform -w32}, and a 600-second expansion limit.
+
+GNU time measured startup, expansion and complete text output to a local file.
+Compression happened afterward. These times exclude Sage preparation,
+output parsing, LiE projection, final polynomial construction, cache operations
+and MySQL writes. No existing database or cache was modified.
+
+{\small
+\begin{center}
+\begin{tabular}{rlrrr}
+\toprule Theory ID & Gauge group & TFORM (s) & RSS (GiB) & Retry timeout (s)\\\midrule
+20036 & $SU(4)\times SU(5)$ & 24.32 & 7.19 & 122.86\\
+20037 & $SU(4)\times SU(5)$ & 24.45 & 7.19 & 122.88\\
+20150 & $SU(4)\times SU(6)$ & 23.94 & 7.19 & 123.52\\
+20168 & $SU(4)\times SU(6)$ & 24.32 & 7.19 & 121.50\\
+20517 & $SU(5)\times SU(5)$ & 37.69 & 8.84 & 121.61\\
+20535 & $SU(5)\times SU(5)$ & 38.33 & 8.84 & 121.32\\
+20631 & $SU(5)\times SU(6)$ & 37.79 & 8.84 & 121.91\\
+20632 & $SU(5)\times SU(6)$ & 37.58 & 8.84 & 122.61\\
+20641 & $SU(5)\times SU(6)$ & 24.64 & 7.18 & 122.79\\
+20643 & $SU(5)\times SU(6)$ & 24.92 & 7.19 & 122.06\\
+20651 & $SU(5)\times SU(6)$ & 25.46 & 7.26 & 122.20\\
+20658 & $SU(5)\times SU(6)$ & 25.47 & 7.25 & 122.50\\
+20668 & $SU(5)\times SU(6)$ & 24.76 & 7.18 & 121.60\\
+20671 & $SU(5)\times SU(6)$ & 24.74 & 7.18 & 121.63\\
+22470 & $SU(11)\times SU(11)$ & 37.55 & 8.84 & 122.87\\
+22475 & $SU(11)\times SU(11)$ & 37.46 & 8.83 & 122.92\\
+\bottomrule
+\end{tabular}
+\end{center}}
+All 16 expansions completed successfully: 23.94--38.33 s each, median across
+theories 25.19 s, total 473.42 s; maximum RSS 8.84 GiB. The original log ran
+32 theories concurrently. Its start-to-error intervals are censored and
+include preparation/scheduling; their quotient with isolated TFORM time is
+not a controlled FORM speedup.
+
+Success required zero exit status, empty stderr and complete printed output.
+Two pairs with identical raw programs had identical complete outputs
+(20517/22475 and 20535/22470). Every large case was not compared against
+serial FORM, and no complete gauge projection was benchmarked here.
+
+\textbf{Evidence.}
+\code{output/benchmarks/tform32_repeated_timeouts_20260916/}
+contains \code{report.md}, input/log evidence, machine-readable measurements,
+the benchmark script, generated programs, hashes and compressed outputs.
+The script overwrites its own output directory; copy it and change its output
+path before an independent repeat.
+
+\clearpage
+\sessionheading{TFORM benchmark: random recovered cases and save-time ratios}
+\label{sec:tform-recovered}
+The initial run \code{log_index_20260916_130305_574084.log} had 210 FORM
+timeouts. Later logs at 13:19:26 and 13:52:04 contained explicit full-index
+saved messages for 51 of them. A uniform draw without replacement selected
+16 before inspecting their complexity:
+\begin{lstlisting}[language=Python]
+random.Random(3329612950807171883).sample(sorted(eligible_ids), 16)
+\end{lstlisting}
+The seed was drawn once from OS randomness. Conditions matched the preceding
+benchmark: one connected theory at a time, $t^{18}$, \code{-w32}, no FORM-cache
+reuse, one observation per theory, and complete output written to a local file.
+
+{\small
+\begin{center}
+\begin{tabular}{rlrrrrr}
+\toprule ID & Gauge group & TFORM s & Save s & Ratio \% & Save/TFORM & GiB\\\midrule
+19704 & $SU(3)\times SU(4)$ & 9.00 & 142.23 & 6.33 & 15.80 & 3.55\\
+19726 & $SU(3)\times SU(5)$ & 14.96 & 147.70 & 10.13 & 9.87 & 5.49\\
+19739 & $SU(3)\times SU(5)$ & 14.96 & 76.92 & 19.45 & 5.14 & 5.49\\
+19749 & $SU(3)\times SU(5)$ & 14.90 & 105.61 & 14.11 & 7.09 & 5.50\\
+19794 & $SU(3)\times SU(6)$ & 9.50 & 270.95 & 3.51 & 28.52 & 3.65\\
+19920 & $SU(4)\times SU(4)$ & 9.23 & 251.74 & 3.67 & 27.27 & 3.56\\
+20062 & $SU(4)\times SU(5)$ & 9.48 & 701.20 & 1.35 & 73.97 & 3.66\\
+20063 & $SU(4)\times SU(5)$ & 9.65 & 251.11 & 3.84 & 26.02 & 3.66\\
+20109 & $SU(4)\times SU(6)$ & 9.01 & 304.90 & 2.96 & 33.84 & 3.56\\
+20113 & $SU(4)\times SU(6)$ & 9.17 & 117.40 & 7.81 & 12.80 & 3.55\\
+20155 & $SU(4)\times SU(6)$ & 9.38 & 106.25 & 8.83 & 11.33 & 3.65\\
+20230 & $SU(4)\times SU(7)$ & 15.07 & 148.71 & 10.13 & 9.87 & 5.50\\
+20591 & $SU(5)\times SU(6)$ & 14.95 & 122.91 & 12.16 & 8.22 & 5.49\\
+20611 & $SU(5)\times SU(6)$ & 9.33 & 91.99 & 10.14 & 9.86 & 3.61\\
+20620 & $SU(5)\times SU(6)$ & 15.10 & 180.11 & 8.38 & 11.93 & 5.47\\
+22459 & $SU(11)\times SU(11)$ & 15.22 & 645.29 & 2.36 & 42.40 & 5.50\\
+\bottomrule
+\end{tabular}
+\end{center}}
+Let $T_{\rm TFORM}$ be the isolated expansion wall time and $T_{\rm save}$
+the historical interval from calculation start to the explicit full-index
+saved log line. The report uses unrounded times:
+\[
+ r=100\,T_{\rm TFORM}/T_{\rm save},\qquad
+ q=T_{\rm save}/T_{\rm TFORM}.
+\]
+All 16 succeeded: 9.00--15.22 s, total 188.91 s, median across theories
+9.575 s; RSS 3.55--5.50 GiB. Here $r=1.35$--$19.45\%$ and
+$q=5.14$--$73.97$. The later save interval includes the whole calculation
+and database save with 16 or 32 concurrent theories. The table compares
+different workloads and concurrency conditions; $q$ is not a measured
+speedup of FORM or the complete index calculation.
+
+\textbf{Evidence.}
+\code{output/benchmarks/tform32_recovered_random16_20260916/}
+retains the selection/population, original log lines, raw programs, output
+hashes, compressed outputs, measurements and ratio-bearing \code{report.md}.
+Neither benchmark was rerun for the 19 September documentation update.
