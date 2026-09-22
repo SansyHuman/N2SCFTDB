@@ -186,8 +186,8 @@ def split_disconnected_sectors(
             graph.add_edges_from((support[0], other) for other in support[1:])
         supported_hypers.append((hyper, support))
 
-    # Preserve input factor order both within and between components, matching
-    # the database's existing ordered-factor canonical identity.
+    # Preserve input factor order within and between components for sector
+    # metadata; database identity independently canonicalizes factor order.
     components = sorted(nx.connected_components(graph),
                         key=lambda component: min(i for i, factor in enumerate(factors)
                                                   if factor.factor_id in component))

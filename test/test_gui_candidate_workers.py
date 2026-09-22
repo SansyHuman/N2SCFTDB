@@ -317,20 +317,37 @@ class ParallelMySQLTests(unittest.TestCase):
     def test_simultaneous_equivalent_imports_have_one_winner_without_orphans(self):
         full = {"algebra": "A1", "hypermultiplets": [{"dynkin_labels": [1], "number": 4, "kind": "full"}]}
         half = {"algebra": "A1", "hypermultiplets": [{"dynkin_labels": [1], "number": 8, "kind": "half"}]}
+        self.assert_concurrent_duplicates(full, half)
+
+    def test_simultaneous_triality_images_have_one_winner_without_orphans(self):
+        vector = {"algebra": "D4", "hypermultiplets": [{"representation": "vector", "number": 6}]}
+        spinor = {"algebra": "D4", "hypermultiplets": [{"representation": "spinor", "number": 6}]}
+        self.assert_concurrent_duplicates(vector, spinor)
+
+    def test_simultaneous_factor_permutations_have_one_winner_without_orphans(self):
+        from test.test_factor_permutations import MIXED_PRODUCT, reordered
+        self.assert_concurrent_duplicates(
+            MIXED_PRODUCT, reordered(MIXED_PRODUCT, (1, 0), rename=True),
+            gauge_factors=2, hypermultiplets=3,
+        )
+
+    def assert_concurrent_duplicates(self, first, second, *, gauge_factors=1, hypermultiplets=1):
         spawn = get_context("spawn")
         with spawn.Manager() as manager:
             barrier = manager.Barrier(2)
             with ProcessPoolExecutor(max_workers=2, mp_context=spawn) as executor:
                 futures = [executor.submit(_race_import, MYSQL_TEST_DATABASE, self.options, data, barrier)
-                           for data in (full, half)]
+                           for data in (first, second)]
                 results = [future.result(timeout=60) for future in futures]
         self.connection_ids.extend([connection_id for _, _, connection_id in results])
         self.assertEqual(sum(stored["inserted"] for stored, _, _ in results), 1)
         self.assertEqual(len({stored["theory_id"] for stored, _, _ in results}), 1)
         self.assertEqual(len({pid for _, pid, _ in results}), 2)
         self.assertEqual(len({connection_id for _, _, connection_id in results}), 2)
-        for table in ("theories", "theory_properties", "lagrangian_realizations", "gauge_factors", "hypermultiplets"):
+        for table in ("theories", "theory_properties", "lagrangian_realizations"):
             self.assertEqual(self.count(table), 1, table)
+        self.assertEqual(self.count("gauge_factors"), gauge_factors)
+        self.assertEqual(self.count("hypermultiplets"), hypermultiplets)
         self.assert_workers_disconnected()
 
     def test_distinct_new_theories_do_not_deadlock_on_missing_properties(self):
@@ -388,14 +405,19 @@ class ParallelMySQLTests(unittest.TestCase):
              patch.object(cache, "build_decomposition_cache") as build:
             parallel = theory_builder.run_build("A1\nA1,A1", settings, True, log)
         self.assertEqual(parallel, serial)
-        self.assertEqual(parallel["added"], 10)
+        # Two A1 candidates plus eight labelled A1 x A1 candidates. Two
+        # pairs of product candidates differ only by exchanging the factors.
+        self.assertEqual((parallel["candidates"], parallel["valid"]), (10, 10))
+        self.assertEqual((parallel["added"], parallel["existing"]), (8, 2))
         self.assertEqual(parallel["errors"], 0, logs)
         self.assertEqual({call.args[:2] for call in build.call_args_list}, serial_reps)
         self.assertGreaterEqual(len(pids), 2)
         self.assertNotIn(coordinator, pids)
         repeated = theory_builder.run_build("A1\nA1,A1", settings, False, log)
         self.assertEqual((repeated["added"], repeated["existing"], repeated["errors"]), (0, 10, 0), logs)
-        self.assertEqual(self.count("theories"), 10)
+        # Existing counts input candidates, not the number of unique DB rows.
+        self.assertEqual(self.count("theories"), 8)
+        self.assertEqual(self.count("lagrangian_realizations"), 8)
         self.assert_workers_disconnected()
 
     def test_parallel_candidates_include_duplicates_invalids_and_representation_union(self):

@@ -55,6 +55,26 @@ never access the configured MySQL database.
 current version and rejection of unsupported versions. Migration and backfill
 tests have been removed with their implementation.
 
+`test_outer_automorphisms.py` checks finite Dynkin symmetries, D4 triality,
+even-D spinor exchange, whole-factor actions on product matter, general Dynkin
+labels, full/half normalization and preservation of relative orientations.
+Its opt-in MySQL tests import all 29 D4 candidates into eight theories, preserve
+the first realization and indices, and recognize legacy hashes without modifying
+old rows. `test_gui_candidate_workers.py` also races independent imports of
+different triality images and checks that only one theory/realization is stored.
+
+`test_factor_permutations.py` covers different and repeated Cartan factors,
+combined permutations/triality/conjugation, and quivers with identical local
+signatures but different connectivity. MySQL cases verify reordered imports,
+legacy hashes, preserved original factor/sector data and stored-index reuse.
+The candidate-worker tests race two permutations of the same product theory
+and check that one theory/realization is committed without orphan rows.
+The `A1` plus `A1,A1` build fixture processes ten candidates but inserts eight
+theories: the eight labelled product candidates form six factor-swap orbits.
+Its first run reports eight added and two existing; a repeat reports zero added
+and ten existing, while the database still has eight rows. The in-memory build
+fixture uses the same canonical identity as real storage.
+
 `test_n2_theory_db_sectors.py` checks input factor IDs and shared-property
 comparisons. Its opt-in MySQL cases verify connected, disconnected and free-sector
 JSON storage, and preservation of the first realization's factor names when

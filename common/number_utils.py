@@ -1,7 +1,10 @@
 """Number conversion helpers."""
 
 import re
+from decimal import Decimal
 from fractions import Fraction
+from numbers import Rational
+from operator import index
 from typing import Any
 
 
@@ -9,8 +12,8 @@ EXACT_RATIONAL_TEXT_RE = re.compile(r"\+?\d+(?:/\d+)?\Z")
 
 
 def as_nonnegative_fraction(value: Any, field_name: str) -> Fraction:
-    """Return an exact nonnegative rational supplied without a float."""
-    if isinstance(value, bool) or isinstance(value, float):
+    """Accept exact rational numbers, finite Decimals, or integer/fraction text."""
+    if isinstance(value, bool) or not isinstance(value, (Rational, Decimal, str)):
         raise ValueError(
             f"{field_name} must be an exact nonnegative rational"
         )
@@ -24,18 +27,22 @@ def as_nonnegative_fraction(value: Any, field_name: str) -> Fraction:
         value = compact
 
     try:
-        result = Fraction(value)
-        if not isinstance(result.numerator, int) or not isinstance(
-            result.denominator, int
-        ):
-            result = Fraction(str(value))
-    except (TypeError, ValueError, ZeroDivisionError, OverflowError):
-        try:
-            result = Fraction(str(value))
-        except (TypeError, ValueError, ZeroDivisionError, OverflowError) as exc:
-            raise ValueError(
-                f"{field_name} must be an exact nonnegative rational"
-            ) from exc
+        if isinstance(value, Rational):
+            # Sage ZZ/QQ expose methods rather than Rational's properties.
+            # Convert their exact components, never a rounded display string.
+            numerator = value.numerator
+            denominator = value.denominator
+            if callable(numerator):
+                numerator = numerator()
+            if callable(denominator):
+                denominator = denominator()
+            result = Fraction(index(numerator), index(denominator))
+        else:
+            result = Fraction(value)
+    except (TypeError, ValueError, ZeroDivisionError, OverflowError) as exc:
+        raise ValueError(
+            f"{field_name} must be an exact nonnegative rational"
+        ) from exc
 
     if result < 0:
         raise ValueError(f"{field_name} must be nonnegative")
@@ -51,8 +58,8 @@ def as_positive_fraction(value: Any, field_name: str) -> Fraction:
 
 
 def as_integer(value: Any, field_name: str) -> int:
-    """Return an exact integer without accepting booleans or floats."""
-    if isinstance(value, bool) or isinstance(value, float):
+    """Return an integer from an exact rational number or finite Decimal."""
+    if isinstance(value, bool) or not isinstance(value, (Rational, Decimal)):
         raise ValueError(f"{field_name} must be an integer")
     try:
         result = int(value)

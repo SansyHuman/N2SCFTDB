@@ -1,6 +1,100 @@
 # N2SCFTDB Project Handoff
 
-Last updated: **2026-09-21 (Asia/Seoul)**.
+Last updated: **2026-09-22 (Asia/Seoul)**.
+
+## Product-factor permutation identity (22 September 2026)
+
+Database identity now ignores gauge-factor order as well as factor IDs. The
+canonicalizer considers the combined orbit of product-factor permutations and
+each factor's diagram automorphisms, moving each algebra together with its full
+column of matter labels. Repeated identical algebras are handled by the complete
+matter configuration, including quiver connectivity, rather than by sorting local
+signatures. Identical complete columns are permuted only once.
+
+The canonical payload selects the least algebra sequence ordered by family and
+numeric rank, then the greatest normalized whole-matter tuple. Per-hyper
+simultaneous conjugation is reapplied after reordering; multiplicities, full/half
+normalization, singlets and zero-removal retain their previous meaning. Simple
+theory hashes remain unchanged from the outer-automorphism rule below.
+
+New imports of reordered theories return one theory/realization, including
+concurrent imports. Legacy lookup covers both earlier ordered-factor hashes and
+their diagram images, without schema changes or data migration. Existing
+duplicate rows remain untouched and resolve to the earliest realization on
+import. Index reuse searches all equivalent hashes with the existing cutoff
+rules. The first stored input order, factor IDs, sector metadata, flavor labels,
+display name and indices are preserved; this change does not reorder stored
+realization rows or alter enumeration/GUI grouping.
+
+Validation: the full offscreen suite ran **459 tests: 408 passed, 51 skipped**
+in 38.154 seconds with opt-in MySQL integrations disabled. Focused verification
+on the isolated MySQL 8.0.46 server covered 82 distinct tests, including three
+concurrent-import races. A new fixture assertion was corrected to use dictionary
+cursor keys; its four-test MySQL class then passed in 3.035 seconds. All other
+focused tests passed on the first run. Cases cover every ordering of a four-node
+SU(2) quiver, a six-cycle versus two triangles with the same local signatures,
+combined triality/permutation/full-half equivalences, old reversed hashes and
+preservation of first-realization data. The configured user database was not
+accessed, and the temporary server was shut down. PDFs were not rebuilt.
+
+**Follow-up build-count regression:** the full live-MySQL run exposed a stale
+expectation of ten inserts for `A1` plus `A1,A1`. Enumeration still returns ten
+candidates, but the eight labelled product candidates form six factor-swap
+orbits. The correct first-run counters are eight added and two existing; a repeat
+reports zero added and ten existing, with eight theory/realization rows retained.
+The integration assertion and the GUI build test's in-memory storage fixture now
+use these semantics. A non-MySQL regression checks the product orbit sizes
+`[1, 1, 1, 1, 2, 2]`.
+
+Final validation reran the entire discovered suite with live MySQL enabled on
+the isolated temporary server, using a password-protected account restricted to
+its test database: **460 tests passed, zero failures/errors/skips, in 83.900
+seconds**. This includes the previously skipped parallel build/cache-union test.
+No application runtime code changed for this test correction, and the configured
+user database was not accessed.
+
+## Outer-automorphism database identity (22 September 2026)
+
+Database imports now identify complete matter configurations under every finite
+Dynkin-diagram automorphism of each gauge factor. This includes D4 triality,
+even-D spinor exchange, and independent conjugation of whole A/D/E6 factors in
+product groups. A single transformation acts on all hypers charged under that
+factor; individual irreps are not independently replaced by diagram-orbit
+representatives. Thus 6v/6s/6c in D4 share one identity, while 3v+3s remains
+distinct. The 29 generated D4 candidates give eight stored theory identities.
+
+`anomalies.lie_algebra.diagram_automorphisms` caches node permutations preserving
+the directed, edge-labelled finite diagram. The database canonicalizer selects
+the lexicographically greatest normalized whole-matter tuple, retaining existing
+per-hyper simultaneous conjugation, multiplicity aggregation and pseudoreal
+full/half pairing. Product-factor permutations are now included by the update
+above. Enumeration and representation/flavor calculations retain their
+original representation labels and candidate sets.
+
+All new imports in an orbit share one SHA-256 hash and the existing unique
+database keys. Reimports return the original theory/realization without writes,
+including concurrent imports of different orbit members. `StoredTheory` returns
+the current canonical hash; for an old row this can differ from its stored hash.
+
+Import and read-only stored-index lookups also recognize the former normalized
+hash of every diagram image. This permits reuse of existing schema-1 rows without
+a schema change or data migration. If old duplicate rows already exist, imports
+return the earliest realization; index lookup selects the highest sufficiently
+precise stored string index. Existing duplicate rows are not merged or deleted.
+First-realization inputs, factor IDs, flavor metadata and index cutoffs are
+preserved. The older smaller-conjugate and pre-full/half hash conventions remain
+outside this compatibility lookup.
+
+These equivalences assume the existing simply connected gauge-group model;
+global quotients and line-operator data are not represented.
+
+Validation: the full offscreen suite ran **447 tests: 401 passed, 46 skipped**
+in 37.010 seconds with opt-in MySQL integrations disabled. A separate temporary
+MySQL 8.0.46 server, with networking disabled and its own data directory/socket,
+passed all **67 focused tests** in 13.259 seconds. Those tests include real
+imports, legacy hash/index reuse, preserved original data, different mixed-matter
+orbits, and simultaneous imports from separate processes. The configured user
+database was not accessed. Canonical PDFs were not rebuilt for this change.
 
 ## Search order/sector filters and sector CSV fields (21 September 2026)
 
@@ -2309,7 +2403,8 @@ Temporary copies of the first paper were downloaded as
 - Avoid the duplicate anomaly-check call in the database/property path.
 - Imports no longer calculate indices. A future optimization could avoid
   repeated basic checks on the duplicate path while preserving validation.
-- Make the canonical hash invariant under product-factor permutations.
+- Product-factor permutation invariance is implemented by the 22 September
+  database-identity update above; historical duplicate rows are not merged.
 - Add automatic or assisted identification of dual Lagrangian realizations.
 - Live MySQL concurrency tests now run on an isolated server; expand workload
   coverage when new storage behavior or unexplained contention justifies it.

@@ -1,6 +1,5 @@
 """Build orchestration checks with real Sage enumeration and isolated storage."""
 
-import json
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -37,7 +36,8 @@ class TheoryBuilderTests(unittest.TestCase):
         self.seen = set()
 
         def store(connection, candidate, **kwargs):
-            key = json.dumps(candidate, sort_keys=True)
+            # Match real database identity, including factor permutations.
+            key = database._canonical_hash(check_input_data(candidate))
             inserted = key not in self.seen
             self.seen.add(key)
             return SimpleNamespace(inserted=inserted, theory_id=len(self.seen))
@@ -68,8 +68,8 @@ class TheoryBuilderTests(unittest.TestCase):
         self.assertEqual(result["candidates"], 12)
         self.assertEqual(result["valid"], 12)
         self.assertEqual(result["invalid"], 0)
-        self.assertEqual(result["added"], 10)
-        self.assertEqual(result["existing"], 2)
+        self.assertEqual(result["added"], 8)
+        self.assertEqual(result["existing"], 4)
         self.assertEqual(result["errors"], 0)
         self.connect.assert_called_once_with(
             "isolated_test", host="db.invalid", port=3310, user="test_user",

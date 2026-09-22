@@ -40,7 +40,7 @@ def search_index_jobs(settings, emit_job, log):
             factors = ([data["algebra"]] if "algebra" in data else
                        [factor["algebra"] for factor in data["gauge_groups"]])
             algebras = [get_lie_algebra(factor) for factor in factors]
-            # Preserve factor order, as the existing DB canonicalization does.
+            # Display the first stored realization's original factor order.
             group = {
                 "algebras": [algebra.cartan_type for algebra in algebras],
                 "label": " × ".join(algebra.group for algebra in algebras),

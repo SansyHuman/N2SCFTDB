@@ -15,15 +15,17 @@ theory later. Initial imports store only basic properties. Run
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from dataclasses import asdict, dataclass
 from fractions import Fraction
 import hashlib
+from itertools import product
 import json
 import os
 from pathlib import Path
 import sys
 import time
-from typing import Any
+from typing import Any, Iterator
 
 import pymysql
 from pymysql.connections import Connection
@@ -51,7 +53,7 @@ from anomalies.check_n2_anomalies import (
     ProductHyperData,
     check_input_data,
 )
-from anomalies.lie_algebra import conjugate_dynkin_labels
+from anomalies.lie_algebra import conjugate_dynkin_labels, diagram_automorphisms
 
 
 SCHEMA_VERSION = 1
@@ -461,7 +463,7 @@ def _canonical_representation(
     return max(labels, conjugate)
 
 
-def _canonical_lagrangian_payload(
+def _normalized_lagrangian_payload(
     anomaly_result: dict[str, Any],
 ) -> dict[str, Any]:
     """Identify conjugates and pair pseudoreal half hypers into full hypers.
@@ -531,11 +533,105 @@ def _canonical_lagrangian_payload(
     }
 
 
-def _canonical_hash(anomaly_result: dict[str, Any]) -> str:
-    payload = _json_text(
-        _canonical_lagrangian_payload(anomaly_result), canonical=True
+def _distinct_factor_orders(columns: tuple[tuple, ...]) -> Iterator[tuple]:
+    """Permute complete factor columns without repeating identical columns."""
+    counts = Counter(columns)
+
+    def orders(prefix):
+        if len(prefix) == len(columns):
+            yield prefix
+            return
+        for column, count in counts.items():
+            if count:
+                counts[column] -= 1
+                yield from orders((*prefix, column))
+                counts[column] += 1
+
+    yield from orders(())
+
+
+def _lagrangian_payload_orbit(
+    anomaly_result: dict[str, Any],
+) -> Iterator[dict[str, Any]]:
+    """Yield normalized images under diagram and product-factor permutations.
+
+    Prefer the least algebra sequence in (family, rank) order, then the
+    greatest whole-matter tuple. Include other sequences for legacy lookups.
+
+    One automorphism acts on EVERY hyper of a gauge factor. Independently
+    identifying each irrep's diagram orbit would lose relative orientations.
+    Duality commutes with diagram automorphisms, so the initial aggregation
+    and pseudoreal full/half pairing remain valid in every image.
+    """
+    payload = _normalized_lagrangian_payload(anomaly_result)
+    algebras = payload["gauge_algebras"]
+    hypers = payload["hypermultiplets"]
+    factor_images = []
+    for factor, algebra in enumerate(algebras):
+        labels = [tuple(h["dynkin_labels"][factor]) for h in hypers]
+        duals = [conjugate_dynkin_labels(algebra, row) for row in labels]
+        # Inactive symmetries (e.g. for adjoint-only matter) need one image.
+        factor_images.append({
+            tuple(
+                (tuple(row[i] for i in permutation),
+                 tuple(dual[i] for i in permutation))
+                for row, dual in zip(labels, duals)
+            )
+            for permutation in diagram_automorphisms(algebra)
+        })
+
+    keys_by_algebras = {}
+    for images in product(*factor_images):
+        # Move the algebra and ALL its matter labels together. Repeated
+        # algebras need the full orbit: local signatures cannot resolve every
+        # tie or distinguish different quiver connectivity.
+        for columns in _distinct_factor_orders(tuple(zip(algebras, images))):
+            ordered_algebras = tuple(algebra for algebra, _ in columns)
+            rows = []
+            for position, hyper in enumerate(hypers):
+                labels = tuple(image[position][0] for _, image in columns)
+                dual = tuple(image[position][1] for _, image in columns)
+                # The preferred simultaneous conjugate can change on reorder.
+                rows.append((hyper["kind"], max(labels, dual), hyper["number"]))
+            keys_by_algebras.setdefault(ordered_algebras, set()).add(tuple(sorted(rows)))
+
+    for algebras in sorted(keys_by_algebras, key=lambda row: tuple(
+        (algebra[0], int(algebra[1:])) for algebra in row
+    )):
+        for key in sorted(keys_by_algebras[algebras], reverse=True):
+            yield {
+                "gauge_algebras": list(algebras),
+                "hypermultiplets": [
+                    {"kind": kind, "dynkin_labels": [list(row) for row in labels],
+                     "number": number}
+                    for kind, labels, number in key
+                ],
+            }
+
+
+def _canonical_lagrangian_payload(anomaly_result: dict[str, Any]) -> dict[str, Any]:
+    """Canonicalize the whole theory under factor permutations and diagram symmetries.
+
+    Factor IDs, gauge-factor order and matter order do not affect identity.
+    """
+    return next(_lagrangian_payload_orbit(anomaly_result))
+
+
+def _canonical_hashes(anomaly_result: dict[str, Any]) -> tuple[str, ...]:
+    """Return the canonical hash first, followed by equivalent legacy hashes.
+
+    Each image uses the former conjugation/full-half payload format. Looking
+    up every factor ordering and diagram image recognizes schema-1 rows without
+    rewriting their hashes, representations, indices or first-realization IDs.
+    """
+    return tuple(
+        hashlib.sha256(_json_text(payload, canonical=True).encode("utf-8")).hexdigest()
+        for payload in _lagrangian_payload_orbit(anomaly_result)
     )
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _canonical_hash(anomaly_result: dict[str, Any]) -> str:
+    return _canonical_hashes(anomaly_result)[0]
 
 
 def find_superconformal_index(
@@ -547,11 +643,11 @@ def find_superconformal_index(
 ) -> str | None:
     """Read a sufficiently precise index for validated internal theory data.
 
-    Match the existing canonical Lagrangian identity (factor IDs are ignored,
-    factor order is retained). SQL NULL, JSON null and unknown/lower cutoffs
-    are cache misses. This lookup neither initializes the schema nor changes
-    data or the caller's transaction. Pure free sectors have no stored gauge
-    realization and are calculated directly.
+    Match every factor permutation and outer-automorphism image, including
+    legacy hashes. Factor IDs and order are ignored. SQL NULL, JSON null and
+    unknown/lower cutoffs are cache misses. This lookup neither initializes
+    the schema nor changes data or the caller's transaction. Pure free sectors
+    have no stored gauge realization and are calculated directly.
     """
     order = as_nonnegative_int(order, "order")
     if not factors:
@@ -563,14 +659,18 @@ def find_superconformal_index(
         anomaly_result = {"gauge_factors": [{"id": f.factor_id, "algebra": f.algebra.cartan_type}
                                             for f in factors],
                           "hypermultiplets": hypermultiplets}
-    row = _fetchone(connection, """
+    hashes = _canonical_hashes(anomaly_result)
+    placeholders = ", ".join(["%s"] * len(hashes))
+    row = _fetchone(connection, f"""
         SELECT p.superconformal_index_json
         FROM lagrangian_realizations AS lr
         JOIN theory_properties AS p ON p.theory_id = lr.theory_id
-        WHERE lr.canonical_hash = %s
+        WHERE lr.canonical_hash IN ({placeholders})
           AND p.superconformal_index_order >= %s
           AND JSON_TYPE(p.superconformal_index_json) = 'STRING'
-    """, (_canonical_hash(anomaly_result), order))
+        ORDER BY p.superconformal_index_order DESC, lr.id
+        LIMIT 1
+    """, (*hashes, order))
     if row is None:
         return None
     return json.loads(row["superconformal_index_json"])
@@ -1012,11 +1112,14 @@ def _insert_hyper_representation(
     )
 
 
-def _find_stored_realization(connection, canonical_hash, theory_id):
+def _find_stored_realization(
+    connection: Connection, canonical_hashes: tuple[str, ...], theory_id: int | None,
+) -> StoredTheory | None:
     """Read a committed duplicate, including one inserted by a concurrent client."""
+    placeholders = ", ".join(["%s"] * len(canonical_hashes))
     existing = _fetchone(
         connection,
-        """
+        f"""
         SELECT
             lr.id AS realization_id,
             lr.theory_id,
@@ -1024,9 +1127,11 @@ def _find_stored_realization(connection, canonical_hash, theory_id):
             t.name
         FROM lagrangian_realizations AS lr
         JOIN theories AS t ON t.id = lr.theory_id
-        WHERE lr.canonical_hash = %s
+        WHERE lr.canonical_hash IN ({placeholders})
+        ORDER BY lr.id
+        LIMIT 1
         """,
-        (canonical_hash,),
+        canonical_hashes,
     )
     if existing is not None:
         if theory_id is not None and theory_id != existing["theory_id"]:
@@ -1040,7 +1145,7 @@ def _find_stored_realization(connection, canonical_hash, theory_id):
             inserted=False,
             name=str(existing["name"]),
             gauge_group=str(existing["gauge_group"]),
-            canonical_hash=canonical_hash,
+            canonical_hash=canonical_hashes[0],
         )
     return None
 
@@ -1062,11 +1167,15 @@ def store_lagrangian_theory(
     locks between independent imports. Existing shared properties remain locked
     while comparing or merging data for an attached realization.
 
-    Reimporting the same normalized Lagrangian realization is idempotent, even
-    across concurrent connections. A unique-key race rolls back the losing
+    Reimporting any factor permutation or outer-automorphism image is idempotent,
+    even across concurrent connections. A unique-key race rolls back the losing
     transaction and returns the committed winner with inserted=False. Deadlocks
     and lock timeouts retry the whole rolled-back transaction up to two times.
     Other failures, including ambiguous connection/commit failures, propagate.
+
+    Legacy hashes in the same combined orbit are recognized without migration.
+    If old duplicates exist, return the earliest realization; do not merge or
+    delete their stored data. Returned canonical_hash uses the current rule.
 
     Set theory_id to attach a new realization to an existing shared theory.
     Use initialize_schema=False in workers after serial schema initialization.
@@ -1076,7 +1185,8 @@ def store_lagrangian_theory(
     if initialize_schema:
         initialize_database(connection)
     anomaly_result, properties = _checked_results(data)
-    canonical_hash = _canonical_hash(anomaly_result)
+    canonical_hashes = _canonical_hashes(anomaly_result)
+    canonical_hash = canonical_hashes[0]
 
     theory_name = (
         name.strip()
@@ -1084,7 +1194,7 @@ def store_lagrangian_theory(
         else f"{anomaly_result['group']} Lagrangian SCFT"
     )
     for attempt in range(3):
-        existing = _find_stored_realization(connection, canonical_hash, theory_id)
+        existing = _find_stored_realization(connection, canonical_hashes, theory_id)
         if existing is not None:
             return existing
         connection.begin()
@@ -1121,7 +1231,7 @@ def store_lagrangian_theory(
                 ) from exc
             code = exc.args[0] if exc.args else None
             if isinstance(exc, pymysql.IntegrityError) and code == 1062:
-                existing = _find_stored_realization(connection, canonical_hash, theory_id)
+                existing = _find_stored_realization(connection, canonical_hashes, theory_id)
                 if existing is not None:
                     return existing
             if isinstance(exc, pymysql.OperationalError) and code in (1205, 1213) and attempt < 2:

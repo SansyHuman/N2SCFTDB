@@ -142,14 +142,14 @@ class TheoryDatabaseUnitTests(unittest.TestCase):
                     hashes.add(database._canonical_hash(checked))
             self.assertEqual(len(hashes), 1)
 
-    def test_product_conjugate_hashes_preserve_distinct_bifundamentals(self):
+    def test_product_hashes_identify_whole_factor_conjugation(self):
         fundamental, antifundamental = (1, 0), (0, 1)
         hashes_by_representation = {}
         for left, right, expected in (
             (fundamental, fundamental, (fundamental, fundamental)),
             (antifundamental, antifundamental, (fundamental, fundamental)),
-            (fundamental, antifundamental, (fundamental, antifundamental)),
-            (antifundamental, fundamental, (fundamental, antifundamental)),
+            (fundamental, antifundamental, (fundamental, fundamental)),
+            (antifundamental, fundamental, (fundamental, fundamental)),
         ):
             with self.subTest(left=left, right=right):
                 checked = database.check_input_data({
@@ -170,9 +170,9 @@ class TheoryDatabaseUnitTests(unittest.TestCase):
                 hashes_by_representation.setdefault(expected, set()).add(
                     database._canonical_hash(checked)
                 )
-        self.assertEqual(len(hashes_by_representation), 2)
+        self.assertEqual(len(hashes_by_representation), 1)
         self.assertTrue(all(len(hashes) == 1 for hashes in hashes_by_representation.values()))
-        self.assertEqual(len(set().union(*hashes_by_representation.values())), 2)
+        self.assertEqual(len(set().union(*hashes_by_representation.values())), 1)
 
     def test_schema_uses_mysql_types_and_innodb(self):
         self.assertIn("AUTO_INCREMENT", database.SCHEMA_SQL)

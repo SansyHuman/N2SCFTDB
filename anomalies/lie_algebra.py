@@ -160,6 +160,31 @@ def _coerce_algebra(algebra: SimpleLieAlgebra | str) -> SimpleLieAlgebra:
     return get_lie_algebra(algebra)
 
 
+def diagram_automorphisms(
+    algebra: SimpleLieAlgebra | str,
+) -> tuple[tuple[int, ...], ...]:
+    """Return all finite Dynkin-diagram symmetries in Sage node order.
+
+    Each tuple permutes zero-based positions: apply it with
+    ``tuple(labels[i] for i in permutation)``. Edge directions and labels
+    are retained, so long and short roots cannot be exchanged. These are
+    outer automorphisms of the simply connected group, not irrep duality.
+    """
+    return _diagram_automorphisms(_coerce_algebra(algebra).cartan_type)
+
+
+@lru_cache(maxsize=None)
+def _diagram_automorphisms(cartan_type: str) -> tuple[tuple[int, ...], ...]:
+    cartan = CartanType(cartan_type)
+    nodes = tuple(cartan.index_set())
+    positions = {node: i for i, node in enumerate(nodes)}
+    group = cartan.dynkin_diagram().automorphism_group(edge_labels=True)
+    return tuple(sorted(
+        tuple(positions[permutation(node)] for node in nodes)
+        for permutation in group
+    ))
+
+
 def validate_dynkin_labels(
     algebra: SimpleLieAlgebra | str, labels: Iterable[Any]
 ) -> DynkinLabels:
