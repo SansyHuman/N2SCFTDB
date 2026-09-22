@@ -12,7 +12,7 @@ from common import n2_theory_db as database
 from common import n2_theory_iter as theories
 from common import n2_theory_properties as properties
 from gui.theory_builder import run_build, theory_representations
-from gui.candidate_workers import process_candidates
+from gui.group_workers import process_groups
 from index import char_decomposition_cache as cache
 
 
@@ -45,9 +45,9 @@ class TheoryBuilderTests(unittest.TestCase):
         self.store.side_effect = store
         # These orchestration fixtures use in-memory storage. Real spawned
         # workers and concurrent MySQL imports are covered in candidate tests.
-        def serial_dispatch(candidates, label, processes, *args):
-            return process_candidates(candidates, label, 1, *args)
-        self.dispatch = patch("gui.theory_builder.process_candidates", side_effect=serial_dispatch).start()
+        def serial_dispatch(groups, processes, *args):
+            return process_groups(groups, 1, *args)
+        self.dispatch = patch("gui.theory_builder.process_groups", side_effect=serial_dispatch).start()
         self.logs = []
         self.records = []
 
@@ -138,7 +138,8 @@ class TheoryBuilderTests(unittest.TestCase):
             self.assertEqual(call.kwargs["timeout"], 31.0)
             self.assertEqual(call.kwargs["processes"], 3)
         self.assertEqual(result["cache_built"], len(expected))
-        self.assertTrue(all(call.args[2] == 3 for call in self.dispatch.call_args_list))
+        self.dispatch.assert_called_once()
+        self.assertEqual(self.dispatch.call_args.args[1], 3)
 
     def test_automatic_cores_resolve_at_build_start_including_legacy_settings(self):
         for configured, detected, expected in ((-1, 6, 6), (-1, None, 1), (None, 4, 4)):

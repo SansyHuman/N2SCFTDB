@@ -2,6 +2,47 @@
 
 Last updated: **2026-09-22 (Asia/Seoul)**.
 
+## Anomaly builds distribute complete gauge groups (22 September 2026)
+
+`gui.theory_builder` now calls `gui.group_workers.process_groups` once per
+build. One persistent spawned pool receives input gauge-group entries, with
+at most twice the worker count outstanding. Each task enumerates its own
+simple/product candidates, checks them sequentially, and imports valid SCFTs.
+Candidate lists stay inside their owner process. Workers take subsequent
+groups as they become available and reuse their private MySQL connections.
+The configured CPU count is capped at the number of input lines; one group
+uses one worker. A CPU setting of one runs serially in the coordinator.
+
+The coordinator initializes the schema before starting workers and consumes
+streamed per-group events for progress, counts and the representation union.
+A synchronous progress queue preserves sent results when a worker crashes;
+unknown database outcomes are reported without replaying the group. Stop
+cancels queued groups, lets active enumeration finish, stops between candidate
+checks/imports and drains completed results. Character-cache preparation starts
+after the group pool exits and still includes all valid representations,
+including existing theories and failed imports. Repeated input lines remain
+separate tasks; database canonicalization retains its existing deduplication.
+
+The older `gui.candidate_workers.process_candidates` helper remains available
+and tested, but the anomaly tab no longer calls it. Its candidate-check/import
+implementation and worker connection management are shared by the new scheduler.
+Earlier descriptions below of coordinator enumeration and a pool per group
+are superseded by this section.
+
+Focused validation passed **32 tests**, including live isolated MySQL checks
+for serial/parallel totals and cache unions, group process ownership, connection
+reuse, cancellation with committed-row accounting, and worker death. A small
+benchmark on `A1`, `A2`, `A1,A1`, `A1,A2` with three workers and fresh test tables
+compared the preceding implementation against the new one in separate Python
+processes (two runs each, cache preparation disabled). Mean build time fell
+from **3.71 s to 1.51 s**; both processed 21 valid candidates with 19 added,
+two existing and zero errors. This measures that workload, not a general
+speedup guarantee: an expensive single group cannot use multiple workers.
+
+Final validation: **467 tests passed, zero failures/errors/skips, in 84.396 s**
+with the complete offscreen suite and live MySQL integrations enabled on the
+isolated temporary server. The configured user database was not accessed.
+
 ## Product-factor permutation identity (22 September 2026)
 
 Database identity now ignores gauge-factor order as well as factor IDs. The

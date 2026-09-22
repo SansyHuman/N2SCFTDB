@@ -11,6 +11,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from gui import candidate_workers as workers
+from gui import group_workers
 from gui import theory_builder
 from common import n2_theory_db as database
 from common import n2_theory_iter as theories
@@ -235,6 +236,11 @@ def _initialize_tracked_worker(database_name, options, stopped, connection_ids):
     workers._initialize_worker(database_name, options, stopped)
 
 
+def _initialize_tracked_group_worker(database_name, options, stopped, events, connection_ids):
+    _record_connections(connection_ids).start()
+    group_workers._initialize_worker(database_name, options, stopped, events)
+
+
 MYSQL_TEST_DATABASE = os.environ.get("N2_TEST_MYSQL_DATABASE")
 
 
@@ -271,14 +277,20 @@ class ParallelMySQLTests(unittest.TestCase):
         self.addCleanup(recording.stop)
 
         def executor(**kwargs):
-            self.assertIs(kwargs["initializer"], workers._initialize_worker)
-            kwargs["initializer"] = _initialize_tracked_worker
+            if kwargs["initializer"] is workers._initialize_worker:
+                kwargs["initializer"] = _initialize_tracked_worker
+            else:
+                self.assertIs(kwargs["initializer"], group_workers._initialize_worker)
+                kwargs["initializer"] = _initialize_tracked_group_worker
             kwargs["initargs"] = (*kwargs["initargs"], self.connection_ids)
             return ProcessPoolExecutor(**kwargs)
 
         factory = patch.object(workers, "ProcessPoolExecutor", side_effect=executor)
         factory.start()
         self.addCleanup(factory.stop)
+        group_factory = patch.object(group_workers, "ProcessPoolExecutor", side_effect=executor)
+        group_factory.start()
+        self.addCleanup(group_factory.stop)
 
     def count(self, table):
         return database._fetchone(self.connection, f"SELECT COUNT(*) AS n FROM {table}")["n"]
@@ -378,7 +390,7 @@ class ParallelMySQLTests(unittest.TestCase):
                          "tools/lie_executable": "must-not-run", "tools/timeout": 1,
                          "tools/processes": 1})
         coordinator = os.getpid()
-        logs, pids = [], set()
+        logs, pids, group_pids, phases = [], set(), {}, {}
 
         def log(message, level="INFO"):
             self.assertEqual(os.getpid(), coordinator)
@@ -392,16 +404,22 @@ class ParallelMySQLTests(unittest.TestCase):
 
         def observe(*args):
             arguments = list(args)
-            original_report = arguments[7]
+            original_report = arguments[6]
 
-            def report(result):
-                pids.add(result.worker_pid)
-                original_report(result)
+            def report(event):
+                pids.add(event.result.worker_pid)
+                group_pids.setdefault(event.line_number, set()).add(event.result.worker_pid)
+                phases.setdefault(event.line_number, []).append(event.phase)
+                original_report(event)
 
-            arguments[7] = report
-            return workers.process_candidates(*arguments)
+            arguments[6] = report
+            return group_workers.process_groups(*arguments)
 
-        with patch.object(theory_builder, "process_candidates", side_effect=observe), \
+        with patch.object(theory_builder, "process_groups", side_effect=observe), \
+             patch.object(theories, "enumerate_simple_theory_candidates",
+                          side_effect=AssertionError("coordinator must not enumerate")), \
+             patch.object(theories, "enumerate_product_theory_candidates",
+                          side_effect=AssertionError("coordinator must not enumerate")), \
              patch.object(cache, "build_decomposition_cache") as build:
             parallel = theory_builder.run_build("A1\nA1,A1", settings, True, log)
         self.assertEqual(parallel, serial)
@@ -413,11 +431,58 @@ class ParallelMySQLTests(unittest.TestCase):
         self.assertEqual({call.args[:2] for call in build.call_args_list}, serial_reps)
         self.assertGreaterEqual(len(pids), 2)
         self.assertNotIn(coordinator, pids)
+        self.assertEqual({line: len(owners) for line, owners in group_pids.items()}, {1: 1, 2: 1})
+        self.assertEqual(phases[1], ["started", "enumerated", "candidate", "candidate", "finished"])
+        self.assertEqual(phases[2], ["started", "enumerated"] + ["candidate"] * 8 + ["finished"])
         repeated = theory_builder.run_build("A1\nA1,A1", settings, False, log)
         self.assertEqual((repeated["added"], repeated["existing"], repeated["errors"]), (0, 10, 0), logs)
         # Existing counts input candidates, not the number of unique DB rows.
         self.assertEqual(self.count("theories"), 8)
         self.assertEqual(self.count("lagrangian_realizations"), 8)
+        self.assert_workers_disconnected()
+
+    def test_group_pool_reuses_connections_across_many_input_lines(self):
+        entries = [(line, ("A1",)) for line in range(1, 13)]
+        events = []
+        group_workers.process_groups(entries, 3, MYSQL_TEST_DATABASE, self.options,
+                                     self.connection, True, events.append,
+                                     lambda *_: None, lambda: False)
+        counts = workers.Counts()
+        owners = {}
+        for event in events:
+            counts.include(event.result.counts)
+            owners.setdefault(event.line_number, set()).add(event.result.worker_pid)
+        self.assertEqual((counts.candidates, counts.valid, counts.added, counts.existing),
+                         (24, 24, 2, 22))
+        self.assertEqual((counts.check_failed, counts.db_failed), (0, 0))
+        self.assertEqual(len(owners), 12)
+        self.assertTrue(all(len(pids) == 1 for pids in owners.values()))
+        self.assertLessEqual(len(set.union(*owners.values())), 3)
+        self.assertLessEqual(len(self.connection_ids), 3)
+        self.assertEqual(self.count("theories"), 2)
+        self.assert_workers_disconnected()
+
+    def test_stop_group_build_keeps_all_committed_counts_and_skips_cache(self):
+        settings = {f"mysql/{key}": value for key, value in self.options.items()}
+        settings.update({"mysql/database": MYSQL_TEST_DATABASE, "index/full_max_order": 4,
+                         "tools/processes": 3})
+        stopped, logs = Event(), []
+
+        def log(message, level="INFO"):
+            logs.append((message, level))
+            if "valid SCFT;" in message:
+                stopped.set()
+
+        with patch.object(cache, "build_decomposition_cache") as build:
+            result = theory_builder.run_build("A1,A1\n" * 40, settings, True, log, stopped.is_set)
+        self.assertEqual(result["status"], "stopped")
+        self.assertEqual(result["errors"], 0, logs)
+        self.assertGreater(result["added"], 0)
+        self.assertEqual(self.count("theories"), result["added"])
+        self.assertEqual(self.count("lagrangian_realizations"), result["added"])
+        self.assertLessEqual(result["candidates"], 6 * 8)
+        self.assertLessEqual(result["added"] + result["existing"], result["valid"])
+        build.assert_not_called()
         self.assert_workers_disconnected()
 
     def test_parallel_candidates_include_duplicates_invalids_and_representation_union(self):

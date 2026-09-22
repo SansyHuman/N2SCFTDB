@@ -16,8 +16,9 @@ from threading import Event, Thread
 from common.number_utils import as_integer, as_nonnegative_int
 from gui.logging_utils import make_log_record
 from gui.candidate_workers import (
-    BuildCancelled, Counts, process_candidates, theory_representations,
+    BuildCancelled, Counts, theory_representations,
 )
+from gui.group_workers import process_groups
 
 
 def run_build(text, settings, build_cache, log, cancelled=lambda: False):
@@ -53,9 +54,6 @@ def run_build(text, settings, build_cache, log, cancelled=lambda: False):
             raise ValueError("CPU core count must be -1 (all system cores) or a positive integer.")
         check_stop()
         log("Loading Sage and the theory-building backend…")
-        from common.n2_theory_iter import (
-            enumerate_simple_theory_candidates, enumerate_product_theory_candidates,
-        )
         from common.n2_theory_db import connect_database
         from anomalies.lie_algebra import get_lie_algebra
         from index.char_decomposition_cache import build_decomposition_cache
@@ -81,40 +79,39 @@ def run_build(text, settings, build_cache, log, cancelled=lambda: False):
             connection_options["unix_socket"] = settings["mysql/unix_socket"]
         # Complete all DDL before workers open their own DML-only connections.
         connection = connect_database(database_name, **connection_options)
-        for line_number, factors in groups:
-            check_stop()
-            label = ", ".join(factors)
-            log(f"Working on {label} (line {line_number}): enumerating candidates…")
-            group_counts = Counts()
-            phase = "enumeration"
-            try:
-                candidates = (enumerate_simple_theory_candidates(factors[0])
-                              if len(factors) == 1 else enumerate_product_theory_candidates(factors))
-                group_counts.candidates = len(candidates)
-                log(f"{label}: {len(candidates)} theory candidates.")
-                phase = "checking and storing candidates"
+        group_counts = {}
+        summarized = set()
 
-                def report(result):
-                    nonlocal errors
-                    group_counts.include(result.counts)
-                    representations.update(result.representations)
-                    for message, level in result.messages:
-                        errors += level == "ERROR"
-                        log(message, level=level)
-                    if result.counts.valid or result.counts.invalid or result.counts.check_failed:
-                        log(f"{label} progress: {group_counts.describe()}")
+        def summarize(line_number, factors):
+            summarized.add(line_number)
+            log(f"{', '.join(factors)} summary (line {line_number}): "
+                f"{group_counts[line_number].describe()}")
 
-                process_candidates(
-                    candidates, label, processes, database_name, connection_options,
-                    connection, bool(build_cache and max_adams), report, log, cancelled,
-                )
-            except BuildCancelled:
-                raise
-            except Exception as exc:
-                error(f"{label}, {phase}", exc)
-            finally:
-                counts.include(group_counts)
-                log(f"{label} summary: {group_counts.describe()}")
+        def report(event):
+            nonlocal errors
+            result = event.result
+            subtotal = group_counts.setdefault(event.line_number, Counts())
+            subtotal.include(result.counts)
+            counts.include(result.counts)
+            representations.update(result.representations)
+            for message, level in result.messages:
+                errors += level == "ERROR"
+                log(message, level=level)
+            if result.counts.valid or result.counts.invalid or result.counts.check_failed:
+                log(f"{', '.join(event.factors)} progress (line {event.line_number}): "
+                    f"{subtotal.describe()}")
+            if event.phase == "finished":
+                summarize(event.line_number, event.factors)
+
+        try:
+            process_groups(
+                groups, processes, database_name, connection_options,
+                connection, bool(build_cache and max_adams), report, log, cancelled,
+            )
+        finally:
+            for line_number, factors in groups:
+                if line_number in group_counts and line_number not in summarized:
+                    summarize(line_number, factors)
 
         check_stop()
         if build_cache:

@@ -75,6 +75,15 @@ Its first run reports eight added and two existing; a repeat reports zero added
 and ten existing, while the database still has eight rows. The in-memory build
 fixture uses the same canonical identity as real storage.
 
+`test_gui_group_workers.py` verifies worker-local enumeration and checking,
+one pool reused across groups, live progress before a group finishes, bounded
+submission on Stop, and retention of streamed results after a spawned worker
+dies. The anomaly build now uses this group scheduler; the older candidate
+scheduler remains covered as a lower-level utility. Live MySQL cases in
+`test_gui_candidate_workers.py` compare serial/group-parallel counts and cache
+unions, assert all events for a group come from one worker, check connection
+reuse across input lines, and match Stop totals against committed database rows.
+
 `test_n2_theory_db_sectors.py` checks input factor IDs and shared-property
 comparisons. Its opt-in MySQL cases verify connected, disconnected and free-sector
 JSON storage, and preservation of the first realization's factor names when

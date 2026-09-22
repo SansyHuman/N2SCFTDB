@@ -248,16 +248,19 @@ uses `enumerate_simple_theory_candidates`; comma-separated factors use
 `enumerate_product_theory_candidates`. Each candidate is checked with
 `calculate_n2_theory_properties`, and valid SCFTs are inserted through
 `store_lagrangian_theory`. The coordinator initializes the database schema
-before dispatching candidates. Imports store basic properties; index and
+before dispatching gauge groups. Imports store basic properties; index and
 Coulomb-spectrum calculations remain separate.
 
-For each gauge group, **CPU cores** controls the worker count, capped at the
-number of candidates. Enumeration itself runs once in the coordinator, then
-spawned processes check candidates and insert valid theories in parallel.
-Candidates are dispatched individually as workers become available, with at
-most twice the worker count queued or running. This balances variable checking
-costs without copying the full candidate list into every worker. `1` uses the
-serial path. A group's workers finish before the next group starts.
+**CPU cores** controls the worker count, capped at the number of input gauge-group
+lines. One persistent pool serves the whole build. Each task receives one group,
+enumerates all of its candidates locally, checks them sequentially and inserts
+the valid theories. Available workers take subsequent groups, with at most twice
+the worker count queued or running. Candidate lists stay in the worker that
+enumerated them; only progress, counts and representation sets return to the
+coordinator. `1` uses the serial path. Different groups run in parallel; a single
+group uses one worker even when more cores are configured. This avoids repeated
+pool startup and allows enumeration of different groups to overlap, though one
+particularly expensive group can still determine the total build time.
 
 Each worker owns its Sage state and one MySQL connection, reused for its tasks
 and closed when the worker exits. No connection or cursor is shared between
@@ -316,11 +319,11 @@ Build runs in a separate process, using `sage -python` beside the GUI's Python
 interpreter or the `sage` executable on PATH. This requires the project's Sage,
 OR-Tools and MySQL dependencies; cache generation also needs LiE. The window
 stays responsive. Settings and inputs are fixed for the duration of a build.
-**Stop** stops candidate submission, cancels queued tasks where possible, and
+**Stop** stops group submission, cancels queued tasks where possible, and
 signals workers to stop before their next check or insert. Active calls finish
 and return their results before the final totals are logged, preserving counts
 for committed inserts. An active enumeration must finish first; character-cache
-generation stops after the current cache order is committed. Candidate workers
+generation stops after the current cache order is committed. Gauge-group workers
 exit before character-cache workers start, so their process counts do not multiply.
 Closing the window requests the same stop and closes once the worker exits.
 Previously committed database/cache work is retained. Credentials are passed
