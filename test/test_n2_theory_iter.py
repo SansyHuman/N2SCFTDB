@@ -5,6 +5,7 @@ from math import prod
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 
 
 PROJECT_ROOT = Path(__file__).parents[1]
@@ -17,6 +18,7 @@ from anomalies.check_n2_anomalies import (
 )
 from anomalies.lie_algebra import get_lie_algebra, representation_reality
 from common.n2_theory_iter import (
+    _has_single_gauge_sector,
     enumerate_irreps,
     enumerate_product_irreps,
     enumerate_product_theory_candidates,
@@ -450,7 +452,7 @@ class ProductTheoryCandidateTests(unittest.TestCase):
         return set(keys)
 
     def test_su2_pair_has_exactly_eight_matter_contents(self):
-        candidates = enumerate_product_theory_candidates(["A1", "A1"])
+        candidates = enumerate_product_theory_candidates(["A1", "A1"], only_one_sector=False)
         actual = self.assert_valid_candidates(candidates)
 
         def matter(*terms):
@@ -538,7 +540,7 @@ class ProductTheoryCandidateTests(unittest.TestCase):
                     if all(sum(number * cost[a] for number, cost in zip(counts, costs)) == budget
                            for a, budget in enumerate(budgets))
                 }
-                candidates = enumerate_product_theory_candidates(algebras)
+                candidates = enumerate_product_theory_candidates(algebras, only_one_sector=False)
                 self.assertEqual(self.assert_valid_candidates(candidates), expected)
 
     def test_iterable_input_factor_ids_and_independent_output_objects(self):
@@ -554,11 +556,77 @@ class ProductTheoryCandidateTests(unittest.TestCase):
         candidates[0]["hypermultiplets"][0]["representations"]["gauge_1"][0] = 100
         self.assertEqual(json.dumps(candidates[1:]), before)
 
+    def test_connected_filter_matches_sector_partition_across_product_groups(self):
+        from index.n2_theory_index import split_disconnected_sectors
+
+        for algebras, total, connected in (
+            (("A1",), 2, 2),
+            (("A1", "A1"), 8, 4),
+            (("A1", "A1", "A1"), 50, 18),
+            (("A1", "A2"), 8, 2),
+            (("A2", "A2"), 14, 5),
+            (("C2", "G2"), 14, 2),
+        ):
+            with self.subTest(algebras=algebras):
+                all_candidates = enumerate_product_theory_candidates(algebras, only_one_sector=False)
+                self.assertEqual(len(all_candidates), total)
+                factors = tuple(factor(f"gauge_{i}", algebra)
+                                for i, algebra in enumerate(algebras, 1))
+                expected = [
+                    self.matter_key(candidate) for candidate in all_candidates
+                    if len(split_disconnected_sectors(
+                        factors, check_input_data(candidate)["hypermultiplets"],
+                    )) == 1
+                ]
+                explicit = enumerate_product_theory_candidates(algebras, only_one_sector=True)
+                default = enumerate_product_theory_candidates(algebras)
+                self.assertEqual(len(explicit), connected)
+                self.assertCountEqual([self.matter_key(c) for c in explicit], expected)
+                self.assertCountEqual([self.matter_key(c) for c in default], expected)
+
+    def test_connectivity_filter_does_not_run_anomaly_or_property_checks(self):
+        with patch("anomalies.check_n2_anomalies.check_product_theory",
+                   side_effect=AssertionError("unexpected anomaly check")), \
+             patch("common.n2_theory_properties.calculate_n2_theory_properties",
+                   side_effect=AssertionError("unexpected property check")), \
+             patch("index.n2_theory_index.split_disconnected_sectors",
+                   side_effect=AssertionError("unexpected full sector partition")):
+            candidates = enumerate_product_theory_candidates(["A1", "A1"])
+        self.assertEqual(len(candidates), 4)
+
+    def test_disabled_filter_skips_connectivity_work(self):
+        with patch("common.n2_theory_iter._has_single_gauge_sector",
+                   side_effect=AssertionError("unexpected connectivity check")):
+            candidates = enumerate_product_theory_candidates(["A1", "A1"], only_one_sector=False)
+        self.assertEqual(len(candidates), 8)
+
     def test_invalid_cartan_iterables_are_rejected(self):
         for groups in ([], None, "A1", b"A1", [1], ["A1", None], ["A0"], ["D2"]):
             with self.subTest(groups=groups):
                 with self.assertRaises(ValueError):
                     enumerate_product_theory_candidates(groups)
+
+
+class GaugeConnectivityTests(unittest.TestCase):
+    def test_transitive_links_isolated_factors_and_matter_support(self):
+        cases = (
+            (1, (), (), True),
+            (2, (), (), False),
+            (2, ((0,), (1,)), (8, 8), False),
+            (2, ((0, 1),), (2,), True),
+            (3, ((0, 1),), (1,), False),
+            (3, ((1, 2), (0, 1)), (1, 1), True),
+            (3, ((0, 1, 2),), (1,), True),
+            (3, ((0, 1), (1, 2)), (1, 0), False),
+            (4, ((0, 1), (2, 3)), (1, 1), False),
+            (4, ((0, 1), (2, 3), (1, 2)), (1, 1, 1), True),
+            (4, ((0, 1, 2), (2, 3), (0, 2)), (1, 1, 4), True),
+        )
+        for count, supports, numbers, expected in cases:
+            with self.subTest(count=count, supports=supports, numbers=numbers):
+                self.assertEqual(_has_single_gauge_sector(count, supports, numbers), expected)
+        chain = tuple((i, i + 1) for i in reversed(range(47)))
+        self.assertTrue(_has_single_gauge_sector(48, chain, [1] * len(chain)))
 
 
 if __name__ == "__main__":

@@ -423,22 +423,22 @@ class ParallelMySQLTests(unittest.TestCase):
              patch.object(cache, "build_decomposition_cache") as build:
             parallel = theory_builder.run_build("A1\nA1,A1", settings, True, log)
         self.assertEqual(parallel, serial)
-        # Two A1 candidates plus eight labelled A1 x A1 candidates. Two
-        # pairs of product candidates differ only by exchanging the factors.
-        self.assertEqual((parallel["candidates"], parallel["valid"]), (10, 10))
-        self.assertEqual((parallel["added"], parallel["existing"]), (8, 2))
+        # Two A1 candidates plus four connected A1 x A1 candidates.
+        # One pair of product candidates differs only by exchanging factors.
+        self.assertEqual((parallel["candidates"], parallel["valid"]), (6, 6))
+        self.assertEqual((parallel["added"], parallel["existing"]), (5, 1))
         self.assertEqual(parallel["errors"], 0, logs)
         self.assertEqual({call.args[:2] for call in build.call_args_list}, serial_reps)
         self.assertGreaterEqual(len(pids), 2)
         self.assertNotIn(coordinator, pids)
         self.assertEqual({line: len(owners) for line, owners in group_pids.items()}, {1: 1, 2: 1})
         self.assertEqual(phases[1], ["started", "enumerated", "candidate", "candidate", "finished"])
-        self.assertEqual(phases[2], ["started", "enumerated"] + ["candidate"] * 8 + ["finished"])
+        self.assertEqual(phases[2], ["started", "enumerated"] + ["candidate"] * 4 + ["finished"])
         repeated = theory_builder.run_build("A1\nA1,A1", settings, False, log)
-        self.assertEqual((repeated["added"], repeated["existing"], repeated["errors"]), (0, 10, 0), logs)
+        self.assertEqual((repeated["added"], repeated["existing"], repeated["errors"]), (0, 6, 0), logs)
         # Existing counts input candidates, not the number of unique DB rows.
-        self.assertEqual(self.count("theories"), 8)
-        self.assertEqual(self.count("lagrangian_realizations"), 8)
+        self.assertEqual(self.count("theories"), 5)
+        self.assertEqual(self.count("lagrangian_realizations"), 5)
         self.assert_workers_disconnected()
 
     def test_group_pool_reuses_connections_across_many_input_lines(self):
@@ -480,7 +480,7 @@ class ParallelMySQLTests(unittest.TestCase):
         self.assertGreater(result["added"], 0)
         self.assertEqual(self.count("theories"), result["added"])
         self.assertEqual(self.count("lagrangian_realizations"), result["added"])
-        self.assertLessEqual(result["candidates"], 6 * 8)
+        self.assertLessEqual(result["candidates"], 6 * 4)
         self.assertLessEqual(result["added"] + result["existing"], result["valid"])
         build.assert_not_called()
         self.assert_workers_disconnected()

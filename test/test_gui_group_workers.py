@@ -171,7 +171,7 @@ class GroupSchedulingTests(unittest.TestCase):
         totals = Counts()
         for event in events:
             totals.include(event.result.counts)
-        self.assertEqual((totals.candidates, totals.valid, totals.added), (8, 8, 8))
+        self.assertEqual((totals.candidates, totals.valid, totals.added), (4, 4, 4))
         self.assertEqual(events[0].phase, "started")
         self.assertEqual(events[-1].phase, "finished")
 

@@ -64,7 +64,7 @@ def checked_hash(data):
 
 class FactorPermutationHashTests(unittest.TestCase):
     def test_two_su2_factors_have_eight_candidates_but_six_theories(self):
-        candidates = list(enumerate_product_theory_candidates(["A1", "A1"]))
+        candidates = enumerate_product_theory_candidates(["A1", "A1"], only_one_sector=False)
         self.assertEqual(len(candidates), 8)
         multiplicities = Counter(checked_hash(data) for data in candidates)
         self.assertEqual(sorted(multiplicities.values()), [1, 1, 1, 1, 2, 2])

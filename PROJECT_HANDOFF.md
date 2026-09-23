@@ -1,6 +1,40 @@
 # N2SCFTDB Project Handoff
 
-Last updated: **2026-09-22 (Asia/Seoul)**.
+Last updated: **2026-09-23 (Asia/Seoul)**.
+
+## Connected product candidates before anomaly checks (23 September 2026)
+
+`enumerate_product_theory_candidates(..., only_one_sector=True)` now performs
+a lightweight connectivity filter by default. Each matter type's charged
+factor positions are precomputed from its nonzero Dynkin labels. For each
+beta-system solution, union-find joins the factors sharing present matter;
+zero multiplicities add no edges and isolated factors remain separate.
+Disconnected solutions are discarded before candidate dictionaries are built.
+The filter invokes no anomaly/property calculation or full sector partition,
+and the enumerator no longer imports the index module for connectivity.
+
+The anomaly group workers inherit this default, so only connected candidates
+reach property checks, database insertion and character-cache collection.
+The beta-equation solver still finds all solutions; this optimization reduces
+work after solving. Simple-group enumeration is unchanged. Direct callers can
+set `only_one_sector=False` to retain disconnected products, with no connectivity
+check on that path. Existing database rows are not removed.
+
+Verified examples: `A1,A1` retains four of eight candidates, `A1,A1,A1` retains
+18 of 50, `A1,A2` retains two of eight, and `A2,A2` retains five of 14.
+The `A1` plus `A1,A1` build now checks six candidates and stores five distinct
+theories (one existing duplicate); a repeat reports six existing candidates.
+Earlier build-count examples below describe the previous unfiltered default.
+
+Focused validation passed 35 tests covering connectivity, agreement with
+the sector splitter, bypass of anomaly/property work during filtering,
+connected-only worker inputs, and preservation of unfiltered enumeration.
+
+Final validation: **472 tests passed, zero failures/errors/skips, in 86.254 s**,
+including the full offscreen suite and live MySQL integrations on a fresh
+isolated temporary server. Live builds confirmed six checked candidates,
+five inserted theories and one existing duplicate, followed by six existing
+candidates on repeat. The configured user database was not accessed.
 
 ## Anomaly builds distribute complete gauge groups (22 September 2026)
 

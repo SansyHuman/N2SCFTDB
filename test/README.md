@@ -69,11 +69,21 @@ signatures but different connectivity. MySQL cases verify reordered imports,
 legacy hashes, preserved original factor/sector data and stored-index reuse.
 The candidate-worker tests race two permutations of the same product theory
 and check that one theory/realization is committed without orphan rows.
-The `A1` plus `A1,A1` build fixture processes ten candidates but inserts eight
-theories: the eight labelled product candidates form six factor-swap orbits.
-Its first run reports eight added and two existing; a repeat reports zero added
-and ten existing, while the database still has eight rows. The in-memory build
-fixture uses the same canonical identity as real storage.
+With the default connectivity filter, the `A1` plus `A1,A1` build fixture
+checks six candidates and inserts five theories: four connected product
+candidates form three factor-swap orbits, alongside two simple candidates.
+Its first run reports five added and one existing; a repeat reports zero added
+and six existing, while the database still has five rows. The in-memory build
+fixture uses the same canonical identity as real storage. Unfiltered enumeration
+tests explicitly use `only_one_sector=False` and still verify eight product
+candidates forming six factor-swap orbits.
+
+Connectivity tests in `test_n2_theory_iter.py` compare the lightweight filter
+against the full sector partition, including three-factor and mixed-group
+examples, transitive connections, isolated factors, zero multiplicities and
+trifundamentals. They verify that filtering invokes no anomaly/property checks
+or full sector splitter, and that disabling the option skips connectivity work.
+The build tests assert that only connected candidates reach property checks.
 
 `test_gui_group_workers.py` verifies worker-local enumeration and checking,
 one pool reused across groups, live progress before a group finishes, bounded

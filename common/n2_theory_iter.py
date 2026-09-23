@@ -248,8 +248,46 @@ def enumerate_simple_theory_candidates(
     return candidates
 
 
+def _has_single_gauge_sector(
+    factor_count: int,
+    supports: Iterable[tuple[int, ...]],
+    multiplicities: Iterable[int],
+) -> bool:
+    """Check connectivity using only the supports of present matter types.
+
+    The supports contain factor positions, precomputed once per enumeration.
+    All factors are vertices, including ones with no multiply charged matter.
+    Multiplicities are the nonnegative integers returned by the beta solver.
+    """
+    if factor_count == 1:
+        return True
+    parents = list(range(factor_count))
+    components = factor_count
+
+    def root(position):
+        while parents[position] != position:
+            parents[position] = parents[parents[position]]
+            position = parents[position]
+        return position
+
+    for support, number in zip(supports, multiplicities):
+        if not number or len(support) < 2:
+            continue
+        first = root(support[0])
+        for position in support[1:]:
+            other = root(position)
+            if first != other:
+                parents[other] = first
+                components -= 1
+                if components == 1:
+                    return True
+    return False
+
+
 def enumerate_product_theory_candidates(
     gauge_groups: Iterable[str],
+    *,
+    only_one_sector: bool = True,
 ) -> list[dict[str, Any]]:
     """Enumerate conformal matter candidates for a product of simple groups.
 
@@ -265,9 +303,15 @@ def enumerate_product_theory_candidates(
     scaling and frobenius_system_solve. Odd half-hyper counts are allowed.
 
     Return dictionaries containing gauge_groups and hypermultiplets, ready
-    for the anomaly checker. No anomaly check is performed here. Both coupled
-    and decoupled matter contents are included, but free gauge-singlet matter
-    and zero multiplicities are omitted. Solution order is not specified.
+    for the anomaly checker. No anomaly check is performed here. Free
+    gauge-singlet matter and zero multiplicities are omitted. Solution order
+    is not specified.
+
+    By default, only_one_sector=True retains only connected gauge sectors.
+    A lightweight connectivity check uses nonzero Dynkin labels and positive
+    multiplicities, before constructing candidate dictionaries or running any
+    anomaly/property checks. Set only_one_sector=False to include decoupled
+    matter contents as well. This filter does not reduce beta-system solving.
     """
     if isinstance(gauge_groups, (str, bytes)):
         raise ValueError("gauge_groups must be a nonempty iterable of Cartan strings")
@@ -316,9 +360,18 @@ def enumerate_product_theory_candidates(
         ])
         targets.append(budget * scale)
 
+    supports = (
+        tuple(tuple(i for i, factor in enumerate(factors)
+                    if any(labels[factor.factor_id]))
+              for labels, _, _ in matter)
+        if only_one_sector else ()
+    )
+
     candidates = []
     for solution in frobenius_system_solve(coefficients, targets):
-        candidates.append({
+        if only_one_sector and not _has_single_gauge_sector(len(factors), supports, solution):
+            continue
+        candidate = {
             "gauge_groups": [
                 {"id": factor.factor_id, "algebra": factor.algebra.cartan_type}
                 for factor in factors
@@ -335,5 +388,6 @@ def enumerate_product_theory_candidates(
                 for (labels, kind, _), number in zip(matter, solution)
                 if number
             ],
-        })
+        }
+        candidates.append(candidate)
     return candidates

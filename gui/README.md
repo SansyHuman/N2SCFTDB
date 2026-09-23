@@ -245,7 +245,14 @@ input unchanged. Loaded text remains editable.
 line. It accepts the backend's Cartan types (`A1`, `C2`, etc.); blank factors
 and unsupported groups are reported with their line numbers. A single factor
 uses `enumerate_simple_theory_candidates`; comma-separated factors use
-`enumerate_product_theory_candidates`. Each candidate is checked with
+`enumerate_product_theory_candidates` with its default `only_one_sector=True`.
+Product candidates must connect all gauge factors through their matter.
+Connectivity uses precomputed Dynkin-label supports and a small union-find
+check before constructing candidate dictionaries. Disconnected solutions do
+not reach anomaly/property checks or database insertion; logged candidate
+totals count the retained connected candidates. The beta-equation solver still
+enumerates all solutions. Direct API callers can pass `only_one_sector=False`
+to include decoupled theories. Each retained candidate is checked with
 `calculate_n2_theory_properties`, and valid SCFTs are inserted through
 `store_lagrangian_theory`. The coordinator initializes the database schema
 before dispatching gauge groups. Imports store basic properties; index and

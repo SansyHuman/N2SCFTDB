@@ -65,11 +65,11 @@ class TheoryBuilderTests(unittest.TestCase):
             result = run_build(" A1 \n\n A1, A1 \nA1", self.settings, False, self.record_log)
         self.assertEqual((simple.call_count, product.call_count), (2, 1))
         self.assertEqual(product.call_args.args, (("A1", "A1"),))
-        self.assertEqual(result["candidates"], 12)
-        self.assertEqual(result["valid"], 12)
+        self.assertEqual(result["candidates"], 8)
+        self.assertEqual(result["valid"], 8)
         self.assertEqual(result["invalid"], 0)
-        self.assertEqual(result["added"], 8)
-        self.assertEqual(result["existing"], 4)
+        self.assertEqual(result["added"], 5)
+        self.assertEqual(result["existing"], 3)
         self.assertEqual(result["errors"], 0)
         self.connect.assert_called_once_with(
             "isolated_test", host="db.invalid", port=3310, user="test_user",
@@ -79,6 +79,15 @@ class TheoryBuilderTests(unittest.TestCase):
         index.assert_not_called()
         build.assert_not_called()
         self.assertTrue(any("A1, A1 summary" in line for line in self.logs))
+
+    def test_only_connected_product_candidates_reach_property_checks(self):
+        with patch.object(properties, "calculate_n2_theory_properties",
+                          wraps=properties.calculate_n2_theory_properties) as check:
+            result = run_build("A1,A1", self.settings, False, self.record_log)
+        self.assertEqual(result["errors"], 0)
+        self.assertEqual((result["candidates"], result["valid"]), (4, 4))
+        self.assertEqual(check.call_count, 4)
+        self.assertEqual(self.store.call_count, 4)
 
     def test_invalid_checks_and_storage_errors_are_counted_separately(self):
         candidates = [
