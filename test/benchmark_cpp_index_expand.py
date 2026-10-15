@@ -32,7 +32,7 @@ from index.form_expansion_cache import FormExpansionCache, IndexFormTerm
 
 
 def source_hashes():
-    names = ("common/cpp/index_expand.hpp", "common/cpp/index_expand.cpp",
+    names = ("index/cpp/index_expand.hpp", "index/cpp/index_expand.cpp",
              "test/cpp/index_expand_driver.cpp", "test/benchmark_cpp_index_expand.py",
              "index/n2_theory_index.py", "index/form_expansion_cache.py")
     return {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in names}
@@ -53,7 +53,7 @@ def compile_driver(directory):
     if include:
         command += ["-I", include]
     command += [str(ROOT / "test/cpp/index_expand_driver.cpp"),
-                str(ROOT / "common/cpp/index_expand.cpp")]
+                str(ROOT / "index/cpp/index_expand.cpp")]
     if library:
         command += ["-L", library, f"-Wl,-rpath,{library}"]
     command += ["-lgmpxx", "-lgmp", "-o", str(executable)]

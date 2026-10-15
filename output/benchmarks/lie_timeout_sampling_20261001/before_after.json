@@ -1,0 +1,30 @@
+[
+  {
+    "name": "SU2 small",
+    "calls_per_round": 1200,
+    "before_seconds": 0.004890989977866411,
+    "after_seconds": 0.003475461999187246,
+    "elapsed_reduction_percent": 28.9415432271374
+  },
+  {
+    "name": "SU3/Sp4 adjoint",
+    "calls_per_round": 600,
+    "before_seconds": 0.015418060007505119,
+    "after_seconds": 0.009657012997195125,
+    "elapsed_reduction_percent": 37.365576521985666
+  },
+  {
+    "name": "SU9 adjoint tensors",
+    "calls_per_round": 60,
+    "before_seconds": 1.112597970990464,
+    "after_seconds": 0.8023363409738522,
+    "elapsed_reduction_percent": 27.886230076476657
+  },
+  {
+    "name": "E8 adjoint tensors",
+    "calls_per_round": 24,
+    "before_seconds": 0.44783258700044826,
+    "after_seconds": 0.27688560701790266,
+    "elapsed_reduction_percent": 38.17207254334408
+  }
+]

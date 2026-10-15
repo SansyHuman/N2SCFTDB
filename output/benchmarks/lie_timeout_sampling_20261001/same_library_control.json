@@ -1,0 +1,102 @@
+{
+  "repetitions": 5,
+  "cpu_affinity": [
+    15
+  ],
+  "cases": [
+    {
+      "name": "SU9 adjoint tensors",
+      "calls_per_round": 60,
+      "samples_seconds": {
+        "shared_library": [
+          0.836868692014832,
+          0.8116388490016107,
+          0.8029724959924351,
+          1.0617852139985189,
+          0.8035155109828338
+        ],
+        "shared_library_unlimited": [
+          0.7898096879944205,
+          0.7937822460080497,
+          0.9845553060004022,
+          0.8128948310040869,
+          0.8000199389935005
+        ],
+        "same_library_cli_per_call": [
+          0.9394542560039554,
+          0.9376482109946664,
+          0.9415855400147848,
+          0.9488750500022434,
+          0.9388031620183028
+        ],
+        "same_library_cli_batch": [
+          0.8154111610201653,
+          0.8346648729930166,
+          0.799162764014909,
+          1.1921812199871056,
+          0.8147280660050455
+        ]
+      },
+      "medians_seconds": {
+        "shared_library": 0.8116388490016107,
+        "shared_library_unlimited": 0.8000199389935005,
+        "same_library_cli_per_call": 0.9394542560039554,
+        "same_library_cli_batch": 0.8154111610201653
+      }
+    },
+    {
+      "name": "E8 adjoint tensors",
+      "calls_per_round": 24,
+      "samples_seconds": {
+        "shared_library": [
+          0.27674783501424827,
+          0.2764056590094697,
+          0.2760900850116741,
+          0.2783276079862844,
+          0.27617476900923066
+        ],
+        "shared_library_unlimited": [
+          0.2787196319841314,
+          0.2795173229824286,
+          0.2785660520021338,
+          0.277934654004639,
+          0.27813462301855907
+        ],
+        "same_library_cli_per_call": [
+          0.33489529401413165,
+          0.3353511609893758,
+          0.33463631899212487,
+          0.3347564220021013,
+          0.3366276529850438
+        ],
+        "same_library_cli_batch": [
+          0.2845611170050688,
+          0.28442749701207504,
+          0.28439751800033264,
+          0.2835174360079691,
+          0.28410199299105443
+        ]
+      },
+      "medians_seconds": {
+        "shared_library": 0.2764056590094697,
+        "shared_library_unlimited": 0.2785660520021338,
+        "same_library_cli_per_call": 0.33489529401413165,
+        "same_library_cli_batch": 0.28439751800033264
+      }
+    }
+  ],
+  "source_sha256": "daa3a204a1b4e0678fecb6f986b7766f5bfe425ec5b1af2ba7a4d566b2c826a6",
+  "library_sha256": "fe8157bb0ee98fb23fdc822cf8f813f43a003da419eccf2be2d0577c69141d5b",
+  "note": "CLI and embedded calls use the identical local liblie.so. Unlimited mode suppresses cooperative deadline polling only; object limits and allocation tracking remain enabled.",
+  "compiler_command": [
+    "gcc",
+    "-O3",
+    "/home/subo-lee/PycharmProjects/N2SCFTDB/test/cpp/lie_cli_driver.c",
+    "-L",
+    "/home/subo-lee/PycharmProjects/N2SCFTDB/common/cpp/LiE",
+    "-Wl,-rpath,/home/subo-lee/PycharmProjects/N2SCFTDB/common/cpp/LiE",
+    "-llie",
+    "-o",
+    "/tmp/n2-lie-control-y63479ob/lie-shared-cli"
+  ]
+}

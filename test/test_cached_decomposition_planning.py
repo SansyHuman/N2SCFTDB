@@ -57,7 +57,7 @@ class CachedDecompositionPlanningTests(unittest.TestCase):
             )
 
     def test_higher_atomic_adams_still_runs_once(self):
-        cache = self.cache()
+        cache = self.cache(lie_backend='subprocess')
         with patch.object(cache, '_run_lie', wraps=cache._run_lie) as run:
             self.assertEqual(cache.get_decomposition('A1', (1,), (0, 1)),
                              {(0,): -1, (2,): 1})
@@ -65,7 +65,7 @@ class CachedDecompositionPlanningTests(unittest.TestCase):
 
     def test_persisted_composite_blocks_need_no_atomic_dependencies(self):
         self.seed_composite_rows()
-        cache = self.cache()
+        cache = self.cache(lie_backend='subprocess')
         with patch.object(cache, '_run_lie', wraps=cache._run_lie) as run:
             result = cache.get_decomposition('A1', (1,), (0, 2, 2))
         self.assertEqual(result, su2_fundamental_adams_product((0, 2, 2)))
@@ -110,7 +110,7 @@ class CachedDecompositionPlanningTests(unittest.TestCase):
             self.assertEqual(reopened.get_decompositions(requests), expected)
 
     def test_external_writer_entries_are_visible_to_existing_client(self):
-        reader = self.cache()
+        reader = self.cache(lie_backend='subprocess')
         reader.get_decomposition('A1', (1,), (1,))
         with self.cache() as writer:
             for powers in [(0, 2), (0, 0, 2)]:

@@ -1,0 +1,249 @@
+{
+  "timestamp_utc": "2026-10-01T04:19:10.809232+00:00",
+  "python": "/home/subo-lee/miniconda3/envs/sage/bin/python",
+  "python_version": "3.11.16 | packaged by conda-forge | (main, Aug 21 2026, 22:44:51) [GCC 14.4.0]",
+  "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+  "cpu_affinity": [
+    15
+  ],
+  "repetitions": 5,
+  "executable": "/usr/bin/lie",
+  "cases": [
+    {
+      "name": "SU2 small",
+      "calls_per_round": 1200,
+      "cycle_length": 6,
+      "operation_expressions": [
+        "Adams(2,[1],A1)",
+        "Adams(3,[1],A1)",
+        "Adams(4,[1],A1)",
+        "tensor(1X[1],1X[1],A1)",
+        "tensor(-1X[0]+1X[2],1X[1],A1)",
+        "tensor(-1X[1]+1X[3],-1X[1]+1X[3],A1)"
+      ],
+      "result_terms": [
+        2,
+        2,
+        2,
+        2,
+        1,
+        3
+      ],
+      "result_sha256": [
+        "23ede09629dc787f84d690c0d481d16e05e5759abffa0f31ae0a2409aeb46748",
+        "f7fda85b1291764c924d3b78105ed72a0080188bf7406e538649ecdaf33750ef",
+        "b2e3ef950f4c80c50b11f20d46691a0c2af68af62d62ada1d9375b6b1e2a6d42",
+        "e24ee52d23f186f06ba5f99297fbf7c40cddf3e1da7685b6ed52efb37adc6244",
+        "f4a839411d3f69a8f0128518dc887d1898d74048a7e2066a538b32d669e0c820",
+        "2c45782903b1498bba3322fa62ca47b8fb36cb90bb7a87eff8d2d5b6c073f4f1"
+      ],
+      "samples_seconds": {
+        "shared_library": [
+          0.00954261698643677,
+          0.003475461999187246,
+          0.0034918840101454407,
+          0.0034042939951177686,
+          0.0034376580151729286
+        ],
+        "executable_per_call": [
+          6.223425748001318,
+          3.949775703018531,
+          2.7189462349924725,
+          2.70720209099818,
+          2.709903934999602
+        ],
+        "executable_one_batch": [
+          0.27731538002262823,
+          0.13587260598433204,
+          0.1357926100026816,
+          0.1349990660091862,
+          0.13545767799951136
+        ]
+      },
+      "medians_seconds": {
+        "shared_library": 0.003475461999187246,
+        "executable_per_call": 2.7189462349924725,
+        "executable_one_batch": 0.1357926100026816
+      },
+      "speedup_over_per_call_executable": 782.3265613689091,
+      "speedup_over_batched_executable": 39.071815498036635
+    },
+    {
+      "name": "SU3/Sp4 adjoint",
+      "calls_per_round": 600,
+      "cycle_length": 6,
+      "operation_expressions": [
+        "Adams(2,[1,1],A2)",
+        "Adams(3,[1,1],A2)",
+        "Adams(4,[1,1],A2)",
+        "Adams(3,[2,0],C2)",
+        "tensor(1X[0,0]-1X[0,3]+1X[2,2]-1X[3,0],1X[0,0]-1X[0,3]+1X[2,2]-1X[3,0],A2)",
+        "tensor(1X[0,0]+1X[0,1]+1X[0,2]-1X[2,0]-1X[2,1]+1X[4,0],1X[0,0]+1X[0,1]+1X[0,2]-1X[2,0]-1X[2,1]+1X[4,0],C2)"
+      ],
+      "result_terms": [
+        4,
+        7,
+        7,
+        4,
+        11,
+        15
+      ],
+      "result_sha256": [
+        "262f882195c5cdf559244de0a8d0774bfb0fe0efc79fb826b5ac05773ac99f68",
+        "006834d22c49761eb321f4bfb29c5cab4f032ed14f390e522b2d3a2877fb16bb",
+        "97e3cf095dc94d2b80cbe4e974bde74065c23327695bed2e22caf1f318221c31",
+        "dfad44a2187ffc91509d6b173b28d9e308f85c65c95eb026bc3e3b206be2fe62",
+        "fdf13cdfd6669a67e87bd9e089acedd4468d7bbfd0b4617e82eb04cb53ab9b70",
+        "702d93fdcdb2ac29aadeccb8f0e5eed29253f78575de2073dcef7372e56330d4"
+      ],
+      "samples_seconds": {
+        "shared_library": [
+          0.009733627986861393,
+          0.009559002006426454,
+          0.009480509004788473,
+          0.009657012997195125,
+          0.009730917023262009
+        ],
+        "executable_per_call": [
+          1.8160499529913068,
+          1.5997504250262864,
+          1.37661972999922,
+          1.3866350979951676,
+          1.379805745993508
+        ],
+        "executable_one_batch": [
+          0.12808205699548125,
+          0.07803430801141076,
+          0.07792711901129223,
+          0.0774837960198056,
+          0.07750989697524346
+        ]
+      },
+      "medians_seconds": {
+        "shared_library": 0.009657012997195125,
+        "executable_per_call": 1.3866350979951676,
+        "executable_one_batch": 0.07792711901129223
+      },
+      "speedup_over_per_call_executable": 143.58840548292886,
+      "speedup_over_batched_executable": 8.069484739631823
+    },
+    {
+      "name": "SU9 adjoint tensors",
+      "calls_per_round": 60,
+      "cycle_length": 4,
+      "operation_expressions": [
+        "Adams(3,[1,0,0,0,0,0,0,1],A8)",
+        "Adams(4,[1,0,0,0,0,0,0,1],A8)",
+        "tensor(2X[0,0,0,0,0,0,0,0]+1X[0,0,1,0,0,0,0,3]-1X[0,0,1,0,0,0,1,1]+1X[0,0,1,0,0,1,0,0]-1X[1,1,0,0,0,0,0,3]+1X[1,1,0,0,0,0,1,1]-1X[1,1,0,0,0,1,0,0]+1X[3,0,0,0,0,0,0,3]-1X[3,0,0,0,0,0,1,1]+1X[3,0,0,0,0,1,0,0],2X[0,0,0,0,0,0,0,0]+1X[0,0,1,0,0,0,0,3]-1X[0,0,1,0,0,0,1,1]+1X[0,0,1,0,0,1,0,0]-1X[1,1,0,0,0,0,0,3]+1X[1,1,0,0,0,0,1,1]-1X[1,1,0,0,0,1,0,0]+1X[3,0,0,0,0,0,0,3]-1X[3,0,0,0,0,0,1,1]+1X[3,0,0,0,0,1,0,0],A8)",
+        "tensor(2X[0,0,0,0,0,0,0,0]+1X[0,0,1,0,0,0,0,3]-1X[0,0,1,0,0,0,1,1]+1X[0,0,1,0,0,1,0,0]-1X[1,1,0,0,0,0,0,3]+1X[1,1,0,0,0,0,1,1]-1X[1,1,0,0,0,1,0,0]+1X[3,0,0,0,0,0,0,3]-1X[3,0,0,0,0,0,1,1]+1X[3,0,0,0,0,1,0,0],3X[0,0,0,0,0,0,0,0]-1X[0,0,0,1,0,0,0,4]+1X[0,0,0,1,0,0,1,2]-1X[0,0,0,1,0,1,0,1]+1X[0,0,0,1,1,0,0,0]+1X[1,0,1,0,0,0,0,4]-1X[1,0,1,0,0,0,1,2]+1X[1,0,1,0,0,1,0,1]-1X[1,0,1,0,1,0,0,0]-1X[2,1,0,0,0,0,0,4]+1X[2,1,0,0,0,0,1,2]-1X[2,1,0,0,0,1,0,1]+1X[2,1,0,0,1,0,0,0]+1X[4,0,0,0,0,0,0,4]-1X[4,0,0,0,0,0,1,2]+1X[4,0,0,0,0,1,0,1]-1X[4,0,0,0,1,0,0,0],A8)"
+      ],
+      "result_terms": [
+        10,
+        17,
+        88,
+        154
+      ],
+      "result_sha256": [
+        "f5afae5e6eb1b4c09f49118235ebfd2634b1c3f735d0b15f8aa5a8bd72ea8318",
+        "e6198159b17c4b986fdf49f2c0b3494f9137628218111c1ec02ed4423338fa6c",
+        "ed1cfb3a88fa37152087d84cb95b326b12f9d2e6d403c042e260b529bb6f80e3",
+        "1f494a86e096f622c92642d64f09edcd6619dcb921519babada3c6bc2c661422"
+      ],
+      "samples_seconds": {
+        "shared_library": [
+          0.8041676199936774,
+          0.8025836349988822,
+          0.801508982985979,
+          0.8023363409738522,
+          0.8007802100037225
+        ],
+        "executable_per_call": [
+          0.8961661529901903,
+          0.8932448760024272,
+          0.8951047720038332,
+          0.8920596649986692,
+          0.8921658000035677
+        ],
+        "executable_one_batch": [
+          0.7620678109815344,
+          0.7656390199845191,
+          0.7647968000092078,
+          0.7640687410021201,
+          0.7636587010056246
+        ]
+      },
+      "medians_seconds": {
+        "shared_library": 0.8023363409738522,
+        "executable_per_call": 0.8932448760024272,
+        "executable_one_batch": 0.7640687410021201
+      },
+      "speedup_over_per_call_executable": 1.113304770563219,
+      "speedup_over_batched_executable": 0.9523047903759613
+    },
+    {
+      "name": "E8 adjoint tensors",
+      "calls_per_round": 24,
+      "cycle_length": 4,
+      "operation_expressions": [
+        "Adams(2,[0,0,0,0,0,0,0,1],E8)",
+        "Adams(3,[0,0,0,0,0,0,0,1],E8)",
+        "tensor(1X[0,0,0,0,0,0,0,0]-1X[0,0,0,0,0,0,0,1]+1X[0,0,0,0,0,0,0,2]-1X[0,0,0,0,0,0,1,0]+1X[1,0,0,0,0,0,0,0],1X[0,0,0,0,0,0,0,0]-1X[0,0,0,0,0,0,0,1]+1X[0,0,0,0,0,0,0,2]-1X[0,0,0,0,0,0,1,0]+1X[1,0,0,0,0,0,0,0],E8)",
+        "tensor(1X[0,0,0,0,0,0,0,0]-1X[0,0,0,0,0,0,0,1]+1X[0,0,0,0,0,0,0,3]+1X[0,0,0,0,0,0,1,0]-1X[0,0,0,0,0,0,1,1]+1X[0,0,0,0,0,1,0,0]-1X[0,1,0,0,0,0,0,0],1X[0,0,0,0,0,0,0,0]-1X[0,0,0,0,0,0,0,1]+1X[0,0,0,0,0,0,0,3]+1X[0,0,0,0,0,0,1,0]-1X[0,0,0,0,0,0,1,1]+1X[0,0,0,0,0,1,0,0]-1X[0,1,0,0,0,0,0,0],E8)"
+      ],
+      "result_terms": [
+        5,
+        7,
+        18,
+        33
+      ],
+      "result_sha256": [
+        "15bc92a690540c7c7080f70fee7df25c37f2f740851b4292ef1e5152076afa9c",
+        "46d12046fcb79ebeb4c9823443c594e374b36a8e611ea78715c29222cb17f0bb",
+        "60247fb16bdd9b36b97b8d9d664e4e26a702b23ebe103c2ca08d62fddc7687ec",
+        "70890cdeb57a5f37e539b90cc1a6f8c3d354bd011f7fdc1879ce4842c699c32f"
+      ],
+      "samples_seconds": {
+        "shared_library": [
+          0.27696242698584683,
+          0.27688560701790266,
+          0.2766266620019451,
+          0.2767053860006854,
+          0.27695140399737284
+        ],
+        "executable_per_call": [
+          0.32046715801698156,
+          0.3211315500084311,
+          0.31682625200483017,
+          0.3171621450164821,
+          0.31720215297536924
+        ],
+        "executable_one_batch": [
+          0.26393057600944303,
+          0.2633126430155244,
+          0.264238074014429,
+          0.26400104200001806,
+          0.26413164599216543
+        ]
+      },
+      "medians_seconds": {
+        "shared_library": 0.27688560701790266,
+        "executable_per_call": 0.31720215297536924,
+        "executable_one_batch": 0.26400104200001806
+      },
+      "speedup_over_per_call_executable": 1.145607228890232,
+      "speedup_over_batched_executable": 0.9534661076946065
+    }
+  ],
+  "methodology": "Sequential calls, exact owning maps returned, no database access. Operands are prepared before timing. Timing includes binding conversions, native allocation/recovery, or subprocess startup/IPC/formatting/parsing. Batch mode also includes command construction and marker parsing. Verification is outside timing; mode order rotates between repetitions. The executable is the installed LiE; its compiler flags may differ from the local shared library. Batch mode is a startup-amortization control, not the currently implemented subprocess calculation API.",
+  "cpu_model": "AMD Ryzen 9 7950X 16-Core Processor",
+  "sha256": {
+    "common/cpp/LiE/liblie.so": "fe8157bb0ee98fb23fdc822cf8f813f43a003da419eccf2be2d0577c69141d5b",
+    "common/cpp/lie.cpp": "d827de17ec8a9753332d9cd517a439ff3db3ab90fdf58d5da0e804dfa560e343",
+    "common/cpp/lie_bridge.c": "8451305d6d903c16a9a05d8f7108e08b939da7273d8b8b3b9e9924918650bd3e",
+    "index/cpp/char_decomposition_cache.cpp": "f63ded4ba726e06adb700b2236570e5ff928e00044f477acfd6817cdfffa55d6",
+    "test/benchmark_lie_interfaces.py": "8139055e0310b8e1beb388818c0ed78e57e03e2a5893c68bb078d12ea52eae9e",
+    "extension": "5f91422f4a02c784d6bb7eb41a137fc3ec210cc956d821605036a70d98b1aefa",
+    "executable_launcher": "f61b4378b6ee4dd1207c30bc439f53c10d3a193d862f54b554e94a1cbccaf3e6",
+    "installed_lie_binary": "1c0de3b4ca4e861cb00185305b161460cc4b88e473b8e4ef741055bd2439bf37"
+  }
+}

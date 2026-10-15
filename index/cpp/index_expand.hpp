@@ -47,6 +47,12 @@ struct IndexFormTerm {
 // (gmpxx/gmp), compiled and linked with -pthread.
 // Invalid counts/indices throw std::invalid_argument; exponent
 // overflow throws std::overflow_error; allocation failures propagate.
+// The existing overloads use a 600-second cooperative timeout. Timed overloads
+// below accept a finite number of seconds; negative disables the timeout,
+// and zero expires immediately. Expiration throws std::runtime_error after
+// workers have stopped and joined; no partial result is returned. Time includes
+// validation, expansion, output construction and final sorting. A single GMP
+// operation or cleanup can delay return beyond the requested deadline.
 std::vector<IndexFormTerm> expand_index(
     int order,
     int character_count,
@@ -59,13 +65,32 @@ std::vector<IndexFormTerm> expand_index(
 // threads are used when there are fewer independent tasks. Each degree is
 // completed before the next; workers own independent polynomial accumulators.
 // Threads are reused within this call and joined before return or rethrowing
-// a worker exception. Parallel work can require more temporary memory.
+// a worker exception. Output storage is preallocated; sufficiently large
+// outputs are constructed in independent chunks using the same pool, then
+// sorted canonically. Parallel work can require more temporary memory.
 std::vector<IndexFormTerm> expand_index(
     int order,
     int character_count,
     const std::vector<int>& vector_characters,
     const MatterMultiplicities& matter_multiplicities,
     int worker_count);
+
+// Explicit serial timeout. Use a double (e.g. 10.0) for the fifth argument:
+// an integer fifth argument continues to select the worker-count overload.
+std::vector<IndexFormTerm> expand_index(
+    int order,
+    int character_count,
+    const std::vector<int>& vector_characters,
+    const MatterMultiplicities& matter_multiplicities,
+    double timeout);
+
+std::vector<IndexFormTerm> expand_index(
+    int order,
+    int character_count,
+    const std::vector<int>& vector_characters,
+    const MatterMultiplicities& matter_multiplicities,
+    int worker_count,
+    double timeout);
 
 }  // namespace n2scftdb
 

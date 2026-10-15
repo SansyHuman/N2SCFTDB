@@ -108,7 +108,8 @@ class BuildDecompositionCacheTests(unittest.TestCase):
         with patch.object(Cache, '_run_lie', execute), \
                 patch('common.math_utils.frobenius_solve', wraps=frobenius_solve) as solve:
             counts = build_decomposition_cache('A1', (1,), 6, database_path=self.path,
-                                               processes=1, progress=progress)
+                                               processes=1, progress=progress,
+                                               lie_backend='subprocess')
         self.assertEqual(counts, {1: 1, 2: 2, 3: 3, 4: 5, 5: 7, 6: 11})
         self.assertEqual([(tuple(call.args[0]), call.args[1]) for call in solve.call_args_list],
                          [(tuple(range(1, n + 1)), n) for n in range(1, 7)])
@@ -196,7 +197,8 @@ class BuildDecompositionCacheTests(unittest.TestCase):
         events = []
         with patch.object(Cache, '_run_lie', execute):
             build_decomposition_cache('A1', (1,), 6, database_path=self.path,
-                                      processes=1, progress=lambda *event: events.append(event))
+                                      processes=1, progress=lambda *event: events.append(event),
+                                      lie_backend='subprocess')
         self.assertEqual(events, [(1, 1, 0), (2, 2, 0), (3, 3, 0),
                                   (4, 5, 2), (5, 7, 7), (6, 11, 11)])
         self.assertEqual([code for code in expressions if code.startswith('Adams(')],
@@ -228,7 +230,8 @@ class BuildDecompositionCacheTests(unittest.TestCase):
             return original(cache, code)
 
         with patch.object(Cache, '_run_lie', execute), self.assertRaisesRegex(RuntimeError, 'simulated'):
-            build_decomposition_cache('A1', (1,), 5, database_path=self.path, processes=1)
+            build_decomposition_cache('A1', (1,), 5, database_path=self.path, processes=1,
+                                      lie_backend='subprocess')
         self.assertEqual(len(read_rows(self.path)), 3)
         self.assertEqual(build_decomposition_cache(
             'A1', (1,), 2, database_path=self.path, processes=1, lie_executable='must-not-run',

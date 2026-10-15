@@ -59,8 +59,18 @@ class CppIndexExpandTests(unittest.TestCase):
         result = subprocess.run(command, text=True, capture_output=True, timeout=120)
         if result.returncode:
             raise RuntimeError(f"C++ test build failed:\n{result.stdout}\n{result.stderr}")
+        cls.internal_executable = Path(cls.directory.name) / "index_expand_internal_driver"
+        internal_command = [
+            str(ROOT / "test/cpp/index_expand_internal_driver.cpp")
+            if item == str(ROOT / "test/cpp/index_expand_driver.cpp") else
+            str(cls.internal_executable) if item == str(cls.executable) else item
+            for item in command if item != str(ROOT / "index/cpp/index_expand.cpp")
+        ]
+        result = subprocess.run(internal_command, text=True, capture_output=True, timeout=120)
+        if result.returncode:
+            raise RuntimeError(f"Internal C++ test build failed:\n{result.stdout}\n{result.stderr}")
 
-    def cpp_expansion(self, order, character_count, vectors, matter, worker_count=None):
+    def cpp_expansion(self, order, character_count, vectors, matter, worker_count=None, timeout=None):
         lines = [f"{order} {character_count} {len(vectors)}",
                  " ".join(str(character) for character in vectors), str(len(matter))]
         for monomial, multiplicity in matter.items():
@@ -68,6 +78,8 @@ class CppIndexExpandTests(unittest.TestCase):
         command = [str(self.executable)]
         if worker_count is not None:
             command += ["--workers", str(worker_count)]
+        if timeout is not None:
+            command += ["--timeout", str(timeout)]
         result = subprocess.run(command, input="\n".join(lines) + "\n",
                                 text=True, capture_output=True, timeout=120)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -103,6 +115,27 @@ class CppIndexExpandTests(unittest.TestCase):
         keys = [(term.t_power, term.y_power, term.u_power, term.characters) for term in terms]
         self.assertEqual(keys, sorted(keys), "C++ output ordering is not canonical")
         return terms
+
+    def test_internal_unordered_matches_sorted_results(self):
+        result = subprocess.run([str(self.internal_executable)], text=True,
+                                capture_output=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("internal unordered-output checks passed", result.stdout)
+
+    def test_native_timeouts_and_independent_cancellation(self):
+        result = subprocess.run([str(self.executable), "--timeout-self-test"], text=True,
+                                capture_output=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("timeout checks passed", result.stdout)
+
+    def test_explicit_timeouts_do_not_change_terms(self):
+        arguments = (16, 6, (0, 1, 2), {(3, 4, 5): 1})
+        reference = self.cpp_expansion(*arguments)
+        for workers in (None, 1, 2, 4):
+            for timeout in (-1.0, 600.0):
+                with self.subTest(workers=workers, timeout=timeout):
+                    self.assertEqual(self.cpp_expansion(*arguments, worker_count=workers,
+                                                       timeout=timeout), reference)
 
     def term_map(self, terms):
         result = {(term.t_power, term.y_power, term.u_power, term.characters): term.coefficient
@@ -141,6 +174,12 @@ class CppIndexExpandTests(unittest.TestCase):
                                 capture_output=True, text=True, timeout=120)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "parallel-call checks passed")
+
+    def test_native_output_construction_with_serial_recurrence(self):
+        result = subprocess.run([str(self.executable), "--output-self-test"],
+                                capture_output=True, text=True, timeout=120)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "output-construction checks passed")
 
     def test_worker_count_larger_than_small_workload(self):
         for arguments in ((0, 0, (), {}), (4, 1, (0,), {(0,): 2})):

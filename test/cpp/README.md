@@ -38,7 +38,7 @@ canonical character tuples and exact coefficient normalization. Additional
 native checks exercise invalid inputs, and cutoff 0/1 checks require only the
 vacuum term. All 79 FORM fixtures are checked with the original serial API and
 the explicit worker counts 1, 2 and 4 (316 exact FORM comparisons), with
-identical returned ordering required. There are also 13 native invalid-input
+identical returned ordering required. There are also 19 native invalid-input
 checks, including worker counts 0 and -1 at ordinary and vacuum cutoffs.
 
 A native stress test runs four independent callers concurrently, each making
@@ -49,6 +49,24 @@ is compared in order against a serial reference. Additional native and Python
 checks request 32 workers for a small expansion and the vacuum, ensuring that
 more requested threads than useful work is accepted. These tests run even if
 FORM is unavailable.
+
+A native output-construction check uses 4201 independent repeated-character
+hyper monomials at cutoffs 2 and 3. Its recurrence stays serial, while its 4202
+output terms exercise parallel construction with 2, 4 and 32 requested workers,
+including a partial final chunk. Almost all terms belong to one degree, with
+empty degree buckets before and after it. The test checks the known leading
+hyper formula, signed 100-bit coefficients, canonical order and padded character
+tuples, and eight further concurrent calls against the serial result. It runs
+without FORM.
+
+The timeout checks exercise zero deadlines (including vacuum cutoffs), serial
+and four-worker expiration during a large expansion, recovery on later calls,
+and simultaneous successful and expiring independent callers. They also check
+finite/unlimited results, nonfinite timeout rejection, and both timed overloads.
+`index_expand_internal_driver.cpp` includes the implementation in a test-only
+translation unit to compare its private `expand_index_unordered` output with
+the public sorted result, including parallel output construction. The helper
+remains absent from the public header and exported API.
 
 To repeat the suite with undefined-behavior instrumentation:
 
@@ -63,8 +81,12 @@ test can also be instrumented with ThreadSanitizer:
 ```sh
 CPP_INDEX_CXXFLAGS='-fsanitize=thread -g' \
   sage -python -B -m unittest \
-  test.test_cpp_index_expand.CppIndexExpandTests.test_native_concurrent_calls_and_repeatability -v
+  test.test_cpp_index_expand.CppIndexExpandTests.test_native_concurrent_calls_and_repeatability \
+  test.test_cpp_index_expand.CppIndexExpandTests.test_native_output_construction_with_serial_recurrence -v
 ```
+
+The second method checks the case where worker threads are first created for
+output construction.
 
 ThreadSanitizer requires a compatible virtual address layout and can fail to
 initialize in some container/sandbox environments. Such a startup error does
@@ -121,6 +143,22 @@ notation. Successful expansions also write one JSON record to stderr with
 `expansion_seconds` (time inside the C++ function, including its final native
 term vector), `term_count`, and `worker_count`. The optional `--workers N`
 selects the five-argument C++ overload; omitting it exercises the original
-four-argument serial function. Use `--self-test` for native invalid-input
-checks or `--parallel-self-test` for concurrent-call checks; those modes do not
-emit timing records.
+four-argument serial function. `--timeout SECONDS` selects an explicit deadline,
+with negative values for unlimited execution. It can be combined with
+`--workers N`. Use `--timeout-self-test` for deadline/cancellation checks and
+`--self-test` for native invalid-input
+checks, `--parallel-self-test` for concurrent-call checks, or
+`--output-self-test` for output-construction checks; those modes do not emit
+timing records.
+
+To measure timeout overhead without timing input/output or process launch:
+
+```sh
+sage -python -B test/benchmark_cpp_index_timeout.py --repetitions 7
+```
+
+The script compares the default 600-second timeout with unlimited calls using
+one and four workers. `--baseline /path/to/saved/index_expand_driver` additionally
+compares a driver built before the timeout change. Every exact printed term
+matches across modes and runs. Reports are retained under
+`output/benchmarks/cpp_index_timeout_20261001/`.

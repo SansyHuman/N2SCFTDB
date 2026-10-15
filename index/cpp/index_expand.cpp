@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <exception>
 #include <functional>
@@ -51,6 +53,66 @@ struct MonomialHash {
 };
 
 using Polynomial = std::unordered_map<Monomial, mpq_class, MonomialHash>;
+
+// One deadline per expansion, shared read-only except for cancellation. Clock
+// reads and the atomic cancellation load occur only at sampled checkpoints.
+class ExpansionDeadline {
+public:
+    using Clock = std::chrono::steady_clock;
+    explicit ExpansionDeadline(double seconds) : seconds_(seconds) {
+        if (!std::isfinite(seconds)) {
+            throw std::invalid_argument("index expansion timeout must be finite");
+        }
+        if (enabled()) start_ = Clock::now();
+    }
+    bool enabled() const { return seconds_ >= 0; }
+    Clock::time_point check() {
+        if (!enabled()) return {};
+        const auto current = Clock::now();
+        if (expired_.load(std::memory_order_relaxed) || remaining(current) <= 0) {
+            expired_.store(true, std::memory_order_relaxed);
+            throw std::runtime_error("index expansion timed out");
+        }
+        return current;
+    }
+    double remaining(Clock::time_point current) const {
+        return seconds_ - std::chrono::duration<double>(current - start_).count();
+    }
+private:
+    double seconds_;
+    Clock::time_point start_{};
+    std::atomic<bool> expired_{false};
+};
+
+// Private polling state per serial stage or worker task: no shared writes in
+// the hot loops. Target a clock read every millisecond, with bounded growth and
+// shorter batches near expiration. Zero budget is the unlimited fast path.
+class DeadlinePoll {
+public:
+    explicit DeadlinePoll(ExpansionDeadline& deadline) : deadline_(deadline) {
+        if (deadline.enabled()) {
+            previous_ = deadline.check();
+            interval_ = budget_ = 64;
+        }
+    }
+    void poll() {
+        if (budget_ && --budget_ == 0) {
+            const auto current = deadline_.check();
+            const double elapsed = std::chrono::duration<double>(current - previous_).count();
+            const double target = std::min(0.001, deadline_.remaining(current) * 0.25);
+            const double estimate = elapsed > 0 ? interval_ * target / elapsed : 4096;
+            const auto next = estimate >= 4096 ? 4096U : estimate < 1 ? 1U
+                            : static_cast<unsigned int>(estimate);
+            interval_ = budget_ = std::min(next, interval_ * 4);
+            previous_ = current;
+        }
+    }
+    ExpansionDeadline& deadline() const { return deadline_; }
+private:
+    ExpansionDeadline& deadline_;
+    ExpansionDeadline::Clock::time_point previous_{};
+    unsigned int interval_ = 0, budget_ = 0;
+};
 
 // A call-local pool. The caller participates as worker 0, so the requested
 // count includes it. No global pool, shared GMP accumulator, or nested pool.
@@ -207,11 +269,12 @@ void accumulate(Polynomial& polynomial, Monomial monomial, const mpq_class& valu
 
 // Move existing nodes instead of allocating/copying their keys and rationals.
 // No other worker may access either map during this reduction.
-void merge_polynomials(Polynomial& target, Polynomial& source) {
+void merge_polynomials(Polynomial& target, Polynomial& source, DeadlinePoll& poll) {
     if (target.size() < source.size()) {
         target.swap(source);
     }
     while (!source.empty()) {
+        poll.poll();
         auto inserted = target.insert(source.extract(source.begin()));
         if (!inserted.inserted) {
             inserted.position->second += inserted.node.mapped();
@@ -249,7 +312,7 @@ bool worth_parallelizing(std::size_t degree, const std::vector<Polynomial>& deri
 
 Polynomial parallel_degree(std::size_t degree, const std::vector<Polynomial>& derivative,
                            const std::vector<Polynomial>& expansion, int worker_count,
-                           std::unique_ptr<Workers>& workers) {
+                           std::unique_ptr<Workers>& workers, DeadlinePoll& poll) {
     constexpr std::size_t chunk_size = 512;
     std::vector<ProductTask> tasks;
     for (std::size_t k = 2; k <= degree; ++k) {
@@ -260,11 +323,13 @@ Polynomial parallel_degree(std::size_t degree, const std::vector<Polynomial>& de
         // Split the right operand too: even a single derivative monomial
         // can have a large product. Iterators remain valid until the barrier.
         for (auto begin = right.begin(); begin != right.end();) {
+            poll.poll();
             auto end = begin;
             for (std::size_t i = 0; i < chunk_size && end != right.end(); ++i) {
                 ++end;
             }
             for (const auto& left : derivative[k]) {
+                poll.poll();
                 tasks.push_back({&left, begin, end});
             }
             begin = end;
@@ -276,8 +341,10 @@ Polynomial parallel_degree(std::size_t degree, const std::vector<Polynomial>& de
     }
     std::vector<Polynomial> partials(workers->size());
     workers->run(tasks.size(), [&](std::size_t id, std::size_t task_index) {
+        DeadlinePoll local_poll(poll.deadline());
         const auto& task = tasks[task_index];
         for (auto right = task.begin; right != task.end; ++right) {
+            local_poll.poll();
             const mpq_class coefficient = task.left->second * right->second;
             accumulate(partials[id], multiply(task.left->first, right->first), coefficient);
         }
@@ -293,7 +360,8 @@ Polynomial parallel_degree(std::size_t degree, const std::vector<Polynomial>& de
     }
     while (active.size() > 1) {
         workers->run(active.size() / 2, [&](std::size_t, std::size_t pair) {
-            merge_polynomials(partials[active[2 * pair]], partials[active[2 * pair + 1]]);
+            DeadlinePoll local_poll(poll.deadline());
+            merge_polynomials(partials[active[2 * pair]], partials[active[2 * pair + 1]], local_poll);
         });
         std::vector<std::size_t> next;
         for (std::size_t i = 0; i < active.size(); i += 2) {
@@ -305,11 +373,15 @@ Polynomial parallel_degree(std::size_t degree, const std::vector<Polynomial>& de
 }
 
 CharacterProduct character_product(const IndexedMonomial& indices,
-                                   int adams, int max_adams) {
+                                   int adams, int max_adams, DeadlinePoll& poll) {
     IndexedMonomial sorted = indices;
-    std::sort(sorted.begin(), sorted.end());
+    std::sort(sorted.begin(), sorted.end(), [&](int a, int b) {
+        poll.poll();
+        return a < b;
+    });
     CharacterProduct result;
     for (int index : sorted) {
+        poll.poll();
         const auto symbol = static_cast<std::uint64_t>(index) * max_adams + adams - 1;
         if (!result.empty() && result.back().first == symbol) {
             result.back().second = checked_add(result.back().second, 1);
@@ -341,12 +413,12 @@ constexpr std::array<Letter, 2> hyper_letters{{
 template <std::size_t Count>
 void add_letters(std::vector<Polynomial>& derivative, int adams,
                  const IndexedMonomial& indices, const mpz_class& multiplicity,
-                 const std::array<Letter, Count>& letters) {
+                 const std::array<Letter, Count>& letters, DeadlinePoll& poll) {
     if (multiplicity == 0) {
         return;
     }
     const int order = static_cast<int>(derivative.size() - 1);
-    const auto characters = character_product(indices, adams, order / 2);
+    const auto characters = character_product(indices, adams, order / 2, poll);
     for (const auto& letter : letters) {
         const int remaining = order / adams - letter.t;
         if (remaining < 0) {
@@ -361,6 +433,7 @@ void add_letters(std::vector<Polynomial>& derivative, int adams,
             coefficient *= letter.coefficient;
             coefficient *= unscaled_degree;
             for (int a = 0; a <= sum; ++a) {
+                poll.poll();
                 Monomial monomial{
                     static_cast<Exponent>(adams) * (letter.y + 2LL * a - sum),
                     static_cast<Exponent>(adams) * letter.u,
@@ -402,6 +475,89 @@ std::vector<CharacterPowers> unpack_characters(const CharacterProduct& product,
     return result;
 }
 
+struct OutputTask {
+    Polynomial::iterator begin;
+    Polynomial::iterator end;
+    int degree;
+    std::size_t offset;
+};
+
+std::vector<IndexFormTerm> construct_output(std::vector<Polynomial>& expansion,
+                                          int max_adams, int worker_count,
+                                          std::unique_ptr<Workers>& workers, DeadlinePoll& poll) {
+    std::vector<IndexFormTerm> terms;
+    std::size_t term_count = 0;
+    for (const auto& polynomial : expansion) {
+        poll.poll();
+        if (polynomial.size() > terms.max_size() - term_count) {
+            throw std::length_error("index output has too many terms");
+        }
+        term_count += polynomial.size();
+    }
+
+    constexpr std::size_t minimum_parallel_terms = 4096;
+    if (worker_count == 1 || term_count < minimum_parallel_terms) {
+        // GMP rational moves are not noexcept, so vector growth can copy all
+        // preceding coefficients. Reserve once before moving any terms.
+        terms.reserve(term_count);
+        for (std::size_t degree = 0; degree < expansion.size(); ++degree) {
+            for (auto& [monomial, coefficient] : expansion[degree]) {
+                poll.poll();
+                terms.push_back({std::move(coefficient), static_cast<int>(degree),
+                                 monomial.y, monomial.u,
+                                 unpack_characters(monomial.characters, max_adams)});
+            }
+            expansion[degree].clear();
+        }
+        return terms;
+    }
+
+    constexpr std::size_t chunk_size = 512;
+    std::vector<OutputTask> tasks;
+    std::size_t offset = 0;
+    for (std::size_t degree = 0; degree < expansion.size(); ++degree) {
+        auto& polynomial = expansion[degree];
+        for (auto begin = polynomial.begin(); begin != polynomial.end();) {
+            poll.poll();
+            auto end = begin;
+            std::size_t count = 0;
+            while (count < chunk_size && end != polynomial.end()) {
+                ++end;
+                ++count;
+            }
+            tasks.push_back({begin, end, static_cast<int>(degree), offset});
+            offset += count;
+            begin = end;
+        }
+    }
+    // Construct every vector element before workers write distinct slots.
+    // Map structure stays fixed while they move distinct rational values.
+    terms.resize(term_count);
+    if (!workers) {
+        workers = std::make_unique<Workers>(
+            std::min(static_cast<std::size_t>(worker_count), tasks.size()));
+    }
+    workers->run(tasks.size(), [&](std::size_t, std::size_t task_index) {
+        DeadlinePoll local_poll(poll.deadline());
+        const auto& task = tasks[task_index];
+        auto destination = task.offset;
+        for (auto source = task.begin; source != task.end; ++source) {
+            local_poll.poll();
+            auto& term = terms[destination++];
+            term.coefficient = std::move(source->second);
+            term.t_power = task.degree;
+            term.y_power = source->first.y;
+            term.u_power = source->first.u;
+            term.characters = unpack_characters(source->first.characters, max_adams);
+        }
+    });
+    // The barrier has completed: no worker retains a live map access.
+    for (auto& polynomial : expansion) {
+        polynomial.clear();
+    }
+    return terms;
+}
+
 bool term_less(const IndexFormTerm& a, const IndexFormTerm& b) {
     const auto a_powers = std::tie(a.t_power, a.y_power, a.u_power);
     const auto b_powers = std::tie(b.t_power, b.y_power, b.u_power);
@@ -416,38 +572,39 @@ bool term_less(const IndexFormTerm& a, const IndexFormTerm& b) {
         });
 }
 
-}  // namespace
-
-std::vector<IndexFormTerm> expand_index(
+// Internal entry point for consumers that will combine/decompose terms before
+// sorting. Character indices inside each term remain canonical; only the outer
+// vector retains hash-map iteration order. No ordering guarantee is exposed.
+std::vector<IndexFormTerm> expand_index_unordered(
     int order, int character_count, const std::vector<int>& vector_characters,
-    const MatterMultiplicities& matter_multiplicities) {
-    return expand_index(order, character_count, vector_characters, matter_multiplicities, 1);
-}
-
-std::vector<IndexFormTerm> expand_index(
-    int order, int character_count, const std::vector<int>& vector_characters,
-    const MatterMultiplicities& matter_multiplicities, int worker_count) {
+    const MatterMultiplicities& matter_multiplicities, int worker_count,
+    ExpansionDeadline& deadline) {
     if (worker_count <= 0) {
         throw std::invalid_argument("worker_count must be positive");
     }
     if (order < 0 || character_count < 0) {
         throw std::invalid_argument("order and character_count must be nonnegative");
     }
+    DeadlinePoll poll(deadline);
     const auto validate_index = [character_count](int index) {
         if (index < 0 || index >= character_count) {
             throw std::invalid_argument("character index is outside [0, character_count)");
         }
     };
     for (int index : vector_characters) {
+        poll.poll();
         validate_index(index);
     }
     for (const auto& [indices, multiplicity] : matter_multiplicities) {
+        poll.poll();
         (void)multiplicity;
         for (int index : indices) {
+            poll.poll();
             validate_index(index);
         }
     }
     if (order < 2) {
+        deadline.check();
         return {{mpq_class(1), 0, 0, 0, {}}};
     }
 
@@ -455,11 +612,12 @@ std::vector<IndexFormTerm> expand_index(
     const auto degree_count = static_cast<std::size_t>(order) + 1;
     std::vector<Polynomial> derivative(degree_count);
     for (int adams = 1; adams <= max_adams; ++adams) {
+        deadline.check();
         for (int character : vector_characters) {
-            add_letters(derivative, adams, {character}, mpz_class(1), vector_letters);
+            add_letters(derivative, adams, {character}, mpz_class(1), vector_letters, poll);
         }
         for (const auto& [indices, multiplicity] : matter_multiplicities) {
-            add_letters(derivative, adams, indices, multiplicity, hyper_letters);
+            add_letters(derivative, adams, indices, multiplicity, hyper_letters, poll);
         }
     }
 
@@ -471,9 +629,10 @@ std::vector<IndexFormTerm> expand_index(
     expansion[0].emplace(Monomial{}, mpq_class(1));
     std::unique_ptr<Workers> workers;
     for (std::size_t n = 2; n < degree_count; ++n) {
+        deadline.check();
         auto& result = expansion[n];
         if (worker_count > 1 && worth_parallelizing(n, derivative, expansion)) {
-            result = parallel_degree(n, derivative, expansion, worker_count, workers);
+            result = parallel_degree(n, derivative, expansion, worker_count, workers, poll);
         } else {
             for (std::size_t k = 2; k <= n; ++k) {
                 if (expansion[n - k].empty()) {
@@ -481,6 +640,7 @@ std::vector<IndexFormTerm> expand_index(
                 }
                 for (const auto& [left, left_coefficient] : derivative[k]) {
                     for (const auto& [right, right_coefficient] : expansion[n - k]) {
+                        poll.poll();
                         const mpq_class coefficient = left_coefficient * right_coefficient;
                         accumulate(result, multiply(left, right), coefficient);
                     }
@@ -488,21 +648,50 @@ std::vector<IndexFormTerm> expand_index(
             }
         }
         for (auto& entry : result) {
+            poll.poll();
             entry.second /= static_cast<unsigned long>(n);
         }
     }
+    deadline.check();
+    auto terms = construct_output(expansion, max_adams, worker_count, workers, poll);
     workers.reset();
+    deadline.check();
+    return terms;
+}
 
-    std::vector<IndexFormTerm> terms;
-    for (std::size_t degree = 0; degree < degree_count; ++degree) {
-        for (auto& [monomial, coefficient] : expansion[degree]) {
-            terms.push_back({std::move(coefficient), static_cast<int>(degree),
-                             monomial.y, monomial.u,
-                             unpack_characters(monomial.characters, max_adams)});
-        }
-        expansion[degree].clear();
-    }
-    std::sort(terms.begin(), terms.end(), term_less);
+}  // namespace
+
+std::vector<IndexFormTerm> expand_index(
+    int order, int character_count, const std::vector<int>& vector_characters,
+    const MatterMultiplicities& matter_multiplicities) {
+    return expand_index(order, character_count, vector_characters, matter_multiplicities, 1, 600.0);
+}
+
+std::vector<IndexFormTerm> expand_index(
+    int order, int character_count, const std::vector<int>& vector_characters,
+    const MatterMultiplicities& matter_multiplicities, int worker_count) {
+    return expand_index(order, character_count, vector_characters, matter_multiplicities,
+                        worker_count, 600.0);
+}
+
+std::vector<IndexFormTerm> expand_index(
+    int order, int character_count, const std::vector<int>& vector_characters,
+    const MatterMultiplicities& matter_multiplicities, double timeout) {
+    return expand_index(order, character_count, vector_characters, matter_multiplicities, 1, timeout);
+}
+
+std::vector<IndexFormTerm> expand_index(
+    int order, int character_count, const std::vector<int>& vector_characters,
+    const MatterMultiplicities& matter_multiplicities, int worker_count, double timeout) {
+    ExpansionDeadline deadline(timeout);
+    auto terms = expand_index_unordered(order, character_count, vector_characters,
+                                        matter_multiplicities, worker_count, deadline);
+    DeadlinePoll poll(deadline);
+    std::sort(terms.begin(), terms.end(), [&](const auto& a, const auto& b) {
+        poll.poll();
+        return term_less(a, b);
+    });
+    deadline.check();
     return terms;
 }
 

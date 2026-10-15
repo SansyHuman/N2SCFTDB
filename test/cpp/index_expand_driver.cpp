@@ -8,6 +8,7 @@
 #include <future>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -40,6 +41,14 @@ void test_invalid_inputs() {
                                 "nonpositive worker count");
         expect_invalid_argument([workers] { expand_index(0, 0, {}, {}, workers); },
                                 "nonpositive worker count at vacuum cutoff");
+    }
+    for (double timeout : {std::numeric_limits<double>::infinity(),
+                           -std::numeric_limits<double>::infinity(),
+                           std::numeric_limits<double>::quiet_NaN()}) {
+        expect_invalid_argument([timeout] { expand_index(4, 1, {0}, {}, timeout); },
+                                "nonfinite serial timeout");
+        expect_invalid_argument([timeout] { expand_index(4, 1, {0}, {}, 2, timeout); },
+                                "nonfinite parallel timeout");
     }
     std::cout << "invalid-input checks passed\n";
 }
@@ -119,6 +128,109 @@ void test_parallel_calls() {
     std::cout << "parallel-call checks passed\n";
 }
 
+void test_output_construction() {
+    // At these cutoffs only the leading hyper letter contributes, so the exact
+    // answer is vacuum + sum_i m_i*t^2/u*C_i(1)^2. The 4201 recurrence
+    // products stay below its parallel threshold, while the returned vector is
+    // large enough for parallel output construction. One degree owns almost
+    // every term, and degrees 1 and (at cutoff 3) 3 are empty.
+    constexpr int character_count = 4201;
+    const mpz_class large("1267650600228229401496703205499");
+    n2scftdb::MatterMultiplicities matter;
+    for (int character = 0; character < character_count; ++character) {
+        mpz_class multiplicity = large + character;
+        if (character % 2 != 0) {
+            multiplicity = -multiplicity;
+        }
+        matter.emplace(n2scftdb::IndexedMonomial{character, character},
+                       std::move(multiplicity));
+    }
+    const auto expected = n2scftdb::expand_index(2, character_count, {}, matter);
+    if (expected.size() != static_cast<std::size_t>(character_count) + 1) {
+        throw std::runtime_error("output construction lost or added a term");
+    }
+    expect_same_terms({expected.front()}, {{mpq_class(1), 0, 0, 0, {}}});
+    for (int character = 0; character < character_count; ++character) {
+        const auto& term = expected[static_cast<std::size_t>(character) + 1];
+        const auto& multiplicity = matter.at({character, character});
+        if (term.coefficient != mpq_class(multiplicity) || term.t_power != 2
+            || term.y_power != 0 || term.u_power != -1
+            || term.characters.size() != 1
+            || term.characters.front().character != character
+            || term.characters.front().adams_powers
+                   != std::vector<std::int64_t>{2, 0}) {
+            throw std::runtime_error("leading hyper output does not match its exact formula");
+        }
+    }
+    for (int order : {2, 3}) {
+        for (int workers : {1, 2, 4, 32}) {
+            expect_same_terms(n2scftdb::expand_index(
+                order, character_count, {}, matter, workers), expected);
+        }
+    }
+    // Repeated independent callers create output workers without a preceding
+    // parallel recurrence, then destroy them before returning.
+    std::vector<std::future<void>> calls;
+    for (int caller = 0; caller < 4; ++caller) {
+        calls.push_back(std::async(std::launch::async, [&, caller] {
+            for (int repeat = 0; repeat < 2; ++repeat) {
+                expect_same_terms(n2scftdb::expand_index(
+                    3, character_count, {}, matter, caller % 2 == 0 ? 2 : 4),
+                    expected);
+            }
+        }));
+    }
+    for (auto& call : calls) {
+        call.get();
+    }
+    std::cout << "output-construction checks passed\n";
+}
+
+template <typename Function>
+void expect_timeout(Function function) {
+    const auto start = std::chrono::steady_clock::now();
+    try {
+        function();
+    } catch (const std::runtime_error& error) {
+        if (std::string(error.what()) != "index expansion timed out") throw;
+        if (std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count() > 2.0) {
+            throw std::runtime_error("index expansion did not stop promptly after timeout");
+        }
+        return;
+    }
+    throw std::runtime_error("index expansion did not enforce timeout");
+}
+
+void test_timeouts() {
+    using n2scftdb::expand_index;
+    for (int order : {0, 1, 8}) {
+        expect_timeout([order] { expand_index(order, 1, {0}, {}, 0.0); });
+        expect_timeout([order] { expand_index(order, 1, {0}, {}, 4, 0.0); });
+    }
+    const n2scftdb::MatterMultiplicities matter{{{3, 4, 5}, 1}};
+    for (int workers : {1, 4}) {
+        for (double timeout : {0.01, 0.1}) {
+            expect_timeout([&] { expand_index(30, 6, {0, 1, 2}, matter, workers, timeout); });
+            expect_same_terms(expand_index(10, 6, {0, 1, 2}, matter, workers, 10.0),
+                              expand_index(10, 6, {0, 1, 2}, matter, -1.0));
+        }
+    }
+    // An expiring call must not cancel an independent caller or leave workers
+    // alive after unwinding. Exercise success and expiration simultaneously.
+    const auto expected = expand_index(16, 6, {0, 1, 2}, matter, -1.0);
+    auto cancelled = std::async(std::launch::async, [&] {
+        expect_timeout([&] { expand_index(30, 6, {0, 1, 2}, matter, 4, 0.05); });
+    });
+    auto completed = std::async(std::launch::async, [&] {
+        expect_same_terms(expand_index(16, 6, {0, 1, 2}, matter, 2, -1.0), expected);
+    });
+    cancelled.get();
+    completed.get();
+    expect_same_terms(expand_index(10, 6, {0, 1, 2}, matter, 10.0),
+                      expand_index(10, 6, {0, 1, 2}, matter));
+    std::cout << "timeout checks passed\n";
+}
+
 template <typename Integer>
 Integer read_integer() {
     Integer result;
@@ -136,7 +248,8 @@ int read_count() {
     return count;
 }
 
-void expand_from_stdin(int worker_count, bool explicit_workers) {
+void expand_from_stdin(int worker_count, bool explicit_workers,
+                       double timeout = 600.0, bool explicit_timeout = false) {
     const int order = read_integer<int>();
     const int character_count = read_integer<int>();
     const int vector_count = read_count();
@@ -167,9 +280,13 @@ void expand_from_stdin(int worker_count, bool explicit_workers) {
     }
 
     const auto start = std::chrono::steady_clock::now();
-    const auto terms = explicit_workers
-        ? n2scftdb::expand_index(order, character_count, vectors, matter, worker_count)
-        : n2scftdb::expand_index(order, character_count, vectors, matter);
+    const auto terms = explicit_timeout
+        ? (explicit_workers
+            ? n2scftdb::expand_index(order, character_count, vectors, matter, worker_count, timeout)
+            : n2scftdb::expand_index(order, character_count, vectors, matter, timeout))
+        : (explicit_workers
+            ? n2scftdb::expand_index(order, character_count, vectors, matter, worker_count)
+            : n2scftdb::expand_index(order, character_count, vectors, matter));
     const auto finish = std::chrono::steady_clock::now();
     std::cerr << std::setprecision(17) << "{\"expansion_seconds\":"
               << std::chrono::duration<double>(finish - start).count()
@@ -197,19 +314,30 @@ int main(int argc, char** argv) {
             test_invalid_inputs();
         } else if (argc == 2 && std::string(argv[1]) == "--parallel-self-test") {
             test_parallel_calls();
-        } else if (argc == 1) {
-            expand_from_stdin(1, false);
-        } else if (argc == 3 && std::string(argv[1]) == "--workers") {
-            std::size_t parsed = 0;
-            const std::string argument(argv[2]);
-            const int worker_count = std::stoi(argument, &parsed);
-            if (parsed != argument.size()) {
-                throw std::invalid_argument("invalid worker count");
-            }
-            expand_from_stdin(worker_count, true);
+        } else if (argc == 2 && std::string(argv[1]) == "--output-self-test") {
+            test_output_construction();
+        } else if (argc == 2 && std::string(argv[1]) == "--timeout-self-test") {
+            test_timeouts();
         } else {
-            throw std::invalid_argument(
-                "usage: index_expand_driver [--workers N | --self-test | --parallel-self-test]");
+            int worker_count = 1;
+            double timeout = 600.0;
+            bool explicit_workers = false, explicit_timeout = false;
+            for (int i = 1; i < argc; i += 2) {
+                if (i + 1 >= argc) throw std::invalid_argument("missing option value");
+                const std::string option(argv[i]), argument(argv[i + 1]);
+                std::size_t parsed = 0;
+                if (option == "--workers" && !explicit_workers) {
+                    worker_count = std::stoi(argument, &parsed);
+                    explicit_workers = true;
+                } else if (option == "--timeout" && !explicit_timeout) {
+                    timeout = std::stod(argument, &parsed);
+                    explicit_timeout = true;
+                } else {
+                    throw std::invalid_argument("unknown or repeated option");
+                }
+                if (parsed != argument.size()) throw std::invalid_argument("invalid option value");
+            }
+            expand_from_stdin(worker_count, explicit_workers, timeout, explicit_timeout);
         }
         return 0;
     } catch (const std::exception& error) {

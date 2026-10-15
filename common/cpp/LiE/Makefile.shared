@@ -1,0 +1,69 @@
+# Shared-library build for the downloaded LiE 2.2.2 C sources.
+# Run from any directory: make -f /path/to/LiE/Makefile.shared -j4
+SOURCE_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+BUILD_DIR := $(SOURCE_DIR)/_build/shared
+LIBRARY := $(SOURCE_DIR)/liblie.so
+CC = gcc
+CFLAGS ?= -O3
+CPPFLAGS ?=
+LDFLAGS ?=
+LDLIBS ?=
+
+# A system Bison takes precedence. The local tool is optional and ignored by Git.
+LOCAL_BISON := $(SOURCE_DIR)/_build/tools/usr/bin/bison
+ifneq ($(shell command -v bison 2>/dev/null),)
+BISON ?= bison
+else ifneq ($(wildcard $(LOCAL_BISON)),)
+BISON ?= $(LOCAL_BISON)
+BISON_PKGDATADIR ?= $(SOURCE_DIR)/_build/tools/usr/share/bison
+export BISON_PKGDATADIR
+else
+BISON ?= bison
+endif
+
+CORE := lexer non-ANSI bigint binmat creatop gettype getvalue init learn \
+        main mem node onoff output poly sym print getl date
+MATH := altdom branch centr closure contragr coxeter decomp defs diagram \
+        domchar factor grpdata lr matrix orbit plethysm sorting static3 \
+        symg tensor weyl weylloop
+BINDINGS := static1 static2 static4 static5 static6 static7
+OBJECTS := $(addprefix $(BUILD_DIR)/,$(addsuffix .o,$(CORE))) \
+           $(BUILD_DIR)/parser.o \
+           $(addprefix $(BUILD_DIR)/box/,$(addsuffix .o,$(MATH))) \
+           $(addprefix $(BUILD_DIR)/static/,$(addsuffix .o,$(BINDINGS))) \
+           $(BUILD_DIR)/lie_bridge.o
+INCLUDES := -DN2_LIE_EMBEDDABLE -I$(BUILD_DIR) -I$(SOURCE_DIR) -I$(SOURCE_DIR)/box
+
+.PHONY: all
+all: $(LIBRARY)
+
+$(LIBRARY): $(OBJECTS) $(SOURCE_DIR)/Makefile.shared
+	$(CC) -shared $(LDFLAGS) -Wl,-soname,liblie.so -Wl,-z,defs -Wl,-Bsymbolic-functions \
+	  -o $@.tmp $(OBJECTS) -pthread $(LDLIBS)
+	mv $@.tmp $@
+
+# Keep generated parser files and PIC objects separate from upstream's build.
+$(BUILD_DIR)/parser.c $(BUILD_DIR)/parser.h &: $(SOURCE_DIR)/parser.y
+	@mkdir -p $(BUILD_DIR)
+	$(BISON) -d --output=$(BUILD_DIR)/parser.c $<
+
+$(BUILD_DIR)/parser.o: $(BUILD_DIR)/parser.c $(BUILD_DIR)/parser.h $(SOURCE_DIR)/Makefile.shared
+	$(CC) $(CPPFLAGS) $(CFLAGS) -std=c89 -fPIC -MMD -MP $(INCLUDES) -c $< -o $@
+
+$(BUILD_DIR)/lexer.o: $(BUILD_DIR)/parser.h
+
+$(BUILD_DIR)/lie_bridge.o: $(SOURCE_DIR)/../lie_bridge.c $(SOURCE_DIR)/Makefile.shared
+	@mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -std=c99 -fPIC -pthread -MMD -MP $(INCLUDES) -c $< -o $@
+
+# main.c also owns runtime globals needed by the mathematical routines.
+# Retain those definitions, but do not export a host application's main().
+$(BUILD_DIR)/main.o: CPPFLAGS += -Dmain=lie_cli_main
+$(BUILD_DIR)/non-ANSI.o: STANDARD = -std=gnu89
+STANDARD = -std=c89
+
+$(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c $(SOURCE_DIR)/Makefile.shared
+	@mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(STANDARD) -fPIC -MMD -MP $(INCLUDES) -c $< -o $@
+
+-include $(OBJECTS:.o=.d)

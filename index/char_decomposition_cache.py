@@ -12,6 +12,12 @@ requesting decompositions and contract the two halves by character orthogonality
 if A = sum a_lambda chi_lambda and B = sum b_mu chi_mu, the singlet coefficient
 of A*B is sum a_lambda b_(lambda dual). Only intermediate products are fully
 decomposed; the complete product is never tensor-decomposed for this projection.
+
+When the optional native extension is built, C++ supplies the SQLite cache,
+exact character primitives and native LiE Adams/tensor operations. Python retains scheduling,
+progress callbacks and overridable calculation hooks. Set
+N2SCFTDB_CHAR_CACHE_BACKEND=python to use the reference implementation, or cpp
+to require the extension; the default auto mode uses it when available.
 """
 
 from __future__ import annotations
@@ -36,6 +42,10 @@ if not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from common.number_utils import as_integer, as_nonnegative_int
+from index._char_cache_native import load_native
+
+
+_NATIVE = load_native()
 
 
 # Highest weight of the representation
@@ -87,6 +97,8 @@ def _canonical_adams_powers(powers: Iterable[int]) -> AdamsPowers:
         raise ValueError("Adams powers must be nonnegative integers") from exc
     if any(value < 0 for value in raw):
         raise ValueError("Adams powers must be nonnegative integers")
+    if _NATIVE is not None:
+        return tuple(_NATIVE.canonical_adams_powers(raw))
 
     order = sum(position * value for position, value in enumerate(raw, start=1))
     if order <= 0:
@@ -105,6 +117,8 @@ def _decomposition_dependencies(
     powers: AdamsPowers,
 ) -> tuple[AdamsPowers, ...]:
     """Return the two lower-factor products used by the recursive calculation."""
+    if _NATIVE is not None:
+        return tuple(tuple(part) for part in _NATIVE.decomposition_dependencies(powers))
     if sum(powers) <= 1:
         return ()
     split_position = next(
@@ -138,6 +152,11 @@ def _canonical_request(
 
 def _canonical_product(algebra, product) -> CharacterProduct:
     """Merge repeated representations by adding their power vectors and sort factors."""
+    if _NATIVE is not None:
+        normalized = [_canonical_request(algebra, labels, powers)[1:]
+                      for labels, powers in product]
+        return tuple((tuple(labels), tuple(powers))
+                     for labels, powers in _NATIVE.canonical_product(algebra, normalized))
     merged = {}
     for labels, powers in product:
         _, labels, powers = _canonical_request(algebra, labels, powers)
@@ -154,6 +173,8 @@ def _canonical_product(algebra, product) -> CharacterProduct:
 @lru_cache(maxsize=None)
 def _dual_permutation(algebra: str) -> tuple[int, ...]:
     """Compute the -w0 permutation once using the project's duality convention."""
+    if _NATIVE is not None:
+        return tuple(_NATIVE.dual_permutation(algebra))
     from anomalies.lie_algebra import conjugate_dynkin_labels, get_lie_algebra
 
     group = get_lie_algebra(algebra)
@@ -167,6 +188,9 @@ def _dual_permutation(algebra: str) -> tuple[int, ...]:
 
 def _singlet_pair(algebra: str, left: Decomposition, right: Decomposition) -> int:
     """Exact coefficient of 1 in A*B, including signed virtual characters."""
+    if _NATIVE is not None:
+        return _NATIVE.singlet_pair(algebra, _native_decomposition(left),
+                                   _native_decomposition(right))
     if not left or not right:
         return 0
     if len(left) > len(right):
@@ -185,6 +209,9 @@ def _split_character_product(algebra: str, product: CharacterProduct) -> tuple[C
     The estimate balances highest-weight sizes, not exact tensor complexity.
     An individual Adams operation stays intact; repeated factors may separate.
     """
+    if _NATIVE is not None:
+        return tuple(tuple((tuple(labels), tuple(powers)) for labels, powers in side)
+                     for side in _NATIVE.split_character_product(algebra, product))
     atoms = [(labels, j, j * max(1, sum(labels)))
              for labels, powers in product
              for j, exponent in enumerate(powers, start=1)
@@ -206,11 +233,13 @@ def _initialize_decomposition_worker(
     max_nodes: int,
     max_objects: int,
     timeout: float,
+    lie_backend: str = "auto",
 ) -> None:
     global _PROCESS_CACHE
     _PROCESS_CACHE = CharacterDecompositionCache(
         database_path=database_path, lie_executable=lie_executable,
         max_nodes=max_nodes, max_objects=max_objects, timeout=timeout, max_workers=1,
+        lie_backend=lie_backend,
     )
 
 
@@ -237,6 +266,8 @@ def _format_labels(labels: DynkinLabels) -> str:
 
 def format_lie_decomposition(decomposition: Decomposition) -> str:
     """Convert a structured decomposition to a LiE polynomial."""
+    if _NATIVE is not None:
+        return _NATIVE.format_lie_decomposition(_native_decomposition(decomposition))
     if not decomposition:
         raise ValueError("the zero virtual representation has no LiE polynomial here")
     terms = []
@@ -248,6 +279,8 @@ def format_lie_decomposition(decomposition: Decomposition) -> str:
 
 def parse_lie_decomposition(text: str, rank: int) -> Decomposition:
     """Parse one LiE decomposition polynomial into structured terms."""
+    if _NATIVE is not None:
+        return _NATIVE.parse_lie_decomposition(text, as_nonnegative_int(rank, "rank"))
     compact = "".join(text.split())
     while any(pair in compact for pair in ("++", "+-", "-+", "--")):
         compact = (
@@ -282,6 +315,12 @@ def parse_lie_decomposition(text: str, rank: int) -> Decomposition:
     return result
 
 
+def _native_decomposition(decomposition: Decomposition) -> Decomposition:
+    """Apply the public exact-number rules before crossing the native boundary."""
+    return {_canonical_labels(labels): as_integer(coefficient, "coefficient")
+            for labels, coefficient in decomposition.items()}
+
+
 class CharacterDecompositionCache:
     """Persist exact character decompositions and singlet coefficients in SQLite.
 
@@ -294,6 +333,10 @@ class CharacterDecompositionCache:
     Workers open connections after process creation. SQLite transactions cover
     only completed cache writes, never LiE calculations. Coefficients are stored
     as decimal strings to preserve arbitrary-size signed integers.
+
+    The optional C++ backend is also thread-local. Python owns the dependency
+    scheduling and calculation hooks in either mode, including cache-building
+    process pools and progress callbacks.
     """
 
     def __init__(
@@ -306,6 +349,7 @@ class CharacterDecompositionCache:
         max_objects: int = 9_999_999,
         timeout: float = 600,
         max_workers: int | None = None,
+        lie_backend: str = "auto",
     ) -> None:
         if cache_directory is not None and database_path is not None:
             raise ValueError("supply either cache_directory or database_path")
@@ -320,10 +364,28 @@ class CharacterDecompositionCache:
         self.max_nodes = int(max_nodes)
         self.max_objects = int(max_objects)
         self.timeout = timeout
+        if lie_backend not in {"auto", "native", "subprocess"}:
+            raise ValueError("lie_backend must be auto, native, or subprocess")
+        if lie_backend == "native" and _NATIVE is None:
+            raise RuntimeError("native LiE requires the C++ character-cache extension")
+        self._lie_backend = lie_backend
         if max_workers is not None and int(max_workers) <= 0:
             raise ValueError("max_workers must be positive or None")
         self.max_workers = None if max_workers is None else int(max_workers)
         self._local = threading.local()
+
+    @property
+    def backend(self) -> str:
+        """Return the selected computational backend (cpp or python)."""
+        return "cpp" if _NATIVE is not None else "python"
+
+    @property
+    def lie_backend(self) -> str:
+        """Return the selected LiE engine; a custom executable selects subprocess."""
+        if _NATIVE is None or self._lie_backend == "subprocess":
+            return "subprocess"
+        return ("native" if self._lie_backend == "native" or
+                os.fspath(self.lie_executable) in ("lie", b"lie") else "subprocess")
 
     def _state(self):
         """Maintain each thread's connection, memory caches and pending writes."""
@@ -332,10 +394,32 @@ class CharacterDecompositionCache:
             # Never use a connection inherited from a parent process.
             if state is not None and state["connection"] is not None:
                 state["connection"].close()
+            if state is not None and state["native"] is not None:
+                state["native"].close()
             state = dict(pid=os.getpid(), connection=None, decompositions={},
-                         singlets={}, partial_products={}, pending=None)
+                         singlets={}, partial_products={}, pending=None,
+                         native=None, native_options=None)
             self._local.state = state
         return state
+
+    def _native_cache(self):
+        """Lazily create one native client per calling thread and process."""
+        if _NATIVE is None:
+            return None
+        state = self._state()
+        # The native API uses a negative deadline for an unlimited wait;
+        # Python's subprocess treats a supplied negative timeout as expired.
+        timeout = -1.0 if self.timeout is None else float(self.timeout)
+        if self.timeout is not None and timeout < 0:
+            timeout = 0.0
+        options = (str(self.database_path), os.fspath(self.lie_executable),
+                   self.max_nodes, self.max_objects, timeout, self._lie_backend)
+        if state["native"] is None or state["native_options"] != options:
+            if state["native"] is not None:
+                state["native"].close()
+            state["native"] = _NATIVE.CharacterDecompositionCache(*options)
+            state["native_options"] = options
+        return state["native"]
 
     @staticmethod
     def _retry_busy(operation):
@@ -397,6 +481,8 @@ class CharacterDecompositionCache:
         state = self._state()
         if state["connection"] is not None:
             state["connection"].close()
+        if state["native"] is not None:
+            state["native"].close()
         self._local.state = None
 
     def __enter__(self):
@@ -408,6 +494,8 @@ class CharacterDecompositionCache:
     @staticmethod
     def _encode_decomposition(decomposition):
         """Convert decomposition dictionary to JSON text."""
+        if _NATIVE is not None:
+            return _NATIVE.encode_decomposition(_native_decomposition(decomposition))
         return _json_key([
             [labels, str(as_integer(coefficient, "coefficient"))]
             for labels, coefficient in sorted(decomposition.items()) if coefficient
@@ -416,10 +504,18 @@ class CharacterDecompositionCache:
     @staticmethod
     def _decode_decomposition(payload):
         """Convert JSON text to decomposition dictionary."""
+        if _NATIVE is not None:
+            return _NATIVE.decode_decomposition(payload)
         return {tuple(labels): int(coefficient) for labels, coefficient in json.loads(payload)}
 
     def _write_decompositions(self, entries):
         """Write decompositions to database."""
+        if _NATIVE is not None:
+            entries = [(request, _native_decomposition(decomposition))
+                       for request, decomposition in entries]
+            if entries:
+                self._retry_busy(lambda: self._native_cache().write_decompositions(entries))
+            return
         rows = [
             (algebra, _json_key(labels), _json_key(powers), _adams_order(powers),
              self._encode_decomposition(decomposition))
@@ -441,6 +537,11 @@ class CharacterDecompositionCache:
         memory = self._state()["decompositions"]
         if request in memory:
             return memory[request]
+        if _NATIVE is not None:
+            result = self._native_cache().lookup_decomposition(request)
+            if result is not None:
+                memory[request] = result
+            return result
         algebra, labels, powers = request
         parameters = (algebra, _json_key(labels), _json_key(powers))
         sql = """SELECT terms_json FROM character_decompositions
@@ -579,7 +680,7 @@ class CharacterDecompositionCache:
                 with ProcessPoolExecutor(
                     max_workers=workers, initializer=_initialize_decomposition_worker,
                     initargs=(str(self.database_path), self.lie_executable,
-                              self.max_nodes, self.max_objects, self.timeout),
+                              self.max_nodes, self.max_objects, self.timeout, self._lie_backend),
                 ) as executor:
                     for level in sorted(by_level):
                         level_requests = sorted(by_level[level])
@@ -592,6 +693,15 @@ class CharacterDecompositionCache:
     def _lookup_singlets(self, algebra, keys):
         """Retrieve cached singlet coefficients."""
         memory = self._state()["singlets"]
+        if _NATIVE is not None:
+            unique = list(dict.fromkeys(keys))
+            result = {key: memory[algebra, key] for key in unique if (algebra, key) in memory}
+            missing = [key for key in unique if key not in result]
+            if missing or not unique:
+                found = self._native_cache().lookup_singlets(algebra, missing)
+                memory.update(((algebra, key), value) for key, value in found.items())
+                result.update(found)
+            return result
         connection = self._connection()
         result = {}
         for key in dict.fromkeys(keys):
@@ -609,6 +719,11 @@ class CharacterDecompositionCache:
     def _write_singlets(self, algebra, entries):
         """Insert singlet coefficients into database."""
         if not entries:
+            return
+        if _NATIVE is not None:
+            values = {key: as_integer(value, "coefficient") for key, value in entries.items()}
+            self._retry_busy(lambda: self._native_cache().write_singlets(algebra, values))
+            self._state()["singlets"].update(((algebra, key), value) for key, value in values.items())
             return
         connection = self._connection()
         def write():
@@ -683,6 +798,9 @@ class CharacterDecompositionCache:
         if set(right) == {zero}:
             return {labels: right[zero] * value for labels, value in left.items()
                     if right[zero] * value}
+        if self.lie_backend == "native":
+            return self._native_cache().tensor_decompositions(
+                algebra, _native_decomposition(left), _native_decomposition(right))
         expression = f"tensor({format_lie_decomposition(left)},{format_lie_decomposition(right)},{algebra})"
         output = self._run_lie([expression])
         return parse_lie_decomposition("".join(output), len(zero))
@@ -798,6 +916,8 @@ class CharacterDecompositionCache:
                 for position, value in enumerate(powers, start=1)
                 if value
             )
+            if self.lie_backend == "native":
+                return self._native_cache().calculate_decomposition(algebra, labels, powers)
             expression = f"Adams({adams},{_format_labels(labels)},{algebra})"
         else:
             left, right = self._decomposition_dependencies(algebra, labels, powers)
@@ -839,6 +959,10 @@ class CharacterDecompositionCache:
         configure_memory: bool,
     ) -> subprocess.CompletedProcess[str]:
         """Send LiE program through standard input and capture output."""
+        if _NATIVE is not None:
+            result = self._native_cache().execute_lie(list(expressions), configure_memory)
+            return subprocess.CompletedProcess([self.lie_executable], result.returncode,
+                                               result.stdout_text, result.stderr_text)
         commands = list(expressions)
         if configure_memory:
             commands[:0] = [
@@ -865,6 +989,8 @@ class CharacterDecompositionCache:
     @staticmethod
     def _lie_output_lines(stdout: str) -> list[str]:
         """Remove empty lines and LiE's informational messages."""
+        if _NATIVE is not None:
+            return _NATIVE.lie_output_lines(stdout)
         return [
             line.strip()
             for line in stdout.splitlines()
@@ -881,6 +1007,7 @@ def build_decomposition_cache(
     database_path: str | Path | None = None,
     processes: int | None = None,
     lie_executable: str = "lie",
+    lie_backend: str = "auto",
     timeout: float | None = 600,
     progress: Callable[[int, int, int], None] | None = None,
 ) -> dict[int, int]:
@@ -920,6 +1047,7 @@ def build_decomposition_cache(
         cache = stack.enter_context(CharacterDecompositionCache(
             cache_directory, database_path=database_path,
             lie_executable=lie_executable, timeout=timeout, max_workers=1,
+            lie_backend=lie_backend,
         ))
         executor = None
         for order in range(1, maximum + 1):
@@ -947,7 +1075,7 @@ def build_decomposition_cache(
                         max_workers=workers, mp_context=get_context("spawn"),
                         initializer=_initialize_decomposition_worker,
                         initargs=(str(cache.database_path), cache.lie_executable,
-                                  cache.max_nodes, cache.max_objects, cache.timeout),
+                                  cache.max_nodes, cache.max_objects, cache.timeout, cache._lie_backend),
                     ))
                 # Several batches per worker balance uneven tensor costs. Bound
                 # batch size so completed decompositions can be saved promptly.
@@ -981,6 +1109,7 @@ def main(argv: list[str] | None = None) -> int:
     paths.add_argument("--cache-database", type=Path,
                        help="SQLite file (default: project-root char_decomposition_cache.db)")
     parser.add_argument("--lie-executable", default="lie")
+    parser.add_argument("--lie-backend", choices=("auto", "native", "subprocess"), default="auto")
     parser.add_argument("--timeout", type=float, default=600,
                         help="timeout in seconds per LiE invocation (default: 600)")
     args = parser.parse_args(argv)
@@ -994,7 +1123,7 @@ def main(argv: list[str] | None = None) -> int:
             args.cartan_type, args.dynkin_labels, args.max_adams_order,
             cache_directory=args.cache_directory, database_path=args.cache_database,
             processes=args.processes, lie_executable=args.lie_executable,
-            timeout=args.timeout, progress=report,
+            timeout=args.timeout, progress=report, lie_backend=args.lie_backend,
         )
     except (OSError, sqlite3.Error, ArithmeticError, TypeError, ValueError, RuntimeError) as exc:
         print(f"error: {exc}", file=sys.stderr)

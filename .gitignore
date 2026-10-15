@@ -7,3 +7,9 @@
 /logs/
 /all_test.sh
 /PROJECT_REVIEW.md
+/index/cpp/_build/
+/index/_char_cache_cpp*.so
+/index/_char_cache_cpp*.pyd
+/common/cpp/LiE/_build/
+/common/cpp/LiE/liblie.so
+/common/cpp/LiE/liblie.so.tmp
