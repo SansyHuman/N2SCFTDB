@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Build index._char_cache_cpp for the Python interpreter running this script.
+"""Build index._index_calculation_cpp for the Python interpreter running this script.
 
 Example (all generated dependencies remain inside index/cpp/_build):
-    python index/cpp/build_char_cache.py --install-deps
+    python index/cpp/build_index_calculation.py --install-deps
 
 GMP/GMPXX and SQLite development headers and libraries must already exist.
 Use --gmp-prefix and --sqlite-prefix when they are outside the current Python
@@ -96,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
     suffix = sysconfig.get_config_var("EXT_SUFFIX")
     if not suffix:
         parser.error("This Python does not define an extension-module suffix")
-    output = HERE.parent / f"_char_cache_cpp{suffix}"
+    output = HERE.parent / f"_index_calculation_cpp{suffix}"
     includes = list(dict.fromkeys([
         Path(sysconfig.get_path("include")), Path(sysconfig.get_path("platinclude")),
         pybind_include, json_include, *gmp_includes, *sqlite_includes,
@@ -105,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
     flags = ["-O0", "-g"] if args.debug else ["-O3", "-DNDEBUG"]
     # A temporary output prevents a failed or interrupted compilation from
     # replacing a previously working extension.
-    with tempfile.TemporaryDirectory(prefix="char-cache-", dir=BUILD) as temporary:
+    with tempfile.TemporaryDirectory(prefix="index-calculation-", dir=BUILD) as temporary:
         temporary_output = Path(temporary) / output.name
         command = [
             compiler, "-std=c++17", "-shared", "-fPIC", "-pthread", "-fvisibility=hidden",

@@ -18,7 +18,7 @@ Public License, version 2.1 or, at your option, any later version:
   index/cpp/index_singlet_project.cpp
   index/cpp/index_singlet_project.hpp
   index/cpp/char_decomposition_bindings.cpp
-  index/cpp/build_char_cache.py
+  index/cpp/build_index_calculation.py
   index/cpp/CHARACTER_CACHE.md
   test/cpp/lie_wrapper_driver.cpp
   test/test_cpp_lie_wrapper.py

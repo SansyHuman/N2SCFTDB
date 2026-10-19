@@ -2,15 +2,55 @@
 from concurrent.futures import ThreadPoolExecutor
 from fractions import Fraction
 from pathlib import Path
+import os
 import shutil
 import tempfile
 import unittest
 from unittest.mock import patch
 
 from index import n2_theory_index as idx
+from index import _index_calculation_native as native_loader
 
 SU2 = {"algebra": "A1", "hypermultiplets": [{"representation": "fundamental", "number": 4}]}
 SU3 = {"algebra": "A2", "hypermultiplets": [{"representation": "fundamental", "number": 6}]}
+
+
+class NativeLoaderTests(unittest.TestCase):
+    def test_python_cache_selection_does_not_disable_native_index(self):
+        with patch.dict(os.environ, {"N2SCFTDB_CHAR_CACHE_BACKEND": "python"}), \
+             patch.object(native_loader, "import_module", wraps=native_loader.import_module) as load:
+            self.assertIsNone(native_loader.load_native())
+            load.assert_not_called()
+            native = native_loader.load_native(require_index=True)
+            self.assertTrue(callable(native.expand_and_project))
+            load.assert_called_once_with("index._index_calculation_cpp")
+
+    def test_missing_extension_only_permits_automatic_cache_fallback(self):
+        missing = ModuleNotFoundError("not built", name="index._index_calculation_cpp")
+        with patch.object(native_loader, "import_module", side_effect=missing):
+            with patch.dict(os.environ, {"N2SCFTDB_CHAR_CACHE_BACKEND": "auto"}):
+                self.assertIsNone(native_loader.load_native())
+            with patch.dict(os.environ, {"N2SCFTDB_CHAR_CACHE_BACKEND": "cpp"}), \
+                 self.assertRaisesRegex(ImportError, "build_index_calculation.py") as error:
+                native_loader.load_native()
+            self.assertIs(error.exception.__cause__, missing)
+            with patch.dict(os.environ, {"N2SCFTDB_CHAR_CACHE_BACKEND": "python"}), \
+                 self.assertRaisesRegex(RuntimeError, "build_index_calculation.py") as error:
+                native_loader.load_native(require_index=True)
+            self.assertIs(error.exception.__cause__, missing)
+
+    def test_dependency_and_binary_errors_remain_visible(self):
+        errors = (ModuleNotFoundError("missing dependency", name="native_dependency"),
+                  ImportError("undefined symbol"))
+        for backend in ("auto", "cpp"):
+            for require_index in (False, True):
+                for failure in errors:
+                    with self.subTest(backend=backend, require_index=require_index, error=failure), \
+                         patch.dict(os.environ, {"N2SCFTDB_CHAR_CACHE_BACKEND": backend}), \
+                         patch.object(native_loader, "import_module", side_effect=failure), \
+                         self.assertRaises(type(failure)) as error:
+                        native_loader.load_native(require_index=require_index)
+                    self.assertIs(error.exception, failure)
 
 
 class NativeCalculateIndexTests(unittest.TestCase):
@@ -49,7 +89,7 @@ class NativeCalculateIndexTests(unittest.TestCase):
                     self.assertEqual(self.calculate(data, worker_count=workers), expected)
 
     def test_worker_count_overrides_legacy_form_threads(self):
-        native = idx._require_native_index()
+        native = native_loader.load_native(require_index=True)
         with patch.object(native, "expand_and_project", wraps=native.expand_and_project) as call:
             self.calculate(form_threads=4)
             self.assertEqual(call.call_args.args[-2], 4)
@@ -70,13 +110,13 @@ class NativeCalculateIndexTests(unittest.TestCase):
         self.assertTrue(self.calculate(timeout=None))
 
     def test_missing_or_outdated_extension_gives_build_instructions(self):
-        missing = ModuleNotFoundError("not built", name="index._char_cache_cpp")
+        missing = ModuleNotFoundError("not built", name="index._index_calculation_cpp")
         for outcome in (missing, object()):
-            with self.subTest(outcome=outcome), patch.object(idx, "import_module",
+            with self.subTest(outcome=outcome), patch.object(native_loader, "import_module",
                  side_effect=outcome if isinstance(outcome, Exception) else None,
-                 return_value=outcome), self.assertRaisesRegex(RuntimeError, "build_char_cache.py"):
+                 return_value=outcome), self.assertRaisesRegex(RuntimeError, "build_index_calculation.py"):
                 self.calculate()
-        with patch.object(idx, "_require_native_index", side_effect=AssertionError("loaded native")):
+        with patch.object(idx, "load_native", side_effect=AssertionError("loaded native")):
             self.assertEqual(self.calculate(order=1), 1)
 
     def test_independent_python_threads_can_call_native(self):
@@ -85,7 +125,7 @@ class NativeCalculateIndexTests(unittest.TestCase):
         self.assertTrue(all(value == results[0] for value in results))
 
     def test_binding_strict_conversion_and_large_exact_coefficients(self):
-        native = idx._require_native_index()
+        native = native_loader.load_native(require_index=True)
         cache = native.CharacterDecompositionCache(str(self.directory / "binding.db"))
         self.addCleanup(cache.close)
         huge = 10 ** 130 + 3

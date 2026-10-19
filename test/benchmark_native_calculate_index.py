@@ -44,12 +44,13 @@ def cases():
 
 def worker(config):
     from index import n2_theory_index as idx
+    from index._index_calculation_native import load_native
     case = config["case"]
     # Warm Python/Sage root-system and representation metadata equally. The
     # measured public API still performs its own validation on every call.
     idx._parse_input(case["data"])
     if config["backend"] == "native":
-        idx._require_native_index()
+        load_native(require_index=True)
     records, coefficients = [], None
     with tempfile.TemporaryDirectory(prefix="index-backend-bench-") as temporary:
         path = Path(temporary)

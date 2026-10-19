@@ -140,7 +140,7 @@ and the worker's reuse of connected product sectors alongside simple sectors.
 retained `backend="python"` path, including 1/4/32-worker equality, GIL-released
 concurrent calls, strict exact binding conversion, cache ownership, timeout
 recovery, extension diagnostics, and absence of FORM expansion-cache writes.
-Build the extension with `sage -python -B index/cpp/build_char_cache.py` first.
+Build the extension with `sage -python -B index/cpp/build_index_calculation.py` first.
 The tests use temporary caches. FORM-specific integration suites explicitly
 select `backend="python"` so they continue to exercise the reference engine.
 

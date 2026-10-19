@@ -54,7 +54,7 @@ class CppIndexSingletProjectTests(unittest.TestCase):
         json_include = Path(os.environ.get("NLOHMANN_JSON_INCLUDE_DIR",
             ROOT / "index/cpp/_build/deps/nlohmann_json/include"))
         if not (json_include / "nlohmann/json.hpp").is_file():
-            raise RuntimeError("nlohmann/json headers missing; run index/cpp/build_char_cache.py --install-deps")
+            raise RuntimeError("nlohmann/json headers missing; run index/cpp/build_index_calculation.py --install-deps")
         result = subprocess.run(["make", "-C", str(ROOT / "common/cpp/LiE"),
                                  "-f", "Makefile.shared", "-j4"],
                                 capture_output=True, text=True, timeout=120)

@@ -1,6 +1,6 @@
 """Check the native cache against schema-1 Python data and independent weights.
 
-Build the optional extension with ``python index/cpp/build_char_cache.py`` first.
+Build the optional extension with ``python index/cpp/build_index_calculation.py`` first.
 Every database and fake LiE executable used here lives in a temporary directory.
 """
 
@@ -23,9 +23,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 try:
-    native = importlib.import_module("index._char_cache_cpp")
+    native = importlib.import_module("index._index_calculation_cpp")
 except ModuleNotFoundError as exc:
-    if exc.name != "index._char_cache_cpp":
+    if exc.name != "index._index_calculation_cpp":
         raise
     native = None
 
@@ -67,7 +67,7 @@ def fork_cache_read(cache, connection):
         connection.close()
 
 
-@unittest.skipIf(native is None, "build index._char_cache_cpp to test the native cache")
+@unittest.skipIf(native is None, "build index._index_calculation_cpp to test the native cache")
 class NativeCharacterCacheTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

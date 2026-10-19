@@ -21,7 +21,6 @@ import argparse
 from dataclasses import replace
 from contextlib import closing
 from fractions import Fraction
-from importlib import import_module
 import json
 from pathlib import Path
 import re
@@ -49,6 +48,7 @@ from anomalies.lie_algebra import (
 )
 from common.number_utils import as_nonnegative_int
 from common.form_utils import validate_form_threads
+from index._index_calculation_native import load_native
 from index.char_decomposition_cache import (
     AdamsPowers,
     CharacterDecompositionCache,
@@ -81,22 +81,6 @@ def _validate_backend(backend: str) -> str:
     if backend not in {"native", "python"}:
         raise ValueError("backend must be 'native' or 'python'")
     return backend
-
-
-def _require_native_index():
-    """Require an explicitly built extension; never compile during import/use."""
-    message = ("The native index backend has not been built for this Python, or is outdated. "
-               "Run this interpreter with index/cpp/build_char_cache.py --install-deps, "
-               "or select backend='python' for FORM.")
-    try:
-        native = import_module("index._char_cache_cpp")
-    except ModuleNotFoundError as exc:
-        if exc.name != "index._char_cache_cpp":
-            raise
-        raise RuntimeError(message) from exc
-    if not hasattr(native, "expand_and_project"):
-        raise RuntimeError(message)
-    return native
 
 
 def _parse_input(
@@ -454,7 +438,7 @@ def calculate_index(
     The default SQLite cache is ``char_decomposition_cache.db`` at the
     project root. Select another file with ``char_cache_database_path``.
     Native C++ expansion and singlet projection are the default. The extension
-    must be built explicitly with ``index/cpp/build_char_cache.py``.
+    must be built explicitly with ``index/cpp/build_index_calculation.py``.
     ``backend='python'`` selects the original FORM/Python projection path.
     Only that path caches parsed FORM expansions in ``form_expansion_cache.db``
     beside the character cache, unless ``form_cache_database_path`` selects
@@ -586,7 +570,7 @@ def _calculate_sector_index(
         factors, hypermultiplets
     )
     if backend == "native":
-        native = _require_native_index()
+        native = load_native(require_index=True)
         path = Path(DEFAULT_CHAR_CACHE_DATABASE if char_cache_database_path is None
                     else char_cache_database_path).resolve()
         native_timeout = -1.0 if timeout is None else float(timeout)

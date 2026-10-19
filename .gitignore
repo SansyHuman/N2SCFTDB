@@ -8,8 +8,8 @@
 /all_test.sh
 /PROJECT_REVIEW.md
 /index/cpp/_build/
-/index/_char_cache_cpp*.so
-/index/_char_cache_cpp*.pyd
+/index/_index_calculation_cpp*.so
+/index/_index_calculation_cpp*.pyd
 /common/cpp/LiE/_build/
 /common/cpp/LiE/liblie.so
 /common/cpp/LiE/liblie.so.tmp

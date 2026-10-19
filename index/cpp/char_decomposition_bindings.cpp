@@ -158,8 +158,9 @@ template <> struct type_caster<std::vector<chars::Powers>> {
 
 } // namespace pybind11::detail
 
-PYBIND11_MODULE(_char_cache_cpp, module) {
-    module.doc() = "Exact native SQLite/LiE character cache; instances are owned by one thread.";
+PYBIND11_MODULE(_index_calculation_cpp, module) {
+    module.doc() = "Native index expansion, singlet projection, and exact SQLite/LiE character cache; "
+                   "cache instances are owned by one thread.";
     module.attr("SCHEMA_VERSION") = 1;
     py::register_local_exception_translator(&translate_sqlite_error);
     module.attr("SqliteError") = py::module_::import("sqlite3").attr("DatabaseError");

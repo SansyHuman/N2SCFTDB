@@ -1,6 +1,6 @@
 """Compare consecutive uncached native LiE calls and executable calls.
 
-Run with the interpreter used to build index._char_cache_cpp. The third mode
+Run with the interpreter used to build index._index_calculation_cpp. The third mode
 sends the same commands through one executable process to amortize startup.
 Only JSON/Markdown reports are retained; no character-cache database is opened.
 """
@@ -20,7 +20,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from index import _char_cache_cpp as native
+from index import _index_calculation_cpp as native
 
 MODES = ('shared_library', 'executable_per_call', 'executable_one_batch')
 

@@ -24,7 +24,7 @@ machine, Sage's environment supplies the GMP and SQLite development files:
 
 ```sh
 /home/subo-lee/miniconda3/envs/sage/bin/python \
-  index/cpp/build_char_cache.py --install-deps --cxx /usr/bin/g++
+  index/cpp/build_index_calculation.py --install-deps --cxx /usr/bin/g++
 ```
 
 `--install-deps` installs the pinned pybind11 and nlohmann/json header packages
@@ -96,7 +96,7 @@ native LiE Adams/tensor calculations, and optional LiE subprocess execution to C
 Python retains dependency scheduling, batching, process pools, progress
 callbacks, CLI handling, exact input conversion, and overridable calculation
 hooks. The full native class is separately exposed as
-`index._char_cache_cpp.CharacterDecompositionCache` for direct native calls.
+`index._index_calculation_cpp.CharacterDecompositionCache` for direct native calls.
 The `_run_lie` hook and polynomial formatting/parsing are used only by
 subprocess mode. `_calculate_decomposition` and `_tensor_decompositions` remain
 the Python calculation hooks in either mode.

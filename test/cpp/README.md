@@ -77,7 +77,7 @@ sage -python -B -m unittest test.test_cpp_index_singlet_project -v
 This builds `index_singlet_project_driver.cpp` with system g++, the expansion
 and projection sources, the native character cache and LiE wrapper. It uses
 GMP, SQLite and the nlohmann/json headers installed by
-`index/cpp/build_char_cache.py --install-deps`; `NLOHMANN_JSON_INCLUDE_DIR`
+`index/cpp/build_index_calculation.py --install-deps`; `NLOHMANN_JSON_INCLUDE_DIR`
 selects another JSON include directory. `CPP_INDEX_CXXFLAGS` also applies to
 this build for sanitizer instrumentation. JSON is only a test transport; the
 production API accepts and returns native exact C++ objects.

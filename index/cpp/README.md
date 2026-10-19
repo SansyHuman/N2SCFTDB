@@ -183,10 +183,10 @@ the shared-cache contract.
 ## Python calculate_index integration
 
 The same explicit build now includes expansion and projection in the existing
-`index._char_cache_cpp` extension:
+`index._index_calculation_cpp` extension:
 
 ```sh
-sage -python -B index/cpp/build_char_cache.py --cxx /usr/bin/g++
+sage -python -B index/cpp/build_index_calculation.py --cxx /usr/bin/g++
 ```
 
 `index.n2_theory_index.calculate_index` defaults to `backend="native"`. The
@@ -196,6 +196,11 @@ The public API still returns the same Sage Laurent polynomial and retains
 sector splitting, stored-index reuse and exact truncation in Python. Missing
 or outdated extensions report the build command; calculation never downloads
 or compiles automatically. `backend="python"` selects the original FORM path.
+
+Both the character cache and full-index API load the extension through
+`index._index_calculation_native.load_native`. The default call honors
+`N2SCFTDB_CHAR_CACHE_BACKEND`; `require_index=True` requires full-index support
+independently of that cache setting and reports missing or outdated builds.
 
 ```python
 from index.n2_theory_index import calculate_index

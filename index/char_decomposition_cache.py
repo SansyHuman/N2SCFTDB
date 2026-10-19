@@ -42,7 +42,7 @@ if not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from common.number_utils import as_integer, as_nonnegative_int
-from index._char_cache_native import load_native
+from index._index_calculation_native import load_native
 
 
 _NATIVE = load_native()

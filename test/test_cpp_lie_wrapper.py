@@ -25,7 +25,7 @@ def child_compute(path, connection):
         connection.close()
 
 
-@unittest.skipIf(native is None, 'build index._char_cache_cpp first')
+@unittest.skipIf(native is None, 'build index._index_calculation_cpp first')
 class NativeLiEWrapperTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
