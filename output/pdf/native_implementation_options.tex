@@ -1,0 +1,125 @@
+% Implementation-reference-only options; no mathematical-guide dependency.
+\section{Native implementation options}\label{sec:native-options}
+\begingroup\small
+\subsection{Build and select the full-index backend}
+As of 19 October 2026, \code{calculate_index} and
+\code{calculate_index_internal} default to \code{backend="native"}.
+Native C++ performs expansion and singlet projection, with native LiE on
+character-cache misses. The exact Sage Laurent-polynomial result, input format,
+sector splitting and optional stored-sector reuse retain their existing contracts.
+The implementation changes execution and storage, not the index algorithm.
+
+\subsubsection{Build once for the Python interpreter used by Sage}
+Run from the project root. The explicit build produces
+\code{index._index_calculation_cpp}, including expansion, projection,
+character caching and the LiE wrapper:
+\begin{lstlisting}[language=bash]
+sage -python -B index/cpp/build_index_calculation.py \
+  --install-deps --cxx /usr/bin/g++
+\end{lstlisting}
+\code{--install-deps} installs pinned pybind11 and nlohmann/json headers in
+\code{index/cpp/_build/deps}; omit it on subsequent builds. The build needs a
+C++17 compiler, GMP/GMPXX and SQLite development files, plus Make and Bison
+for the bundled LiE library. \code{--gmp-prefix} and \code{--sqlite-prefix}
+select nonstandard dependency locations. Imports never compile or download.
+Missing or outdated native builds report the build command; selecting the
+native full-index backend does not silently fall back to FORM.
+
+\subsubsection{Python API options}
+\begin{tabularx}{\textwidth}{@{}p{49mm}Y@{}}
+\toprule Option & Meaning for full-index calculation\\\midrule
+\code{backend="native"} & Default: C++ expansion and projection; shared
+character cache; no FORM expansion-cache reads or writes.\\
+\code{backend="python"} & Original FORM/TFORM expansion and Python projection.
+Its character-cache backend is selected independently (next page).\\
+\code{worker_count=N} & Positive expansion thread count. Overrides
+\code{form_threads}; if omitted, the existing \code{form_threads=1} default
+applies to either backend.\\
+\code{processes=N} & Python-backend character-cache process count. It does not
+parallelize native LiE projection, which remains serial within each calculation.\\
+\code{timeout=600} & Expansion and individual LiE-operation timeout in seconds.
+\code{None} disables deadlines. Native checks are cooperative, with low-overhead
+polling; this is not a deadline for the complete database/GUI job.\\
+\code{char_cache_database_path} & Shared SQLite character/singlet cache file;
+the default is \code{char_decomposition_cache.db} at the project root.\\
+\code{form_cache_database_path} & Used only by the Python/FORM backend; defaults
+beside the character cache. Native expansion is recomputed.\\\bottomrule
+\end{tabularx}
+
+For an existing valid theory dictionary \code{data}, the return type and
+serialization stay the same:
+\begin{lstlisting}[language=Python]
+from index.n2_theory_index import calculate_index
+
+value = calculate_index(data, 18, backend="native",
+    worker_count=8, timeout=600,
+    char_cache_database_path="characters.db")
+reference = calculate_index(data, 18, backend="python",
+    worker_count=8, processes=1,
+    char_cache_database_path="characters.db")
+\end{lstlisting}
+
+\clearpage
+\subsection{LiE, compatibility controls and command-line use}
+The native backend calls \code{common/cpp/lie.cpp} through the bundled shared
+library; no LiE executable is needed for the default
+\code{lie_executable="lie"} setting. A custom LiE executable path selects
+subprocess mode, preserving executable wrappers.
+
+\subsubsection{Independent character-cache and LiE selections}
+Set \code{N2SCFTDB_CHAR_CACHE_BACKEND} before importing the Python character
+cache module:
+\begin{tabularx}{\textwidth}{@{}p{28mm}Y@{}}
+\toprule Value & Python character-cache behavior\\\midrule
+\code{auto} & Default: use the C++ extension when present; use Python if it is
+absent. Broken binaries or missing dependencies retain their import errors.\\
+\code{cpp} & Require the C++ extension.\\
+\code{python} & Use the original Python cache and executable LiE interface.\\\bottomrule
+\end{tabularx}
+This environment variable does not override \code{backend="native"} for full
+indices. Selecting \code{backend="python"} alone does not force a Python cache.
+
+The shared loader is \code{index._index_calculation_native.load_native}.
+The full-index path passes
+\code{require_index=True} to require expansion/projection support.
+
+For \code{CharacterDecompositionCache} and \code{build_decomposition_cache},
+the separate \code{lie_backend} option accepts \code{"auto"},
+\code{"native"} or \code{"subprocess"}. Auto uses native LiE with the C++
+cache and the default executable setting; a custom executable selects a
+subprocess. Explicit native mode requires the extension and ignores the
+executable setting. These constructor/builder options are not additional
+\code{calculate_index} arguments.
+
+\subsubsection{Command-line examples}
+\begin{lstlisting}[language=bash]
+# Native full-index calculation (also the default backend).
+sage -python -B -m index.n2_theory_index theory.json \
+  --order 18 --backend native --workers 8 \
+  --char-cache-database characters.db
+
+# Original Python cache, executable LiE and FORM/TFORM.
+N2SCFTDB_CHAR_CACHE_BACKEND=python \
+  sage -python -B -m index.n2_theory_index theory.json \
+  --order 18 --backend python --workers 8 --processes 1
+\end{lstlisting}
+\code{--workers} overrides the legacy \code{--form-threads} option. For the
+Python backend, one expansion thread selects \code{--form-executable}; larger
+counts select \code{--tform-executable} with \code{-wN}. The native backend
+does not use those executables or \code{--form-cache-database}.
+
+\subsection{GUI behavior and engine logs}
+The GUI uses native full-index calculation by default. Its existing
+\code{tools/form_threads} preference also controls native expansion threads.
+The CPU budget is divided by this thread count, rounding down, to allocate
+at least one theory worker and at most one worker per selected job.
+Native LiE projection is serial inside each theory worker. Coulomb-index
+PE/PL still uses a separate FORM/TFORM executable; Coulomb spectrum calculation
+uses neither FORM nor LiE.
+
+Startup messages in the Index tab and \code{logs/log_index_*.log} identify
+native expansion, shared-library or executable LiE, and separate FORM/TFORM
+Coulomb expansion with its path and thread count. They describe selected
+engines; cache or stored-sector reuse can avoid work. Spectrum-only runs
+report that neither engine is used.
+\endgroup

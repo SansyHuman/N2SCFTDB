@@ -34,7 +34,7 @@
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[L]{\small\sffamily\color{muted}N2SCFTDB / REFERENCE}
-\fancyhead[R]{\small\sffamily\color{muted}19 September 2026}
+\fancyhead[R]{\small\sffamily\color{muted}19 October 2026}
 \fancyfoot[L]{\footnotesize\color{muted}Mathematics \& implementation \enspace | \enspace consolidated edition}
 \fancyfoot[R]{\small\thepage}
 \renewcommand{\headrulewidth}{0.3pt}
@@ -78,12 +78,12 @@ Exact Lie-algebra data, anomaly checks, superconformal indices,\par
 Coulomb-branch indices and spectra, theory properties,\par
 database persistence, and the planned Higgs-branch extension.
 \vspace{11mm}
-\begin{note}{Search, CSV export, TFORM and the production schema}
-This edition adds theory search with SQL charge filters, CSV downloads,
-FORM/TFORM thread controls and the recorded 32-worker measurements.
-Index search now includes known lower cutoffs. Public sector properties and
-their storage are documented in the complete production schema 1.
-Implementation-time tests and benchmarks retain their dates and scopes.
+\begin{note}{Native implementation options}
+This update adds the native C++ full-index backend, shared-library LiE,
+backend selection, build commands and GUI engine logging in
+Section~\ref{sec:native-options}. The mathematical conventions and algorithms
+are unchanged. Earlier package descriptions, validation and benchmark
+snapshots retain their dates and scopes.
 \end{note}
 \vfill
 \begin{tabularx}{\textwidth}{@{}p{31mm}Y@{}}
@@ -91,15 +91,16 @@ Snapshot & Base reference: 8 September 2026. Database and validation update:
 9 September 2026. Index/cache update: 10 September 2026; \code{04bbe21}.
 Property/database: 12 September. GUI/concurrency: 14 September.
 Index sectors/cache-file arguments: 15 September. FORM and Settings deletion:
-16 September. Search/export and production schema: 19 September 2026.\\
+16 September. Search/export and production schema: 19 September 2026.
+Native implementation options: 19 October 2026.\\
 Consolidates & \code{index/n2_theory_index_Mathematical_Background.pdf}\newline
 and the previous \code{output/pdf/n2_implementation_reference_summary.pdf}.\\
 Status & Anomaly, index and search tabs, CSV export and Settings deletion are implemented;
 basic properties and index calculation remain separate.
 Unrelated mathematics and benchmark chapters retain their dated snapshots.
 Higgs/Hall--Littlewood material is explicitly marked as proposed, not implemented.\\
-Editing scope & Documentation only. The companion index-background PDF is also
-updated. Unrevised mathematical and package content is preserved.\\
+Editing scope & Implementation reference only. The companion index-background
+PDF and its mathematical source are unchanged.\\
 \end{tabularx}
 \end{titlepage}
 \hypersetup{pageanchor=true}
@@ -362,6 +363,12 @@ Gauge-anomaly checks & \eqref{eq:cubic}, \eqref{eq:witten}\\\bottomrule
 
 \clearpage
 \section{Package \texttt{index}}\label{sec:index}
+\begin{note}{Execution backend update}
+Full-index calculation now defaults to native C++ expansion and projection.
+Section~\ref{sec:native-options} documents the current options. The retained
+FORM expansion and executable-LiE descriptions below explain the reference
+path; Coulomb PE/PL continues to use FORM/TFORM.
+\end{note}
 \subsection{Full-index convention and single-letter functions}
 \file{index/n2_theory_index.py}
 In radial quantization the chosen right-handed supercharge restricts the trace to
@@ -1567,6 +1574,8 @@ Higgs work needs an HL/Hilbert-series justification; flavor refinement must
 preserve characters through gauge projection. These are mathematical contracts.
 
 \endgroup
+\clearpage
+\input{native_implementation_options.tex}
 \clearpage
 \section*{References and equation provenance}
 \addcontentsline{toc}{section}{References and equation provenance}

@@ -1,6 +1,45 @@
 # PDF sources and rebuilding
 
-## Current revision: 19 September 2026
+## Current revision: 19 October 2026
+
+Only `n2_implementation_reference_summary.pdf` is updated in this revision.
+It now has **63 pages**. Section 7, **Native implementation options**, is on
+physical PDF pages **60-61** (printed pages 59-60). It documents:
+
+- Native versus FORM/Python full-index selection, expansion workers, timeout
+  behavior and the two cache-path options.
+- Building `index._index_calculation_cpp` with
+  `index/cpp/build_index_calculation.py` and the shared loader
+  `index/_index_calculation_native.py`.
+- Independent Python character-cache and native/subprocess LiE selections,
+  Python/CLI examples, and GUI engine logs.
+
+The new input `native_implementation_options.tex` belongs only to the
+implementation reference. A cover update and a note at the start of the index
+chapter point to this section. The 29-page
+`index/n2_theory_index_Mathematical_Background.pdf`, its source, and all shared
+TeX inputs are unchanged. Its SHA-256 remains
+`22867371518ebb5c4ab9931a50fb1f0f76b4c97fad4f118e6897feb3c083bfbb`.
+
+Rebuild only the reference from this directory:
+
+```bash
+mkdir -p /tmp/n2-reference-build
+pdflatex -interaction=nonstopmode -halt-on-error -output-directory /tmp/n2-reference-build n2_implementation_reference_summary.tex
+pdflatex -interaction=nonstopmode -halt-on-error -output-directory /tmp/n2-reference-build n2_implementation_reference_summary.tex
+```
+
+After inspecting the log and rendering the changed pages, copy only the rebuilt
+reference PDF to its canonical path. The October QA build is in
+`/tmp/n2-native-reference-20261019/`. There are no unresolved references,
+citations or overfull boxes; the earlier mild underfull diagnostic in the
+Coulomb API table remains. The revised cover, index note and both new pages
+were rendered and visually checked. All 48 equation/align blocks remain
+verbatim. Other existing page bodies and the bibliography retain their text,
+apart from running dates/page numbers. Application tests and benchmarks were
+not rerun for this documentation-only update.
+
+## Historical revision: 19 September 2026
 
 The canonical outputs are the **61-page implementation reference** at
 `output/pdf/n2_implementation_reference_summary.pdf` and the **29-page index
