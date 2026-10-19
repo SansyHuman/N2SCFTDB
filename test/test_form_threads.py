@@ -67,7 +67,7 @@ class ThreadedIndexTests(unittest.TestCase):
         for data in cases:
             with self.subTest(data=data), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
-                options = dict(char_cache_database_path=root/"characters.sqlite", processes=1)
+                options = dict(char_cache_database_path=root/"characters.sqlite", processes=1, backend="python")
                 serial = calculate_index(data, 8, form_cache_database_path=root/"serial.sqlite",
                                          tform_executable="/missing/tform", **options)
                 threaded = calculate_index(data, 8, form_cache_database_path=root/"threaded.sqlite",

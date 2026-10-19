@@ -231,6 +231,15 @@ the worker starts. Each attempt gets a new file; it closes after success,
 failure or cancellation. File errors appear in the GUI and processing continues
 with on-screen logging.
 
+At calculation startup, the log identifies the backends for the selected work.
+Full-index expansion uses native C++ in the calculation worker (the FORM
+replacement); LiE uses the native shared library when its executable setting is
+`lie`, or a separate process when a custom executable is configured. LiE runs
+only on character-cache misses. Coulomb-index expansion still uses a separate
+FORM or TFORM executable, whose configured name/path and thread count are logged.
+A spectrum-only calculation reports that neither LiE nor FORM is used. These
+messages identify the selected engines; reused results may avoid running them.
+
 In the **anomaly** tab, enter gauge groups in the left text field, one theory
 per line. Separate product-group factors with commas, for example `A1, C2`.
 **Load theories...** selects one or more UTF-8 text files (an optional BOM and
@@ -409,8 +418,9 @@ in the anomaly build, and supplies the CPU budget for index calculation. Theory
 enumeration remains serial. Older settings files default to `-1` until saved.
 
 **TFORM threads** is saved as `tools/form_threads`, with default `1` and a
-minimum of one. At `1`, both full-index and Coulomb-index expansion use the
-configured FORM executable. Larger values use the TFORM executable
+minimum of one. It controls the native C++ full-index expansion thread count.
+For Coulomb-index expansion, `1` uses the configured FORM executable and larger
+values use the TFORM executable
 (`tools/tform_executable`) with `-wN`. Both executable fields accept a name on
 PATH or an absolute path; a wrapper script is unnecessary.
 
@@ -420,7 +430,8 @@ of 32, thread counts 1, 8 and 32 give 32, 4 and 1 index workers respectively.
 Division rounds down; a thread count above the CPU budget still runs one theory
 with the requested TFORM count. LiE cache generation remains serial within each
 GUI index worker. The anomaly build does not use FORM and keeps its existing
-CPU allocation. Logs record the resulting index worker count and FORM threads.
+CPU allocation. Logs record the resulting index worker count, expansion threads
+and selected calculation backends.
 
 Older preferences use one FORM thread and `tform` until saved. Changing thread
 count does not change raw FORM programs or invalidate existing expansion-cache

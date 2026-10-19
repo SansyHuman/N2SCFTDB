@@ -64,7 +64,7 @@ class CppIndexExpandTests(unittest.TestCase):
             str(ROOT / "test/cpp/index_expand_internal_driver.cpp")
             if item == str(ROOT / "test/cpp/index_expand_driver.cpp") else
             str(cls.internal_executable) if item == str(cls.executable) else item
-            for item in command if item != str(ROOT / "index/cpp/index_expand.cpp")
+            for item in command
         ]
         result = subprocess.run(internal_command, text=True, capture_output=True, timeout=120)
         if result.returncode:
@@ -116,11 +116,11 @@ class CppIndexExpandTests(unittest.TestCase):
         self.assertEqual(keys, sorted(keys), "C++ output ordering is not canonical")
         return terms
 
-    def test_internal_unordered_matches_sorted_results(self):
+    def test_public_unordered_matches_sorted_results(self):
         result = subprocess.run([str(self.internal_executable)], text=True,
                                 capture_output=True, timeout=60)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("internal unordered-output checks passed", result.stdout)
+        self.assertIn("public unordered-output checks passed", result.stdout)
 
     def test_native_timeouts_and_independent_cancellation(self):
         result = subprocess.run([str(self.executable), "--timeout-self-test"], text=True,

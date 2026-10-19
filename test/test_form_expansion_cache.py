@@ -48,6 +48,7 @@ def calculate_index_in_process(request):
         6,
         char_cache_database_path=Path(directory) / "characters.db",
         form_executable=form_executable,
+        backend="python",
         processes=1,
     )
     return {tuple(map(int, powers)): int(coefficient)
@@ -337,7 +338,7 @@ class IndexExpansionCacheIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             form_path = Path(directory) / "expansions" / "custom.db"
             options = dict(char_cache_database_path=Path(directory) / "characters" / "custom.db",
-                           form_cache_database_path=form_path, processes=1)
+                           form_cache_database_path=form_path, processes=1, backend="python")
             with patch("index.form_expansion_cache.run_form", wraps=run_form) as run:
                 cold = calculate_index(data, 6, **options)
                 warm = calculate_index(data, 6, form_executable="missing-form", **options)
@@ -356,7 +357,7 @@ class IndexExpansionCacheIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             character_path = Path(directory) / "custom" / "characters.db"
             calculate_index({"algebra": "A1", "hypermultiplets": []}, 4,
-                            char_cache_database_path=character_path, processes=1)
+                            char_cache_database_path=character_path, processes=1, backend="python")
             self.assertTrue(character_path.is_file())
             self.assertTrue(character_path.with_name(DEFAULT_FORM_CACHE_DATABASE.name).exists())
 

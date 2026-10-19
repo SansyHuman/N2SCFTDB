@@ -132,6 +132,28 @@ def _validate_request(jobs, settings):
     return settings, min(max(1, processes // threads), len(jobs))
 
 
+def _log_calculation_engines(jobs, settings, log):
+    """Report the selected engines; cached results may avoid running them."""
+    fields = {field for job in jobs for field in job["needed_fields"]}
+    if "superconformal_index" in fields:
+        log("Full-index expansion backend: native C++ (FORM replacement).")
+        # The native index cache's automatic LiE selection uses the shared
+        # library for exactly 'lie'; custom executable paths select subprocess.
+        executable = settings["tools/lie_executable"]
+        engine = ("native shared library in the calculation worker"
+                  if executable == "lie" else f"separate executable {executable!r}")
+        log(f"Full-index LiE backend: {engine} (used on character-cache misses).")
+    if "coulomb_branch_index" in fields:
+        threads = settings["tools/form_threads"]
+        engine = "FORM" if threads == 1 else "TFORM"
+        executable = (settings["tools/form_executable"] if threads == 1
+                      else settings.get("tools/tform_executable", "tform"))
+        log(f"Coulomb-index expansion backend: {engine} as a separate executable "
+            f"{executable!r}; threads={threads}. LiE is not used.")
+    if fields == {"coulomb_branch_spectrum"}:
+        log("Coulomb spectrum calculation: LiE and FORM are not used.")
+
+
 def run_calculation(jobs, settings, emit, log, cancelled=lambda: False):
     """Dynamically schedule every selected theory, at most 2*workers outstanding.
 
@@ -144,9 +166,10 @@ def run_calculation(jobs, settings, emit, log, cancelled=lambda: False):
     try:
         settings, workers = _validate_request(jobs, settings)
         log(f"Calculating {len(jobs)} selected theories with {workers} worker processes; "
-            f"FORM threads={settings['tools/form_threads']}; "
+            f"expansion threads={settings['tools/form_threads']}; "
             f"full order={settings['index/full_max_order']}, "
             f"Coulomb cutoff={settings['index/coulomb_max_dimension']}.")
+        _log_calculation_engines(jobs, settings, log)
         spawn = get_context("spawn")
         stopped = spawn.Event()
         if cancelled():

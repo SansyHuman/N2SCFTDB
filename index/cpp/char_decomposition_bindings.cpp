@@ -1,4 +1,5 @@
 #include "char_decomposition_cache.hpp"
+#include "index_singlet_project.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -190,6 +191,49 @@ PYBIND11_MODULE(_char_cache_cpp, module) {
     module.def("character_product_key", &chars::character_product_key, Release());
     module.def("decomposed_product_key", &chars::decomposed_product_key, Release());
     module.def("lie_output_lines", &chars::lie_output_lines, Release());
+
+    // Keep the large formal expansion on the C++ side. Only the final sparse
+    // Laurent coefficients cross Python, as arbitrary-precision Fractions.
+    module.def("expand_and_project", [](py::handle order_input,
+        const std::vector<std::string>& factors, py::iterable specs_input,
+        py::iterable vectors_input, py::dict matter_input,
+        chars::CharacterDecompositionCache& cache, py::handle workers_input, double timeout) {
+        const int order = small_integer(order_input), workers = small_integer(workers_input);
+        std::vector<n2scftdb::IndexCharacterSpec> specs;
+        for (py::handle input : specs_input) {
+            auto spec = py::cast<py::sequence>(input);
+            if (spec.size() != 2) throw py::value_error("character spec must contain factor and labels");
+            specs.push_back({small_integer(spec[0]), py::cast<chars::Labels>(spec[1])});
+        }
+        if (specs.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+            throw py::value_error("too many formal characters");
+        std::vector<int> vectors;
+        for (py::handle input : vectors_input) vectors.push_back(small_integer(input));
+        n2scftdb::MatterMultiplicities matter;
+        for (auto input : matter_input) {
+            if (!PyLong_Check(input.second.ptr()) || PyBool_Check(input.second.ptr()))
+                throw py::type_error("matter multiplicity must be an integer");
+            std::vector<int> indices;
+            for (py::handle index : py::cast<py::iterable>(input.first))
+                indices.push_back(small_integer(index));
+            matter[std::move(indices)] = py::cast<mpz_class>(input.second);
+        }
+        const auto projected = released([&] {
+            const auto terms = n2scftdb::expand_index_unordered(order, static_cast<int>(specs.size()),
+                                                               vectors, matter, workers, timeout);
+            return n2scftdb::project_index(terms, factors, specs, cache);
+        });
+        const auto fraction = py::module_::import("fractions").attr("Fraction");
+        py::dict result;
+        for (const auto& [powers, value] : projected) {
+            const auto& [t, y, u] = powers;
+            result[py::make_tuple(t, y, u)] = fraction(py::cast(mpz_class(value.get_num())),
+                                                     py::cast(mpz_class(value.get_den())));
+        }
+        return result;
+    }, py::arg("order"), py::arg("factors"), py::arg("character_specs"),
+       py::arg("vector_characters"), py::arg("matter_multiplicities"), py::arg("cache"),
+       py::arg("worker_count") = 1, py::arg("timeout") = 600.0);
 
     py::class_<chars::ProcessResult>(module, "ProcessResult")
         .def_readonly("returncode", &chars::ProcessResult::returncode)

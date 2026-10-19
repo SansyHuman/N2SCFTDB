@@ -92,6 +92,23 @@ std::vector<IndexFormTerm> expand_index(
     int worker_count,
     double timeout);
 
+// Same exact terms and timeout/worker contracts as expand_index, but no final
+// outer-vector sort. Character tuples inside each term remain canonical.
+// The returned term order is unspecified. Intended for projection consumers
+// that will combine formal terms before sorting the smaller final result.
+std::vector<IndexFormTerm> expand_index_unordered(
+    int order, int character_count, const std::vector<int>& vector_characters,
+    const MatterMultiplicities& matter_multiplicities);
+std::vector<IndexFormTerm> expand_index_unordered(
+    int order, int character_count, const std::vector<int>& vector_characters,
+    const MatterMultiplicities& matter_multiplicities, int worker_count);
+std::vector<IndexFormTerm> expand_index_unordered(
+    int order, int character_count, const std::vector<int>& vector_characters,
+    const MatterMultiplicities& matter_multiplicities, double timeout);
+std::vector<IndexFormTerm> expand_index_unordered(
+    int order, int character_count, const std::vector<int>& vector_characters,
+    const MatterMultiplicities& matter_multiplicities, int worker_count, double timeout);
+
 }  // namespace n2scftdb
 
 #endif

@@ -370,7 +370,7 @@ class IndexCalculationMySQLTests(unittest.TestCase):
         self.assertGreater(len(pids), 1)
         self.assertNotIn(os.getpid(), pids)
         self.assertTrue(Path(self.settings["cache/character_database"]).is_file())
-        self.assertTrue(Path(self.settings["cache/form_database"]).is_file())
+        self.assertFalse(Path(self.settings["cache/form_database"]).exists())
         first = db._fetchone(self.connection, "SELECT * FROM theory_properties WHERE theory_id = %s",
                              (jobs[0]["theory_id"],))
         self.assertEqual(json.loads(first["coulomb_branch_index_json"]), "1 + x^2 + x^4")
@@ -395,12 +395,15 @@ class IndexCalculationMySQLTests(unittest.TestCase):
         summary = self.run_jobs(jobs)
         self.assertEqual(summary["failed"], 2)
         results = [r["result"] for r in self.records if "result" in r]
-        self.assertTrue(all(r["remaining_fields"] == ["superconformal_index", "coulomb_branch_index"] for r in results))
+        self.assertTrue(all(r["remaining_fields"] == ["coulomb_branch_index"] for r in results))
         self.assertTrue(all("coulomb_branch_spectrum" in r["updated_fields"] for r in results))
+        self.assertTrue(all("superconformal_index" in r["updated_fields"] for r in results))
         self.settings["tools/form_executable"] = "form"
         self.records.clear()
         self.assertEqual(self.run_jobs(jobs)["status"], "completed", self.records)
         self.assertTrue(all("coulomb_branch_spectrum" not in r["result"]["updated_fields"]
+                            for r in self.records if "result" in r))
+        self.assertTrue(all("superconformal_index" not in r["result"]["updated_fields"]
                             for r in self.records if "result" in r))
 
     def test_256_distinct_theories_eight_workers_no_deadlocks(self):

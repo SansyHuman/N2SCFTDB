@@ -1,7 +1,10 @@
-// Test-only translation unit: include the implementation to exercise its
-// anonymous-namespace entry point without exporting an internal API.
-#include "index/cpp/index_expand.cpp"
+// A separate translation unit must be able to link the public unordered API.
+#include "index/cpp/index_expand.hpp"
+#include <algorithm>
 #include <iostream>
+#include <limits>
+#include <stdexcept>
+#include <tuple>
 
 namespace {
 using Characters = std::vector<std::pair<int, std::vector<std::int64_t>>>;
@@ -16,7 +19,7 @@ std::map<Key, mpq_class> term_map(const std::vector<n2scftdb::IndexFormTerm>& te
     std::map<Key, mpq_class> result;
     for (const auto& term : terms) {
         if (!result.emplace(key(term), term.coefficient).second)
-            throw std::runtime_error("duplicate internal output term");
+            throw std::runtime_error("duplicate unordered output term");
     }
     return result;
 }
@@ -42,19 +45,37 @@ int main() {
             const auto reference = n2scftdb::expand_index(input.order, input.character_count,
                                                          input.vectors, input.matter, -1.0);
             for (int workers : {1, 4}) {
-                n2scftdb::ExpansionDeadline deadline(10.0);
                 const auto raw = n2scftdb::expand_index_unordered(input.order, input.character_count,
-                                                                 input.vectors, input.matter, workers, deadline);
+                                                                 input.vectors, input.matter, workers, 10.0);
                 if (term_map(raw) != term_map(reference))
-                    throw std::runtime_error("internal unsorted terms differ from the public result");
+                    throw std::runtime_error("unsorted terms differ from the sorted result");
                 auto compare = [](const auto& a, const auto& b) { return key(a) < key(b); };
                 saw_unordered |= !std::is_sorted(raw.begin(), raw.end(), compare);
                 if (!std::is_sorted(reference.begin(), reference.end(), compare))
                     throw std::runtime_error("public output is no longer sorted");
             }
         }
-        if (!saw_unordered) throw std::runtime_error("internal entry point unexpectedly sorts every output");
-        std::cout << "internal unordered-output checks passed\n";
+        if (!saw_unordered) throw std::runtime_error("unordered entry point unexpectedly sorts every output");
+        const auto reference = term_map(n2scftdb::expand_index(8, 1, {0}, {{{0}, 4}}));
+        if (term_map(n2scftdb::expand_index_unordered(8, 1, {0}, {{{0}, 4}})) != reference ||
+            term_map(n2scftdb::expand_index_unordered(8, 1, {0}, {{{0}, 4}}, 4)) != reference ||
+            term_map(n2scftdb::expand_index_unordered(8, 1, {0}, {{{0}, 4}}, -1.0)) != reference)
+            throw std::runtime_error("unordered overloads differ");
+        for (int workers : {1, 4}) {
+            for (double timeout : {0.0, 0.01}) {
+                try {
+                    n2scftdb::expand_index_unordered(30, 6, {0, 1, 2}, {{{3, 4, 5}, 1}}, workers, timeout);
+                    throw std::logic_error("unordered timeout did not expire");
+                } catch (const std::runtime_error& error) {
+                    if (std::string(error.what()) != "index expansion timed out") throw;
+                }
+            }
+        }
+        try { n2scftdb::expand_index_unordered(0, 0, {}, {}, 0); return 1; }
+        catch (const std::invalid_argument&) {}
+        try { n2scftdb::expand_index_unordered(0, 0, {}, {}, std::numeric_limits<double>::infinity()); return 1; }
+        catch (const std::invalid_argument&) {}
+        std::cout << "public unordered-output checks passed\n";
         return 0;
     } catch (const std::exception& error) {
         std::cerr << error.what() << '\n';

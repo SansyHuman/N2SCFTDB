@@ -15,12 +15,18 @@ Public License, version 2.1 or, at your option, any later version:
   common/cpp/LiE/SHARED_BUILD.md
   index/cpp/char_decomposition_cache.cpp
   index/cpp/char_decomposition_cache.hpp
+  index/cpp/index_singlet_project.cpp
+  index/cpp/index_singlet_project.hpp
   index/cpp/char_decomposition_bindings.cpp
   index/cpp/build_char_cache.py
   index/cpp/CHARACTER_CACHE.md
   test/cpp/lie_wrapper_driver.cpp
   test/test_cpp_lie_wrapper.py
   test/test_cpp_char_decomposition_cache.py
+  test/cpp/index_singlet_project_driver.cpp
+  test/test_cpp_index_singlet_project.py
+  test/test_native_calculate_index.py
+  test/benchmark_native_calculate_index.py
 
 Project modifications to the upstream LiE sources are also licensed under
 LGPL-2.1-or-later. Upstream LiE retains its original copyright holders and

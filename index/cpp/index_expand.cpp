@@ -572,10 +572,8 @@ bool term_less(const IndexFormTerm& a, const IndexFormTerm& b) {
         });
 }
 
-// Internal entry point for consumers that will combine/decompose terms before
-// sorting. Character indices inside each term remain canonical; only the outer
-// vector retains hash-map iteration order. No ordering guarantee is exposed.
-std::vector<IndexFormTerm> expand_index_unordered(
+// Shared implementation keeps one deadline across expansion and optional sort.
+std::vector<IndexFormTerm> expand_index_unordered_impl(
     int order, int character_count, const std::vector<int>& vector_characters,
     const MatterMultiplicities& matter_multiplicities, int worker_count,
     ExpansionDeadline& deadline) {
@@ -684,7 +682,7 @@ std::vector<IndexFormTerm> expand_index(
     int order, int character_count, const std::vector<int>& vector_characters,
     const MatterMultiplicities& matter_multiplicities, int worker_count, double timeout) {
     ExpansionDeadline deadline(timeout);
-    auto terms = expand_index_unordered(order, character_count, vector_characters,
+    auto terms = expand_index_unordered_impl(order, character_count, vector_characters,
                                         matter_multiplicities, worker_count, deadline);
     DeadlinePoll poll(deadline);
     std::sort(terms.begin(), terms.end(), [&](const auto& a, const auto& b) {
@@ -693,6 +691,35 @@ std::vector<IndexFormTerm> expand_index(
     });
     deadline.check();
     return terms;
+}
+
+std::vector<IndexFormTerm> expand_index_unordered(
+    int order, int character_count, const std::vector<int>& vector_characters,
+    const MatterMultiplicities& matter_multiplicities) {
+    return expand_index_unordered(order, character_count, vector_characters,
+                                  matter_multiplicities, 1, 600.0);
+}
+
+std::vector<IndexFormTerm> expand_index_unordered(
+    int order, int character_count, const std::vector<int>& vector_characters,
+    const MatterMultiplicities& matter_multiplicities, int worker_count) {
+    return expand_index_unordered(order, character_count, vector_characters,
+                                  matter_multiplicities, worker_count, 600.0);
+}
+
+std::vector<IndexFormTerm> expand_index_unordered(
+    int order, int character_count, const std::vector<int>& vector_characters,
+    const MatterMultiplicities& matter_multiplicities, double timeout) {
+    return expand_index_unordered(order, character_count, vector_characters,
+                                  matter_multiplicities, 1, timeout);
+}
+
+std::vector<IndexFormTerm> expand_index_unordered(
+    int order, int character_count, const std::vector<int>& vector_characters,
+    const MatterMultiplicities& matter_multiplicities, int worker_count, double timeout) {
+    ExpansionDeadline deadline(timeout);
+    return expand_index_unordered_impl(order, character_count, vector_characters,
+                                       matter_multiplicities, worker_count, deadline);
 }
 
 }  // namespace n2scftdb

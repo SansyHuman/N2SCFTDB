@@ -63,10 +63,33 @@ The timeout checks exercise zero deadlines (including vacuum cutoffs), serial
 and four-worker expiration during a large expansion, recovery on later calls,
 and simultaneous successful and expiring independent callers. They also check
 finite/unlimited results, nonfinite timeout rejection, and both timed overloads.
-`index_expand_internal_driver.cpp` includes the implementation in a test-only
-translation unit to compare its private `expand_index_unordered` output with
-the public sorted result, including parallel output construction. The helper
-remains absent from the public header and exported API.
+`index_expand_internal_driver.cpp` now includes only the public header and links
+the expansion implementation as a separate translation unit. It compares all
+public `expand_index_unordered` overloads with the sorted result, including
+parallel output construction, timeouts and invalid inputs.
+
+## Native singlet projection
+
+```sh
+sage -python -B -m unittest test.test_cpp_index_singlet_project -v
+```
+
+This builds `index_singlet_project_driver.cpp` with system g++, the expansion
+and projection sources, the native character cache and LiE wrapper. It uses
+GMP, SQLite and the nlohmann/json headers installed by
+`index/cpp/build_char_cache.py --install-deps`; `NLOHMANN_JSON_INCLUDE_DIR`
+selects another JSON include directory. `CPP_INDEX_CXXFLAGS` also applies to
+this build for sanitizer instrumentation. JSON is only a test transport; the
+production API accepts and returns native exact C++ objects.
+
+All databases and test binaries are temporary. Tests compare the complete
+FORM/Python-LiE pipeline against unordered C++ expansion followed by C++
+projection for simple and product groups, and check independent SU(2)/SU(3)
+weight oracles. They cover complex representations, signed Adams characters,
+repeated products, aliases, exact large rationals, cancellations, invalid
+metadata, native calculation without a LiE executable on PATH, both projection
+overloads, and persistent cache interoperability in both directions. Cache-only
+tests fail on any miss and verify zero coefficients remain valid cache hits.
 
 To repeat the suite with undefined-behavior instrumentation:
 

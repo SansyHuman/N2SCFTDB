@@ -1,25 +1,27 @@
 #!/usr/bin/env python3
-"""Calculate the 4d N=2 index for simple and product groups with FORM and LiE.
+"""Calculate the 4d N=2 index with native C++ expansion and LiE projection.
 
-The input conventions agree with ``anomalies.check_n2_anomalies``. FORM expands
-the exact, truncated representation-valued plethystic exponential. LiE
-decomposes Adams operations and intermediate character products; character
-orthogonality extracts the final singlet coefficient. The SQLite cache in
-``index.char_decomposition_cache`` stores decompositions and final singlet
-coefficients using Cartan types, Dynkin labels and Adams powers.
-The separate FORM expansion cache stores parsed terms by the raw program text.
+The input conventions agree with ``anomalies.check_n2_anomalies``. Native C++
+expands the exact, truncated representation-valued plethystic exponential and
+projects its unordered terms without copying them into Python. Native LiE and
+the shared SQLite character cache handle Adams products and singlet pairing.
+Only the final exact coefficients cross into Python for Sage conversion.
+``backend='python'`` retains FORM/TFORM expansion, its separate expansion cache,
+and the original Python projection and character-cache orchestration.
 
 NetworkX separates disconnected gauge sectors before expansion. Each sector
-is calculated with FORM/LiE or reused from an optional N=2 theory database
+is calculated with the selected backend or reused from an optional N=2 theory database
 connection, then the sector indices are multiplied with exact truncation.
-Within a connected product, FORM keeps separate simple-factor characters.
+Both backends keep separate characters for each simple gauge factor.
 """
 
 from __future__ import annotations
 
 import argparse
 from dataclasses import replace
+from contextlib import closing
 from fractions import Fraction
+from importlib import import_module
 import json
 from pathlib import Path
 import re
@@ -50,6 +52,7 @@ from common.form_utils import validate_form_threads
 from index.char_decomposition_cache import (
     AdamsPowers,
     CharacterDecompositionCache,
+    DEFAULT_CHAR_CACHE_DATABASE,
 )
 from index.form_expansion_cache import (
     DEFAULT_FORM_CACHE_DATABASE,
@@ -72,6 +75,28 @@ INDEX_POLYNOMIAL_RING = LaurentPolynomialRing(
     QQ, 3, names=("t", "y", "u")
 )
 _INDEX_POLYNOMIAL_TEXT_PATTERN = re.compile(r"[0-9tyu+\-*/^()\s]+")
+
+
+def _validate_backend(backend: str) -> str:
+    if backend not in {"native", "python"}:
+        raise ValueError("backend must be 'native' or 'python'")
+    return backend
+
+
+def _require_native_index():
+    """Require an explicitly built extension; never compile during import/use."""
+    message = ("The native index backend has not been built for this Python, or is outdated. "
+               "Run this interpreter with index/cpp/build_char_cache.py --install-deps, "
+               "or select backend='python' for FORM.")
+    try:
+        native = import_module("index._char_cache_cpp")
+    except ModuleNotFoundError as exc:
+        if exc.name != "index._char_cache_cpp":
+            raise
+        raise RuntimeError(message) from exc
+    if not hasattr(native, "expand_and_project"):
+        raise RuntimeError(message)
+    return native
 
 
 def _parse_input(
@@ -418,6 +443,8 @@ def calculate_index(
     form_executable: str = "form",
     tform_executable: str = "tform",
     form_threads: int = 1,
+    backend: str = "native",
+    worker_count: int | None = None,
     timeout: float = 600,
     processes: int | None = None,
     theory_db_connection: Connection | None = None,
@@ -426,15 +453,26 @@ def calculate_index(
 
     The default SQLite cache is ``char_decomposition_cache.db`` at the
     project root. Select another file with ``char_cache_database_path``.
-    Parsed FORM expansions use ``form_expansion_cache.db`` in the same
-    directory, unless ``form_cache_database_path`` selects another file.
+    Native C++ expansion and singlet projection are the default. The extension
+    must be built explicitly with ``index/cpp/build_char_cache.py``.
+    ``backend='python'`` selects the original FORM/Python projection path.
+    Only that path caches parsed FORM expansions in ``form_expansion_cache.db``
+    beside the character cache, unless ``form_cache_database_path`` selects
+    another file. Native calculation ignores FORM executable/cache options.
     ``theory_db_connection`` optionally reuses stored sector indices with
     sufficient recorded precision; it is separate from the SQLite caches.
-    ``form_threads=1`` uses FORM; larger counts use TFORM. This is separate
-    from ``processes``, which controls LiE cache generation.
+    ``worker_count`` selects expansion threads for either backend. When omitted,
+    it inherits ``form_threads`` for existing callers. In the Python backend,
+    one worker uses FORM and larger counts use TFORM; ``processes`` controls
+    Python LiE cache-generation processes. Native projection uses serial,
+    in-process LiE and ignores ``processes``; its LiE operations retain the
+    cache's per-calculation timeout. Expansion has its own cooperative timeout.
     """
     order = as_nonnegative_int(order, "order")
     form_threads = validate_form_threads(form_threads)
+    backend = _validate_backend(backend)
+    if worker_count is not None:
+        worker_count = validate_form_threads(worker_count)
     factors, hypermultiplets = _parse_input(data)
 
     return calculate_index_internal(
@@ -446,6 +484,7 @@ def calculate_index(
         lie_executable=lie_executable,
         form_executable=form_executable,
         tform_executable=tform_executable, form_threads=form_threads,
+        backend=backend, worker_count=worker_count,
         timeout=timeout,
         processes=processes,
         theory_db_connection=theory_db_connection,
@@ -463,6 +502,8 @@ def calculate_index_internal(
     form_executable: str = "form",
     tform_executable: str = "tform",
     form_threads: int = 1,
+    backend: str = "native",
+    worker_count: int | None = None,
     timeout: float = 600,
     processes: int | None = None,
     theory_db_connection: Connection | None = None,
@@ -471,12 +512,15 @@ def calculate_index_internal(
 
     A supplied N=2 MySQL connection is borrowed for read-only sector lookups.
     Only indices with a known cutoff at least ``order`` are reused; other
-    sectors use FORM/LiE. No sector rows are inserted and the connection is
-    never committed, rolled back or closed here. Pass a connection owned by
+    sectors use the selected backend. No sector rows are inserted and the
+    connection is never committed, rolled back or closed here. Pass a connection owned by
     this process/thread, with the current schema already initialized.
     """
     order = as_nonnegative_int(order, "order")
     form_threads = validate_form_threads(form_threads)
+    backend = _validate_backend(backend)
+    if worker_count is not None:
+        worker_count = validate_form_threads(worker_count)
 
     if order < 2:
         return _to_sage_polynomial({(0, 0, 0): Fraction(1)})
@@ -511,6 +555,7 @@ def calculate_index_internal(
                     form_cache_database_path=form_cache_database_path,
                     lie_executable=lie_executable, form_executable=form_executable,
                     tform_executable=tform_executable, form_threads=form_threads,
+                    backend=backend, worker_count=worker_count,
                     timeout=timeout, processes=processes,
                 )
             calculated[key] = _truncate_index(sector_index, order)
@@ -529,13 +574,32 @@ def _calculate_sector_index(
     form_executable: str = "form",
     tform_executable: str = "tform",
     form_threads: int = 1,
+    backend: str = "native",
+    worker_count: int | None = None,
     timeout: float = 600,
     processes: int | None = None,
 ) -> Any:
-    """Expand and project one complete sector using the existing FORM path."""
+    """Expand and project a sector, preserving exact Python/Sage return types."""
+    backend = _validate_backend(backend)
+    threads = validate_form_threads(form_threads if worker_count is None else worker_count)
     character_specs, vector_characters, matter_multiplicities = _character_basis(
         factors, hypermultiplets
     )
+    if backend == "native":
+        native = _require_native_index()
+        path = Path(DEFAULT_CHAR_CACHE_DATABASE if char_cache_database_path is None
+                    else char_cache_database_path).resolve()
+        native_timeout = -1.0 if timeout is None else float(timeout)
+        # Retain the Python API's expired-negative-timeout convention.
+        if timeout is not None and native_timeout < 0:
+            native_timeout = 0.0
+        if processes is not None and int(processes) <= 0:
+            raise ValueError("max_workers must be positive or None")
+        with closing(native.CharacterDecompositionCache(str(path), lie_executable=lie_executable,
+                                                        timeout=native_timeout)) as cache:
+            projected = native.expand_and_project(order, [factor.algebra.cartan_type for factor in factors],
+                character_specs, vector_characters, matter_multiplicities, cache, threads, native_timeout)
+        return _to_sage_polynomial(projected)
     program = _build_form_program(
         order,
         len(character_specs),
@@ -555,7 +619,7 @@ def _calculate_sector_index(
         with FormExpansionCache(
             database_path=form_cache_database_path,
             form_executable=form_executable,
-            tform_executable=tform_executable, form_threads=form_threads,
+            tform_executable=tform_executable, form_threads=threads,
             timeout=timeout,
         ) as form_cache:
             terms = form_cache.get_expansion(program)
@@ -592,17 +656,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--form-cache-database",
         type=Path,
-        help="FORM expansion cache file (default: beside the character cache)",
+        help="Python backend only: FORM expansion cache file (default: beside the character cache)",
     )
     parser.add_argument(
         "--processes",
         type=int,
-        help="LiE cache-generation processes (default: available CPUs; 1 disables)",
+        help="Python backend only: LiE cache-generation processes (default: available CPUs; 1 disables)",
     )
     parser.add_argument("--form-executable", default="form")
     parser.add_argument("--tform-executable", default="tform")
     parser.add_argument("--form-threads", type=int, default=1,
-                        help="1 uses FORM; larger values use TFORM with this many workers")
+                        help="expansion threads (legacy spelling; also applies to native backend)")
+    parser.add_argument("--workers", type=int, dest="worker_count",
+                        help="expansion worker count (overrides --form-threads)")
+    parser.add_argument("--backend", choices=("native", "python"), default="native",
+                        help="native C++ (default) or original FORM/Python path")
     args = parser.parse_args(argv)
 
     try:
@@ -614,6 +682,7 @@ def main(argv: list[str] | None = None) -> int:
             processes=args.processes,
             form_executable=args.form_executable,
             tform_executable=args.tform_executable, form_threads=args.form_threads,
+            backend=args.backend, worker_count=args.worker_count,
         )
     except (
         OSError,

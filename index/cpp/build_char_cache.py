@@ -113,6 +113,8 @@ def main(argv: list[str] | None = None) -> int:
             *[f"-I{directory}" for directory in includes],
             str(HERE / "char_decomposition_cache.cpp"),
             str(HERE / "char_decomposition_bindings.cpp"),
+            str(HERE / "index_expand.cpp"),
+            str(HERE / "index_singlet_project.cpp"),
             str(COMMON_CPP / "lie.cpp"),
             "-o", str(temporary_output),
             *[f"-L{directory}" for directory in library_dirs],

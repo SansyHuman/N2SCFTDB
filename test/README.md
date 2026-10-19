@@ -131,10 +131,29 @@ also checks bounded scheduling and a real abrupt worker exit without MySQL.
 `test_disconnected_index.py` checks NetworkX sector partitioning, transitive
 and trifundamental connections, zero multiplicities, free singlet hypers,
 exact truncated products, repeated sectors and optional MySQL index reuse.
-It compares split calculations with the original unsplit FORM projection.
+It compares split calculations with the unsplit sector implementation.
 The live database cases cover canonical representation matching, missing/null
 indices, unknown/lower/equal/higher cutoffs, read-only connection ownership,
 and the worker's reuse of connected product sectors alongside simple sectors.
+
+`test_native_calculate_index.py` checks the default native API against the
+retained `backend="python"` path, including 1/4/32-worker equality, GIL-released
+concurrent calls, strict exact binding conversion, cache ownership, timeout
+recovery, extension diagnostics, and absence of FORM expansion-cache writes.
+Build the extension with `sage -python -B index/cpp/build_char_cache.py` first.
+The tests use temporary caches. FORM-specific integration suites explicitly
+select `backend="python"` so they continue to exercise the reference engine.
+
+For complete API benchmarks:
+
+```sh
+sage -python -B test/benchmark_native_calculate_index.py --repetitions 3
+```
+
+This compares four small single-worker theories and two heavier 32-worker
+theories against the original pure Python cache/projection and executable LiE
+implementation. It uses only temporary private caches, compares complete exact
+outputs, and reports empty, warm-character and fully warm cache states separately.
 
 These tests use temporary settings and fixture credentials. The opt-in real
 Secret Service check remains separate from unittest discovery:

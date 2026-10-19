@@ -73,22 +73,22 @@ rational coefficients. GMP preserves them exactly. The character tuples use
 the existing FORM parser's weighted-length padding convention, including
 trailing zeros. The header documents input validation and exceptions.
 
-The implementation's anonymous namespace contains `expand_index_unordered`.
-It performs validation, expansion and term construction, leaving the outer
-vector in map iteration order. Character indices and Adams tuples inside each
-term remain canonical. All public `expand_index` overloads use this helper and
-apply the same final sort as before. The internal helper is not declared in
-the public header or exported for external callers.
+`expand_index_unordered` is public in `index_expand.hpp`, with the same four
+overloads, worker limits and timeout behavior as `expand_index`. It performs
+validation, expansion and term construction, leaving the outer vector in
+unspecified map iteration order. Character indices and Adams tuples inside
+each term remain canonical. Both API families share one private implementation;
+`expand_index` applies the final canonical sort.
 
-There is no Python binding, application backend selection, disk I/O, cache,
-character decomposition, or Coulomb-module change. The caller owns the
-returned records. All temporary state is local, and sparse intermediate
-expansions still require RAM.
+The expansion stage uses only native C++ objects and GMP, with all temporary
+state local to the call. The caller owns the returned records. Sparse
+intermediate expansions still require RAM. Singlet projection is a separate
+stage described below.
 
 ## Threading
 
-The original four-argument function delegates to the five-argument overload
-with `worker_count=1`. Nonpositive counts throw `std::invalid_argument`, even
+The original four-argument function uses `worker_count=1`.
+Nonpositive counts throw `std::invalid_argument`, even
 at cutoffs zero and one. Counts are explicit positive limits, not an automatic
 CPU-count setting; concurrent callers each have their own pool and budget.
 
@@ -114,7 +114,7 @@ then temporary maps are cleared and the final vector is sorted canonically.
 Initial letter construction and final sorting remain serial.
 Temporary maps and merging can increase memory use and limit scaling;
 more threads are not guaranteed to be faster. All thread counts return the
-same canonically sorted terms and exact reduced coefficients.
+same exact reduced coefficients; the sorted API also preserves term order.
 
 ## Timeouts
 
@@ -139,6 +139,83 @@ When a worker expires, pending tasks are cancelled and active tasks notice the
 shared expiration at their checkpoints. The caller waits for all active tasks
 and joins its pool before throwing. Deadlines are cooperative: a long individual
 operation, allocation or cleanup can delay return beyond the requested time.
+
+## Singlet projection
+
+`index_singlet_project.hpp` declares `project_index` for the unordered output.
+Supply the simple gauge factors in order and an `IndexCharacterSpec` for each
+formal character: its zero-based factor position and Dynkin labels.
+
+```cpp
+#include "index_singlet_project.hpp"
+
+using namespace n2scftdb;
+const auto raw = expand_index_unordered(10, 2, {0}, {{{1}, 8}}, 4, 30.0);
+const auto index = project_index(raw, {"A1"}, {{0, {2}}, {0, {1}}});
+// ProjectedIndex = map<tuple<t_power, y_power, u_power>, mpq_class>.
+// The default cache is char_decomposition_cache.db in the working directory.
+```
+
+This stage uses native LiE and the existing SQLite character cache by default.
+Pass an absolute database path as the fourth argument to reuse a project cache
+from another working directory. Alternatively pass a borrowed
+`characters::CharacterDecompositionCache&` to reuse memory caches and customize
+LiE backend/limits/timeouts. Borrowed caches stay open and belong to one thread.
+The convenience overload uses the cache's existing 600-second per-calculation
+LiE deadline; it does not impose an overall projection deadline.
+
+Projection interns distinct character structures, batches each gauge factor's
+distinct products through `get_singlet_multiplicities`, and multiplies the
+independent factor results. The cache splits products and uses exact dual-irrep
+pairing instead of decomposing the complete final tensor product. Signed Adams
+characters and complex conjugation retain the existing cache semantics. Terms
+with equal `t,y,u` powers combine, zero coefficients disappear, and the returned
+map iterates in sorted exponent order. No formal outer-vector sort is needed.
+Inputs are unchanged, and rational coefficients use GMP throughout.
+
+Compile `index_singlet_project.cpp`, `char_decomposition_cache.cpp` and
+`common/cpp/lie.cpp` alongside `index_expand.cpp`; make nlohmann/json headers
+available and link `-llie -lgmpxx -lgmp -lsqlite3` with the LiE library directory
+and runtime path. The expansion-only build above remains independent of these
+extra dependencies. See [CHARACTER_CACHE.md](CHARACTER_CACHE.md) for paths and
+the shared-cache contract.
+
+## Python calculate_index integration
+
+The same explicit build now includes expansion and projection in the existing
+`index._char_cache_cpp` extension:
+
+```sh
+sage -python -B index/cpp/build_char_cache.py --cxx /usr/bin/g++
+```
+
+`index.n2_theory_index.calculate_index` defaults to `backend="native"`. The
+binding calls unordered expansion and projection with the GIL released, then
+returns only the small final dictionary of exact `Fraction` coefficients.
+The public API still returns the same Sage Laurent polynomial and retains
+sector splitting, stored-index reuse and exact truncation in Python. Missing
+or outdated extensions report the build command; calculation never downloads
+or compiles automatically. `backend="python"` selects the original FORM path.
+
+```python
+from index.n2_theory_index import calculate_index
+
+result = calculate_index(data, 18, worker_count=32)
+reference = calculate_index(data, 18, backend="python", worker_count=32, processes=32)
+assert result == reference
+```
+
+When `worker_count` is omitted, existing `form_threads` values select expansion
+workers for either backend. Native LiE projection remains serial and does not
+use `processes`; the reference retains its Python cache-generation pools.
+Native expansion has a cooperative timeout, and native LiE retains its
+per-calculation timeout. `timeout=None` disables both. The shared character cache
+defaults to the project-root database, independent of the working directory.
+FORM executable and expansion-cache settings apply only to `backend="python"`.
+The CLI accepts `--backend native|python` and `--workers N`.
+
+`test/benchmark_native_calculate_index.py` compares complete API calls with
+fresh, warm-character and fully warm caches, checking every exact coefficient.
 
 ## Verification
 

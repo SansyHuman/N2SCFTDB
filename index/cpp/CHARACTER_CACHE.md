@@ -40,6 +40,12 @@ The extension locates `liblie.so` relative to its own directory. GCC and Bison
 are required for LiE; see `common/cpp/LiE/SHARED_BUILD.md` for the local Bison
 fallback used on this machine.
 
+This build also includes `index_expand.cpp` and `index_singlet_project.cpp`.
+The `expand_and_project` binding keeps all expanded terms in C++ and returns
+only the projected exact `Fraction` dictionary. The public Python
+`n2_theory_index.calculate_index` uses this pipeline by default; see
+[README.md](README.md) for backend selection and worker-count behavior.
+
 The native engine needs no LiE executable on `PATH`. The optional subprocess
 implementation uses POSIX APIs and requires a LiE executable on `PATH`, or
 selected with `lie_executable`. Process execution uses pipes without a shell.

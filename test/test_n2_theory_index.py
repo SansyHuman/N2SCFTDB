@@ -138,7 +138,7 @@ class N2TheoryIndexTests(unittest.TestCase):
                     self.assertEqual(parse_index_polynomial(result.stdout),
                                      parse_index_polynomial("1 + t^4*u^4"))
                     self.assertTrue(database.is_file())
-                    self.assertTrue(database.with_name("form_expansion_cache.db").is_file())
+                    self.assertFalse(database.with_name("form_expansion_cache.db").exists())
                     self.assertFalse(database.with_name("char_decomposition_cache.db").exists())
 
     def test_su3_six_flavors_matches_reference_through_t6(self):
