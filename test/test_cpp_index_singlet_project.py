@@ -77,7 +77,7 @@ class CppIndexSingletProjectTests(unittest.TestCase):
         if library:
             command += ["-L", library, f"-Wl,-rpath,{library}"]
         lie = ROOT / "common/cpp/LiE"
-        command += ["-L", str(lie), f"-Wl,-rpath,{lie}", "-llie", "-lgmpxx", "-lgmp",
+        command += ["-L", str(lie), f"-Wl,-rpath,{lie}", "-llie", "-ldl", "-lgmpxx", "-lgmp",
                     "-lsqlite3", "-o", str(cls.executable)]
         result = subprocess.run(command, capture_output=True, text=True, timeout=180)
         if result.returncode:

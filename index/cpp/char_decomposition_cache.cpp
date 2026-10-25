@@ -515,6 +515,7 @@ struct CharacterDecompositionCache::Impl {
     std::int64_t max_nodes, max_objects;
     double timeout;
     bool native_lie = true;
+    std::unique_ptr<lie::Environment> environment;
     sqlite3* connection = nullptr;
     pid_t pid = ::getpid();
     std::map<Request, Decomposition> decompositions;
@@ -525,9 +526,15 @@ struct CharacterDecompositionCache::Impl {
           max_nodes(nodes), max_objects(objects), timeout(seconds) {}
     void clear() {
         if (connection) { sqlite3_close_v2(connection); connection = nullptr; }
+        environment.reset();
         decompositions.clear(); singlets.clear(); partial_products.clear(); pid = ::getpid();
     }
     void state() { if (pid != ::getpid()) clear(); }
+    lie::Environment& runtime() {
+        state();
+        if (!environment) environment = std::make_unique<lie::Environment>();
+        return *environment;
+    }
     sqlite3* db() {
         state();
         if (connection) return connection;
@@ -686,7 +693,7 @@ Decomposition CharacterDecompositionCache::calculate_decomposition(const std::st
     }
     auto position = std::find_if(powers.begin(), powers.end(), [](auto n) { return n != 0; }) - powers.begin() + 1;
     if (impl_->native_lie)
-        return lie::adams(algebra, position, labels, {impl_->max_objects, impl_->timeout});
+        return impl_->runtime().adams(algebra, position, labels, {impl_->max_objects, impl_->timeout});
     auto expression = "Adams(" + std::to_string(position) + "," + format_labels(labels) + "," + algebra + ")";
     auto output = run_lie({expression});
     if (output.empty()) throw std::runtime_error("LiE returned no result for '" + expression + "'");
@@ -709,7 +716,7 @@ Decomposition CharacterDecompositionCache::tensor_decompositions(const std::stri
     if (left.size() == 1 && left.count(zero)) return scalar(left.at(zero), right);
     if (right.size() == 1 && right.count(zero)) return scalar(right.at(zero), left);
     if (impl_->native_lie)
-        return lie::tensor(algebra, left, right, {impl_->max_objects, impl_->timeout});
+        return impl_->runtime().tensor(algebra, left, right, {impl_->max_objects, impl_->timeout});
     auto expression = "tensor(" + format_lie_decomposition(left) + "," + format_lie_decomposition(right) + "," + algebra + ")";
     auto output = run_lie({expression});
     std::string text;

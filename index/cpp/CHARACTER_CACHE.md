@@ -33,7 +33,7 @@ directory. It does not modify the Python environment. Subsequent builds can
 omit that option. The build accepts `--gmp-prefix`, `--sqlite-prefix`, `CXX`,
 `GMP_PREFIX`, `SQLITE_PREFIX`, `CHAR_CACHE_CXXFLAGS` and `CHAR_CACHE_LDFLAGS`.
 It builds `common/cpp/LiE/liblie.so`, compiles `common/cpp/lie.cpp`, links
-LiE, GMP/GMPXX and SQLite3, and writes an extension with the current Python
+LiE, GMP/GMPXX, SQLite3 and libdl, and writes an extension with the current Python
 ABI suffix under `index/`. Compilation uses a temporary output and replaces
 the extension only after success. Generated binaries are not checked in.
 The extension locates `liblie.so` relative to its own directory. GCC and Bison
@@ -81,9 +81,13 @@ The independent `lie_backend` constructor/builder option selects the LiE engine:
 - `native` explicitly requires the C++ extension and ignores the executable.
 - `subprocess` explicitly selects the existing executable interface.
 
-The CLI accepts `--lie-backend auto|native|subprocess`. Native LiE is serialized
-within each process because upstream uses global state. Existing Python process
-pools still run calculations in parallel across processes. Native `timeout` is
+The CLI accepts `--lie-backend auto|native|subprocess`. Each native cache lazily
+owns an isolated LiE library environment. Distinct cache instances can calculate
+concurrently on worker threads, with independent globals, locks, deadlines and
+error recovery. The environment is reused across misses and released on
+`close()`; cache hits do not create one. This requires Linux memory-file loading
+and does not use the limited `dlmopen` namespaces. Existing Python process
+pools continue to work. Native `timeout` is
 a cooperative calculation deadline sampled adaptively during allocation and
 Weyl enumeration, with mandatory checks at calculation boundaries; lock
 waiting is excluded. `max_objects` limits live LiE objects;
@@ -126,7 +130,7 @@ auto singlets = cache.get_singlet_multiplicities("A1", 1, {product});
 
 Compile `char_decomposition_cache.cpp` and `common/cpp/lie.cpp` with C++17 and
 `-pthread`, make GMP, SQLite and nlohmann/json headers available, and link
-`-llie -lgmpxx -lgmp -lsqlite3` with the LiE library directory and runtime path.
+`-llie -lgmpxx -lgmp -lsqlite3 -ldl` with the LiE library directory and runtime path.
 The Python build script's printed command shows the include and library paths
 detected for this machine; omit the binding source when building a native caller.
 
@@ -144,7 +148,9 @@ C++ or native-extension client belongs to one thread; use separate instances
 for concurrent callers. Independent clients can share the same SQLite file.
 Connections open lazily, use WAL and a busy timeout, and keep write transactions
 short. LiE runs outside write transactions. `close()` releases the calling
-thread's Python and native state; later calls can reopen the cache.
+thread's Python and native state, including its LiE environment; later calls
+can reopen the cache. After fork, inherited connection, memory-cache and native
+environment state are discarded before the next cache/runtime access.
 
 ## Tests
 

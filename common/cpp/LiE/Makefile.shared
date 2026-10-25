@@ -37,8 +37,9 @@ INCLUDES := -DN2_LIE_EMBEDDABLE -I$(BUILD_DIR) -I$(SOURCE_DIR) -I$(SOURCE_DIR)/b
 .PHONY: all
 all: $(LIBRARY)
 
-$(LIBRARY): $(OBJECTS) $(SOURCE_DIR)/Makefile.shared
+$(LIBRARY): $(OBJECTS) $(SOURCE_DIR)/Makefile.shared $(SOURCE_DIR)/exports.map
 	$(CC) -shared $(LDFLAGS) -Wl,-soname,liblie.so -Wl,-z,defs -Wl,-Bsymbolic-functions \
+	  -Wl,--version-script=$(SOURCE_DIR)/exports.map \
 	  -o $@.tmp $(OBJECTS) -pthread $(LDLIBS)
 	mv $@.tmp $@
 

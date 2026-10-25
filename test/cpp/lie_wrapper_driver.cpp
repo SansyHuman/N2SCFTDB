@@ -4,6 +4,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <thread>
+#include <memory>
 
 using namespace n2scftdb::lie;
 
@@ -49,6 +50,31 @@ int main() {
         for (int j = 0; j < 20; ++j) assert(adams("A1", 2, Labels{1}) == psi2);
     });
     for (auto& thread : threads) thread.join();
+    // Keep 32 distinct instances alive at once, beyond dlmopen's namespace
+    // limit. They must agree with the original runtime and each other.
+    std::vector<std::unique_ptr<Environment>> environments;
+    for (int i = 0; i < 32; ++i) environments.push_back(std::make_unique<Environment>());
+    threads.clear();
+    for (auto& environment : environments) threads.emplace_back([&, ptr = environment.get()] {
+        for (int j = 0; j < 20; ++j) {
+            assert(ptr->adams("A1", 2, Labels{1}) == psi2);
+            assert(ptr->adams("A1", 2, psi2) == adams("A1", 4, Labels{1}));
+            assert(ptr->tensor("A2", Labels{1, 0}, Labels{0, 1}) ==
+                   (Decomposition{{{0, 0}, 1}, {{1, 1}, 1}}));
+            assert(ptr->tensor("A1", psi2, Decomposition{{{1}, 1}}) == (Decomposition{{{3}, 1}}));
+        }
+        // Failure in upstream arithmetic and a deadline must recover in the
+        // SAME environment, while the other environments keep calculating.
+        try { ptr->tensor("A1", Decomposition{{{1}, huge}}, Decomposition{{{1}, huge}}); assert(false); }
+        catch (const std::runtime_error&) {}
+        try { ptr->adams("E8", 2, Labels(8, 1), Options{9999999, 0.002}); assert(false); }
+        catch (const std::runtime_error&) {}
+        assert(ptr->adams("A1", 2, Labels{1}) == psi2);
+    });
+    for (auto& thread : threads) thread.join();
+    auto retained = environments.front()->adams("A1", 2, Labels{1});
+    environments.clear();
+    assert(retained == psi2);
     // Previously returned objects must survive all subsequent runtime resets.
     assert(psi2 == (Decomposition{{{0}, -1}, {{2}, 1}}));
     std::cout << "native wrapper checks passed\n";

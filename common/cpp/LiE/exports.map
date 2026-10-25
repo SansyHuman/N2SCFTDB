@@ -1,0 +1,9 @@
+{
+    global:
+        n2_lie_compute;
+        n2_lie_result_free;
+        n2_lie_environment_abi;
+        lie_cli_main;
+    local:
+        *;
+};

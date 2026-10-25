@@ -1,13 +1,24 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include "lie.hpp"
 #include "lie_bridge.h"
 
 #include <algorithm>
+#include <cerrno>
 #include <cctype>
 #include <climits>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <system_error>
 #include <utility>
+#include <dlfcn.h>
+#include <fcntl.h>
+#include <unistd.h>
+#ifdef __linux__
+#include <sys/mman.h>
+#endif
 
 namespace n2scftdb::lie {
 namespace {
@@ -70,9 +81,11 @@ struct Input {
 };
 struct Result {
     n2_lie_result value{};
-    ~Result() { n2_lie_result_free(&value); }
+    decltype(&n2_lie_result_free) release;
+    ~Result() { release(&value); }
 };
-Decomposition calculate(const std::string& algebra, std::int64_t power,
+Decomposition calculate(decltype(&n2_lie_compute) compute, decltype(&n2_lie_result_free) release,
+                        const std::string& algebra, std::int64_t power,
                         const Decomposition& left, const Decomposition& right,
                         const Options& options) {
     const auto group = parse_algebra(algebra);
@@ -83,8 +96,8 @@ Decomposition calculate(const std::string& algebra, std::int64_t power,
     Input a(left, group.rank, power ? static_cast<long>(power) : 1, power == 0);
     Input b(right, group.rank, 1, power == 0);
     if (a.terms.empty() || (!power && b.terms.empty())) return {};
-    Result result;
-    if (n2_lie_compute(group.family, group.rank, static_cast<long>(power),
+    Result result{{}, release};
+    if (compute(group.family, group.rank, static_cast<long>(power),
                        a.terms.data(), a.terms.size(), b.terms.data(), b.terms.size(),
                        static_cast<long>(options.max_objects), options.timeout, &result.value))
         throw std::runtime_error(result.value.error);
@@ -101,11 +114,116 @@ Decomposition calculate(const std::string& algebra, std::int64_t power,
     }
     return answer;
 }
+
+struct File {
+    int fd;
+    explicit File(int value) : fd(value) {
+        if (fd < 0) throw std::system_error(errno, std::generic_category(), "creating native LiE environment");
+    }
+    ~File() { ::close(fd); }
+    File(const File&) = delete;
+    File& operator=(const File&) = delete;
+};
+int create_image() {
+#ifdef __linux__
+    return ::memfd_create("n2scftdb-lie", MFD_CLOEXEC | MFD_ALLOW_SEALING);
+#else
+    throw std::runtime_error("isolated native LiE environments require Linux memfd support");
+#endif
+}
+void copy_library(int destination) {
+    // Resolve the library actually linked into this caller, so standalone
+    // programs and the Python extension use the same build and runtime path.
+    // A direct &n2_lie_compute (even RTLD_DEFAULT lookup) may resolve to an
+    // executable's PLT trampoline in non-PIE builds. Look inside the linked
+    // library explicitly; NOLOAD guarantees we reuse its existing build.
+    auto close_library = [](void* handle) { ::dlclose(handle); };
+    std::unique_ptr<void, decltype(close_library)> base(
+        ::dlopen("liblie.so", RTLD_NOW | RTLD_LOCAL | RTLD_NOLOAD), close_library);
+    if (!base)
+        throw std::runtime_error(std::string("locating linked native LiE library: ") + ::dlerror());
+    Dl_info info{};
+    void* compute = ::dlsym(base.get(), "n2_lie_compute");
+    if (!compute || !::dladdr(compute, &info) || !info.dli_fname)
+        throw std::runtime_error("cannot locate native LiE library");
+    File source(::open(info.dli_fname, O_RDONLY | O_CLOEXEC));
+    char buffer[65536];
+    for (;;) {
+        auto count = ::read(source.fd, buffer, sizeof(buffer));
+        if (count < 0 && errno == EINTR) continue;
+        if (count < 0) throw std::system_error(errno, std::generic_category(), "reading native LiE library");
+        if (!count) break;
+        for (ssize_t offset = 0; offset < count;) {
+            auto written = ::write(destination, buffer + offset, static_cast<std::size_t>(count - offset));
+            if (written < 0 && errno == EINTR) continue;
+            if (written <= 0)
+                throw std::system_error(written ? errno : EIO, std::generic_category(), "copying native LiE library");
+            offset += written;
+        }
+    }
+#ifdef __linux__
+    if (::fcntl(destination, F_ADD_SEALS, F_SEAL_WRITE | F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL) < 0)
+        throw std::system_error(errno, std::generic_category(), "sealing native LiE library");
+#endif
+}
+struct Library {
+    void* handle;
+    explicit Library(int fd) : handle(nullptr) {
+        copy_library(fd);
+        handle = ::dlopen(("/proc/self/fd/" + std::to_string(fd)).c_str(), RTLD_NOW | RTLD_LOCAL);
+        if (!handle) throw std::runtime_error(std::string("loading isolated native LiE library: ") + ::dlerror());
+    }
+    ~Library() { ::dlclose(handle); }
+    Library(const Library&) = delete;
+    Library& operator=(const Library&) = delete;
+    template<class Function>
+    Function symbol(const char* name) {
+        ::dlerror();
+        auto address = ::dlsym(handle, name);
+        const char* error = ::dlerror();
+        if (error) throw std::runtime_error(std::string("native LiE library must be rebuilt: ") + error);
+        return reinterpret_cast<Function>(address);
+    }
+};
 } // namespace
+
+struct Environment::Impl {
+    // Keep the descriptor until AFTER dlclose. Reusing a live /proc/self/fd/N
+    // loader name could otherwise return an earlier library instance.
+    File image{create_image()};
+    Library library{image.fd};
+    decltype(&n2_lie_compute) compute = library.symbol<decltype(compute)>("n2_lie_compute");
+    decltype(&n2_lie_result_free) release = library.symbol<decltype(release)>("n2_lie_result_free");
+    Impl() {
+        auto abi = library.symbol<decltype(&n2_lie_environment_abi)>("n2_lie_environment_abi");
+        if (abi() != N2_LIE_ENVIRONMENT_ABI || compute == &n2_lie_compute)
+            throw std::runtime_error("native LiE library does not support isolated environments; rebuild it");
+    }
+};
+Environment::Environment() : impl_(std::make_unique<Impl>()) {}
+Environment::~Environment() = default;
+Decomposition Environment::adams(const std::string& algebra, std::int64_t power,
+                                 const Decomposition& character, const Options& options) {
+    if (power <= 0) throw std::invalid_argument("Adams power must be positive");
+    return calculate(impl_->compute, impl_->release, algebra, power, character, {}, options);
+}
+Decomposition Environment::adams(const std::string& algebra, std::int64_t power,
+                                 const Labels& labels, const Options& options) {
+    return adams(algebra, power, Decomposition{{labels, 1}}, options);
+}
+Decomposition Environment::tensor(const std::string& algebra, const Decomposition& left,
+                                  const Decomposition& right, const Options& options) {
+    return calculate(impl_->compute, impl_->release, algebra, 0, left, right, options);
+}
+Decomposition Environment::tensor(const std::string& algebra, const Labels& left,
+                                  const Labels& right, const Options& options) {
+    return tensor(algebra, Decomposition{{left, 1}}, Decomposition{{right, 1}}, options);
+}
+
 Decomposition adams(const std::string& algebra, std::int64_t power,
                     const Decomposition& character, const Options& options) {
     if (power <= 0) throw std::invalid_argument("Adams power must be positive");
-    return calculate(algebra, power, character, {}, options);
+    return calculate(&n2_lie_compute, &n2_lie_result_free, algebra, power, character, {}, options);
 }
 Decomposition adams(const std::string& algebra, std::int64_t power,
                     const Labels& labels, const Options& options) {
@@ -113,7 +231,7 @@ Decomposition adams(const std::string& algebra, std::int64_t power,
 }
 Decomposition tensor(const std::string& algebra, const Decomposition& left,
                      const Decomposition& right, const Options& options) {
-    return calculate(algebra, 0, left, right, options);
+    return calculate(&n2_lie_compute, &n2_lie_result_free, algebra, 0, left, right, options);
 }
 Decomposition tensor(const std::string& algebra, const Labels& left,
                      const Labels& right, const Options& options) {

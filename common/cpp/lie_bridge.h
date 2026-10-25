@@ -29,13 +29,17 @@ int n2_lie_compute(char family, long rank, long adams_power,
                    const n2_lie_term *right, size_t right_count,
                    long max_objects, double timeout, n2_lie_result *result);
 void n2_lie_result_free(n2_lie_result *result);
+/* Version 1 requires the build to hide all LiE state and internal functions.
+   An isolated loader must reject older libraries before running calculations. */
+#define N2_LIE_ENVIRONMENT_ABI 1u
+unsigned int n2_lie_environment_abi(void);
 
 /* Hooks used only by the shared-library build of the upstream C sources. */
 extern int n2_lie_active;
 void *n2_lie_allocate(size_t size, int object_allocation);
 void n2_lie_release(void *pointer);
 void n2_lie_free_array(void *pointer);
-/* The mathematical core is serialized. Zero disables polling outside native
+/* Each library instance serializes its mathematical core. Zero disables polling outside native
    calculations or with an unlimited timeout. Keep hot-loop calls inlined. */
 extern unsigned int n2_lie_poll_budget;
 void n2_lie_check_deadline(void);

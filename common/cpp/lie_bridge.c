@@ -25,6 +25,8 @@ static pthread_mutex_t runtime_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_once_t fork_once = PTHREAD_ONCE_INIT;
 static int fork_error;
 
+unsigned int n2_lie_environment_abi(void) { return N2_LIE_ENVIRONMENT_ABI; }
+
 static void before_fork(void) { pthread_mutex_lock(&runtime_lock); }
 static void after_fork(void) { pthread_mutex_unlock(&runtime_lock); }
 static void register_fork(void) {

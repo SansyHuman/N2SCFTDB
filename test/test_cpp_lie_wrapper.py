@@ -1,12 +1,16 @@
 """Exercise native LiE misses, exact arithmetic, recovery and process ownership."""
 
 from concurrent.futures import ThreadPoolExecutor
+import ctypes
 import multiprocessing
 import os
 from pathlib import Path
 import shutil
 import sqlite3
+import subprocess
+import sys
 import tempfile
+import threading
 import time
 import unittest
 from unittest.mock import patch
@@ -23,6 +27,21 @@ def child_compute(path, connection):
         connection.send(repr(exc))
     finally:
         connection.close()
+
+def inherited_cache_compute(cache, connection):
+    try:
+        connection.send(cache.calculate_decomposition('A2', (1, 0), (0, 1)))
+        cache.close()
+    except BaseException as exc:
+        connection.send(repr(exc))
+    finally:
+        connection.close()
+
+
+def environment_mappings():
+    """Identify distinct loaded library images, independent of mapping count."""
+    return {tuple(line.split()[3:5]) for line in Path('/proc/self/maps').read_text().splitlines()
+            if '/memfd:n2scftdb-lie ' in line}
 
 
 @unittest.skipIf(native is None, 'build index._index_calculation_cpp first')
@@ -152,6 +171,133 @@ class NativeLiEWrapperTests(unittest.TestCase):
                 cache.close()
         with ThreadPoolExecutor(max_workers=8) as workers:
             list(workers.map(compute, range(8)))
+
+    def test_environment_is_lazy_reused_and_released_on_close(self):
+        before = environment_mappings()
+        cache, other = self.cache(), self.cache('other')
+        request = ('A1', (1,), (0, 1))
+        expected = {(0,): -1, (2,): 1}
+        cache.write_decompositions([(request, expected)])
+        self.assertEqual(cache.get_decomposition(*request), expected)
+        self.assertEqual(environment_mappings(), before, 'cache hit loaded LiE')
+        for _ in range(5):
+            self.assertEqual(cache.calculate_decomposition(*request), expected)
+            self.assertEqual(len(environment_mappings() - before), 1)
+        self.assertEqual(other.calculate_decomposition(*request), expected)
+        self.assertEqual(len(environment_mappings() - before), 2)
+        cache.close()
+        self.assertEqual(len(environment_mappings() - before), 1)
+        other.close()
+        self.assertEqual(environment_mappings(), before)
+        # Descriptor/loader-name reuse must not keep an old instance alive.
+        for _ in range(40):
+            self.assertEqual(cache.calculate_decomposition(*request), expected)
+            self.assertEqual(len(environment_mappings() - before), 1)
+            cache.close()
+            self.assertEqual(environment_mappings(), before)
+
+    def test_library_hides_internal_state_and_checks_environment_abi(self):
+        library = ctypes.CDLL(str(Path(__file__).resolve().parents[1] / 'common/cpp/LiE/liblie.so'))
+        self.assertEqual(library.n2_lie_environment_abi(), 1)
+        for symbol in ('grp', 'defaultgrp', 'one', 'null', 'cmpfn', 'n2_lie_active',
+                       'n2_lie_poll_budget', 'Adams', 'Tensor', 'n2_lie_allocate'):
+            with self.subTest(symbol=symbol), self.assertRaises(AttributeError):
+                getattr(library, symbol)
+
+    @unittest.skipUnless(Path('/usr/bin/g++').is_file(), 'system g++ required')
+    def test_standalone_environment_with_nonpie_executable(self):
+        root = Path(__file__).resolve().parents[1]
+        library = root / 'common/cpp/LiE'
+        command = ['/usr/bin/g++', '-std=c++17', '-O2', '-pthread', '-fno-pie', '-no-pie',
+                   '-Wall', '-Wextra', '-Wpedantic']
+        prefix = Path(sys.prefix)
+        if (prefix / 'include/gmpxx.h').is_file():
+            command += [f'-I{prefix / "include"}', f'-L{prefix / "lib"}',
+                        f'-Wl,-rpath,{prefix / "lib"}']
+        command += [str(root / 'test/cpp/lie_wrapper_driver.cpp'), str(root / 'common/cpp/lie.cpp'),
+                    f'-L{library}', f'-Wl,-rpath,{library}', '-llie', '-lgmpxx', '-lgmp', '-ldl',
+                    '-o', str(self.directory / 'standalone')]
+        build = subprocess.run(command, capture_output=True, text=True, timeout=60)
+        self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+        run = subprocess.run([str(self.directory / 'standalone')], capture_output=True, text=True, timeout=30)
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertIn('native wrapper checks passed', run.stdout)
+
+    def test_32_live_environments_with_concurrent_deadlines_and_failures(self):
+        before = environment_mappings()
+        ready = threading.Barrier(33, timeout=20)
+        release = threading.Event()
+        def compute(worker):
+            cache = native.CharacterDecompositionCache(
+                str(self.directory / 'shared.db'), timeout=0.02 if worker % 4 == 0 else -1,
+                max_objects=3 if worker % 4 == 1 else 9999999)
+            try:
+                if worker % 4 == 1:
+                    with self.assertRaisesRegex(RuntimeError, 'object limit'):
+                        cache.calculate_decomposition('A1', (1,), (0, 1))
+                else:
+                    cache.calculate_decomposition('A1', (1,), (0, 1))
+                ready.wait()
+                if not release.wait(20):
+                    raise AssertionError('environment inspection did not finish')
+                for _ in range(12):
+                    if worker % 4 == 0:
+                        with self.assertRaisesRegex(RuntimeError, 'timed out'):
+                            cache.calculate_decomposition('E8', (1,) * 8, (0, 1))
+                        # Recovery in the very same environment.
+                        self.assertEqual(cache.calculate_decomposition('A1', (1,), (0, 1)),
+                                         {(0,): -1, (2,): 1})
+                    elif worker % 4 == 1:
+                        with self.assertRaisesRegex(RuntimeError, 'object limit'):
+                            cache.calculate_decomposition('A2', (1, 0), (0, 1))
+                    elif worker % 4 == 2:
+                        self.assertEqual(cache.get_decomposition('C2', (1, 0), (0, 1)),
+                                         {(0, 0): -1, (0, 1): -1, (2, 0): 1})
+                        self.assertEqual(cache.tensor_decompositions('A2', {(1, 0): 1}, {(0, 1): 1}),
+                                         {(0, 0): 1, (1, 1): 1})
+                    else:
+                        huge = (1 << 20000) + worker
+                        self.assertEqual(cache.tensor_decompositions('A1', {(1,): huge}, {(1,): -huge}),
+                                         {(0,): -huge * huge, (2,): -huge * huge})
+            finally:
+                cache.close()
+        with ThreadPoolExecutor(max_workers=32) as workers:
+            futures = [workers.submit(compute, i) for i in range(32)]
+            try:
+                ready.wait()
+                self.assertEqual(len(environment_mappings() - before), 32)
+            finally:
+                release.set()
+            for future in futures:
+                future.result(timeout=30)
+        self.assertEqual(environment_mappings(), before)
+        with sqlite3.connect(self.directory / 'shared.db') as connection:
+            self.assertEqual(connection.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
+
+    @unittest.skipUnless('fork' in multiprocessing.get_all_start_methods(), 'requires fork')
+    def test_inherited_environment_and_unloaded_fork_handlers(self):
+        cache = self.cache()
+        for _ in range(20):
+            cache.calculate_decomposition('A1', (1,), (0, 1))
+            cache.close()
+        cache.calculate_decomposition('A1', (1,), (0, 1))
+        context = multiprocessing.get_context('fork')
+        parent, child = context.Pipe(duplex=False)
+        process = context.Process(target=inherited_cache_compute, args=(cache, child))
+        process.start()
+        child.close()
+        try:
+            self.assertTrue(parent.poll(15), 'inherited native environment hung')
+            self.assertEqual(parent.recv(), {(0, 1): -1, (2, 0): 1})
+            process.join(5)
+            self.assertEqual(process.exitcode, 0)
+            self.assertEqual(cache.calculate_decomposition('A1', (1,), (0, 1)),
+                             {(0,): -1, (2,): 1})
+        finally:
+            if process.is_alive():
+                process.terminate()
+                process.join(5)
+            parent.close()
 
     @unittest.skipUnless('fork' in multiprocessing.get_all_start_methods(), 'requires fork')
     def test_fork_after_native_initialization(self):

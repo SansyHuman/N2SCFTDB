@@ -20,8 +20,13 @@ parser-generation target.
 The build includes the mathematical routines, runtime and interpreter,
 with readline disabled. It retains the runtime globals from `main.c` and
 renames its executable entry point to `lie_cli_main`. Loading the library
-does not run that entry point. Exported functions include `Adams`, `Tensor`
-and `init`. The shared-library link rejects unresolved references; the only
+does not run that entry point. `exports.map` exposes only the native C bridge
+(`n2_lie_compute`, `n2_lie_result_free`, `n2_lie_environment_abi`) and
+`lie_cli_main` for the standalone interpreter benchmark. All mathematical
+functions and mutable globals bind locally, allowing isolated library copies
+to calculate concurrently. Raw `Adams`, `Tensor` and `init` are no longer
+exported; callers should use the C++ wrapper. The shared-library link rejects
+unresolved references; the only
 external runtime dependency is libc on the tested Linux system (including
 pthread functions on this glibc version).
 
@@ -41,15 +46,17 @@ On another machine, install Bison or pass `BISON=/path/to/bison` and, if
 relocated, its `BISON_PKGDATADIR` environment variable.
 
 For native callers, use `common/cpp/lie.hpp` and compile `common/cpp/lie.cpp`.
-Link `-L/path/to/common/cpp/LiE -llie -lgmpxx -lgmp -pthread`, with a runtime
+Link `-L/path/to/common/cpp/LiE -llie -lgmpxx -lgmp -ldl -pthread`, with a runtime
 library search path (for example, `-Wl,-rpath,/path/to/common/cpp/LiE`).
 The wrapper and its private `lie_bridge.c` adapter initialize the mathematical
-core, own its memory, serialize its global state, and recover errors inside C.
+core, own its memory, serialize state within each library instance, and recover
+errors inside C. Each cache's lazy `lie::Environment` uses its own copy, loaded
+from a sealed Linux memory file without writing a persistent library file.
 Do not mix raw upstream API calls or interpreter initialization with this
 wrapper. See `../LIE_WRAPPER.md` for the supported C++ interface.
 
-Validation on this machine: `ldd -r` resolves every runtime reference,
-the library has no text relocations, and a linked C caller directly computed
+Initial shared-build validation on this machine: `ldd -r` resolved every runtime reference,
+the library had no text relocations, and a linked C caller directly computed
 the following four identities in one process:
 
 - `Adams(2, [1], A1) = -[0] + [2]`

@@ -56,9 +56,11 @@ std::string character_product_key(const Product& product);
 std::string decomposed_product_key(const std::vector<Decomposition>& product);
 std::vector<std::string> lie_output_lines(const std::string& stdout_text);
 
-// A cache instance owns one lazy SQLite connection and its memory caches.
+// A cache instance owns one lazy SQLite connection, its memory caches, and a
+// lazy isolated native LiE environment. Cache hits do not load an environment.
 // Use a separate instance per thread; distinct instances may share one database.
-// After fork it discards inherited connection state before the next cache access.
+// close() releases all three; the instance can subsequently be reused.
+// After fork it discards inherited state before the next cache/runtime access.
 // auto uses in-process LiE for the default executable, and subprocess mode for
 // a custom executable. Native deadlines are cooperative. Coefficients are exact.
 class CharacterDecompositionCache {

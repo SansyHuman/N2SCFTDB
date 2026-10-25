@@ -42,11 +42,40 @@ expensive action and subsequent cleanup can delay return. Failures throw
 `std::invalid_argument`, and oversized input coefficients throw
 `std::overflow_error`. Failed calculations do not leave partial cache entries.
 
-LiE uses global state. The wrapper serializes native calls per process,
-registers fork handlers for its mutex, and frees all per-call mathematical
-allocations even on failure. `longjmp` recovery stays inside C and never skips
-C++ destructors. Separate processes can compute concurrently. Do not call
-raw upstream LiE functions or initialize the interpreter alongside this API.
+For concurrent worker threads, give each worker an environment:
+
+```cpp
+lie::Environment environment;  // keep for the worker's lifetime
+auto psi2 = environment.adams("A1", 2, lie::Labels{1});
+auto product = environment.tensor("A2", lie::Labels{1, 0}, lie::Labels{0, 1});
+```
+
+`Environment` owns an isolated copy of `liblie.so`, loaded once from a sealed
+Linux anonymous memory file (`memfd_create`) with `dlopen(RTLD_NOW | RTLD_LOCAL)`.
+The build hides all internal LiE functions and global variables using
+`LiE/exports.map`, so each copy binds to its own state. This does not use
+`dlmopen` namespaces and supports 32 or more environments, subject to memory
+and file-descriptor limits. Linux with `/proc/self/fd` and executable memfd
+mappings is required; loading failure raises an exception with no silent
+fallback to a shared runtime. No library copies are retained on disk.
+
+Each environment has its own mutex, allocation tracking, object limit,
+deadline and C recovery frame. Separate environments calculate concurrently;
+calls sharing one environment serialize. The original free functions continue
+to use the original serialized library instance for compatibility. Returned
+C++ values own their memory and survive environment destruction. Bridge output
+is always freed through the same instance that allocated it. Destruction must
+not overlap calls on that environment. Each library registers fork handlers for
+its mutex; unloading removes those registrations on the supported glibc host.
+All per-call mathematical allocations are freed even on failure, and `longjmp`
+recovery stays inside C without skipping C++ destructors.
+
+The character cache owns an environment lazily, creating it only on the first
+native calculation. Cache hits need no environment. It reuses the environment
+until `close()` or destruction, and discards inherited cache/runtime state after
+fork. Separate cache instances can therefore execute LiE simultaneously. This
+does not itself change the serial `project_index` or batch-cache schedulers.
+Do not initialize the LiE interpreter alongside native calls in one instance.
 
 Supported groups are finite simple A, B, C, D, E, F and G types at their valid
 ranks. Labels are nonnegative machine integers. To leave room for upstream
@@ -58,7 +87,7 @@ own bigint storage limits (signed-short digit counts, at most 32,767 base-2^15
 digits). This is not a replacement for arbitrary-rank/weight symbolic algebra.
 
 Build `liblie.so` using `LiE/Makefile.shared`, then compile `lie.cpp` with the
-caller and link LiE, GMPXX and GMP. With this machine's dependencies:
+caller and link LiE, GMPXX, GMP and libdl. With this machine's dependencies:
 
 ```sh
 make -C common/cpp/LiE -f Makefile.shared -j4
@@ -68,7 +97,7 @@ g++ -std=c++17 -O2 -pthread \
   -Lcommon/cpp/LiE -L/home/subo-lee/miniconda3/envs/sage/lib \
   -Wl,-rpath,"$PWD/common/cpp/LiE" \
   -Wl,-rpath,/home/subo-lee/miniconda3/envs/sage/lib \
-  -llie -lgmpxx -lgmp -o /tmp/lie_wrapper_test
+  -llie -lgmpxx -lgmp -ldl -o /tmp/lie_wrapper_test
 /tmp/lie_wrapper_test
 ```
 
@@ -76,5 +105,10 @@ The standalone driver tests owning results, virtual characters, exact large
 coefficients, error recovery and concurrent callers. Python integration tests
 in `test/test_cpp_lie_wrapper.py` compare Adams and tensor operations against
 the LiE executable across all seven simple families and exercise cache misses,
-timeout recovery, thread concurrency and fork reuse. All test databases are
-temporary. See `index/cpp/CHARACTER_CACHE.md` for backend selection.
+timeout recovery, 32 live independent environments, hidden symbols, lazy
+loading, load/unload cleanup and inherited-cache fork reuse. All test databases
+are temporary. See `index/cpp/CHARACTER_CACHE.md` for backend selection.
+
+`test/benchmark_lie_environments.py` measures fixed uncached SU(9) and E8
+workloads with 1–32 threads, one native cache per worker, exact comparisons,
+separate startup timings and resident memory measurements.

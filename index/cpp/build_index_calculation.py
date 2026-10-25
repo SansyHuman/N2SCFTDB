@@ -120,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
             *[f"-L{directory}" for directory in library_dirs],
             *[f"-Wl,-rpath,{directory}" for directory in library_dirs],
             f"-L{LIE}", "-Wl,-rpath,$ORIGIN/../common/cpp/LiE",
-            "-llie", "-lgmpxx", "-lgmp", "-lsqlite3",
+            "-llie", "-lgmpxx", "-lgmp", "-lsqlite3", "-ldl",
             *shlex.split(os.environ.get("CHAR_CACHE_LDFLAGS", "")),
         ]
         if sys.platform == "darwin":

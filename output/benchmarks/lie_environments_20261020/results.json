@@ -1,0 +1,389 @@
+{
+  "timestamp": "2026-10-20T04:48:08.109228+00:00",
+  "python": "/home/subo-lee/miniconda3/envs/sage/bin/python",
+  "platform": "Linux-6.8.0-146-generic-x86_64-with-glibc2.39",
+  "cpu_affinity": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31
+  ],
+  "cpu_model": "AMD Ryzen 9 7950X 16-Core Processor",
+  "repetitions": 3,
+  "cases": [
+    {
+      "case": "su9",
+      "workers": 1,
+      "calls": 256,
+      "setup_seconds": 0.0005642979522235692,
+      "baseline_rss_kib": 26776,
+      "initialized_rss_kib": 27316,
+      "peak_rss_kib": 32972,
+      "wall_seconds": [
+        2.056820895988494,
+        2.0399052939610556,
+        2.033635105995927
+      ],
+      "cpu_seconds": [
+        2.056495986,
+        2.0396459109999996,
+        2.0334241520000003
+      ],
+      "median_seconds": 2.0399052939610556,
+      "result_terms": [
+        49,
+        88
+      ],
+      "result_sha256": [
+        "5509c4e46e83404facb2a5025840dd8a2c9be184543a6738d1ac2c648fa3d34f",
+        "ed1cfb3a88fa37152087d84cb95b326b12f9d2e6d403c042e260b529bb6f80e3"
+      ]
+    },
+    {
+      "case": "su9",
+      "workers": 2,
+      "calls": 256,
+      "setup_seconds": 0.0007496489561162889,
+      "baseline_rss_kib": 26648,
+      "initialized_rss_kib": 27716,
+      "peak_rss_kib": 32468,
+      "wall_seconds": [
+        1.9341629410046153,
+        1.9243200100027025,
+        1.9305336739635095
+      ],
+      "cpu_seconds": [
+        2.1125114600000003,
+        2.1024858410000005,
+        2.106654205
+      ],
+      "median_seconds": 1.9305336739635095,
+      "result_terms": [
+        49,
+        88
+      ],
+      "result_sha256": [
+        "5509c4e46e83404facb2a5025840dd8a2c9be184543a6738d1ac2c648fa3d34f",
+        "ed1cfb3a88fa37152087d84cb95b326b12f9d2e6d403c042e260b529bb6f80e3"
+      ]
+    },
+    {
+      "case": "su9",
+      "workers": 4,
+      "calls": 256,
+      "setup_seconds": 0.0011358910123817623,
+      "baseline_rss_kib": 26816,
+      "initialized_rss_kib": 28748,
+      "peak_rss_kib": 33996,
+      "wall_seconds": [
+        0.9621830520336516,
+        0.9646489009610377,
+        0.9622215580311604
+      ],
+      "cpu_seconds": [
+        2.090008575,
+        2.08133668,
+        2.0936220089999997
+      ],
+      "median_seconds": 0.9622215580311604,
+      "result_terms": [
+        49,
+        88
+      ],
+      "result_sha256": [
+        "5509c4e46e83404facb2a5025840dd8a2c9be184543a6738d1ac2c648fa3d34f",
+        "ed1cfb3a88fa37152087d84cb95b326b12f9d2e6d403c042e260b529bb6f80e3"
+      ]
+    },
+    {
+      "case": "su9",
+      "workers": 8,
+      "calls": 256,
+      "setup_seconds": 0.0019681400153785944,
+      "baseline_rss_kib": 26780,
+      "initialized_rss_kib": 30540,
+      "peak_rss_kib": 36068,
+      "wall_seconds": [
+        0.48782133299391717,
+        0.49323165201349184,
+        0.49089602602180094
+      ],
+      "cpu_seconds": [
+        2.11360585,
+        2.131328415,
+        2.125078116
+      ],
+      "median_seconds": 0.49089602602180094,
+      "result_terms": [
+        49,
+        88
+      ],
+      "result_sha256": [
+        "5509c4e46e83404facb2a5025840dd8a2c9be184543a6738d1ac2c648fa3d34f",
+        "ed1cfb3a88fa37152087d84cb95b326b12f9d2e6d403c042e260b529bb6f80e3"
+      ]
+    },
+    {
+      "case": "su9",
+      "workers": 16,
+      "calls": 256,
+      "setup_seconds": 0.0033571430249139667,
+      "baseline_rss_kib": 26716,
+      "initialized_rss_kib": 34188,
+      "peak_rss_kib": 40192,
+      "wall_seconds": [
+        0.2739768479950726,
+        0.28879156900802627,
+        0.3058583899983205
+      ],
+      "cpu_seconds": [
+        2.195466739,
+        2.344560237,
+        2.3770483430000002
+      ],
+      "median_seconds": 0.28879156900802627,
+      "result_terms": [
+        49,
+        88
+      ],
+      "result_sha256": [
+        "5509c4e46e83404facb2a5025840dd8a2c9be184543a6738d1ac2c648fa3d34f",
+        "ed1cfb3a88fa37152087d84cb95b326b12f9d2e6d403c042e260b529bb6f80e3"
+      ]
+    },
+    {
+      "case": "su9",
+      "workers": 32,
+      "calls": 256,
+      "setup_seconds": 0.006083428044803441,
+      "baseline_rss_kib": 26552,
+      "initialized_rss_kib": 41448,
+      "peak_rss_kib": 48844,
+      "wall_seconds": [
+        0.17397525999695063,
+        0.18792448501335457,
+        0.18629740795586258
+      ],
+      "cpu_seconds": [
+        2.595355675,
+        2.5091933749999997,
+        2.557383487
+      ],
+      "median_seconds": 0.18629740795586258,
+      "result_terms": [
+        49,
+        88
+      ],
+      "result_sha256": [
+        "5509c4e46e83404facb2a5025840dd8a2c9be184543a6738d1ac2c648fa3d34f",
+        "ed1cfb3a88fa37152087d84cb95b326b12f9d2e6d403c042e260b529bb6f80e3"
+      ]
+    },
+    {
+      "case": "e8",
+      "workers": 1,
+      "calls": 256,
+      "setup_seconds": 0.0006323499837890267,
+      "baseline_rss_kib": 26608,
+      "initialized_rss_kib": 27140,
+      "peak_rss_kib": 28672,
+      "wall_seconds": [
+        5.928321083018091,
+        5.9230858540395275,
+        5.972028782998677
+      ],
+      "cpu_seconds": [
+        5.926864623,
+        5.922529193000001,
+        5.971071673000001
+      ],
+      "median_seconds": 5.928321083018091,
+      "result_terms": [
+        25,
+        33
+      ],
+      "result_sha256": [
+        "b68540bc6fd9a26a7c3afadf980cd994996295645c6651864d0bcb243a874ccc",
+        "70890cdeb57a5f37e539b90cc1a6f8c3d354bd011f7fdc1879ce4842c699c32f"
+      ]
+    },
+    {
+      "case": "e8",
+      "workers": 2,
+      "calls": 256,
+      "setup_seconds": 0.0007683149888180196,
+      "baseline_rss_kib": 26656,
+      "initialized_rss_kib": 27620,
+      "peak_rss_kib": 29440,
+      "wall_seconds": [
+        5.4083313349983655,
+        5.407274650991894,
+        5.397024378005881
+      ],
+      "cpu_seconds": [
+        5.967616016,
+        5.959689608,
+        5.9529002659999986
+      ],
+      "median_seconds": 5.407274650991894,
+      "result_terms": [
+        25,
+        33
+      ],
+      "result_sha256": [
+        "b68540bc6fd9a26a7c3afadf980cd994996295645c6651864d0bcb243a874ccc",
+        "70890cdeb57a5f37e539b90cc1a6f8c3d354bd011f7fdc1879ce4842c699c32f"
+      ]
+    },
+    {
+      "case": "e8",
+      "workers": 4,
+      "calls": 256,
+      "setup_seconds": 0.0012533299741335213,
+      "baseline_rss_kib": 26480,
+      "initialized_rss_kib": 28412,
+      "peak_rss_kib": 28928,
+      "wall_seconds": [
+        2.7186862910166383,
+        2.7266413669567555,
+        2.7081739760469645
+      ],
+      "cpu_seconds": [
+        5.983619397,
+        5.974852214000001,
+        5.972856038
+      ],
+      "median_seconds": 2.7186862910166383,
+      "result_terms": [
+        25,
+        33
+      ],
+      "result_sha256": [
+        "b68540bc6fd9a26a7c3afadf980cd994996295645c6651864d0bcb243a874ccc",
+        "70890cdeb57a5f37e539b90cc1a6f8c3d354bd011f7fdc1879ce4842c699c32f"
+      ]
+    },
+    {
+      "case": "e8",
+      "workers": 8,
+      "calls": 256,
+      "setup_seconds": 0.001905338023789227,
+      "baseline_rss_kib": 26480,
+      "initialized_rss_kib": 30348,
+      "peak_rss_kib": 30192,
+      "wall_seconds": [
+        1.3844429480377585,
+        1.4019872099743225,
+        1.385425321990624
+      ],
+      "cpu_seconds": [
+        6.062631043,
+        6.164708601,
+        6.1026674750000005
+      ],
+      "median_seconds": 1.385425321990624,
+      "result_terms": [
+        25,
+        33
+      ],
+      "result_sha256": [
+        "b68540bc6fd9a26a7c3afadf980cd994996295645c6651864d0bcb243a874ccc",
+        "70890cdeb57a5f37e539b90cc1a6f8c3d354bd011f7fdc1879ce4842c699c32f"
+      ]
+    },
+    {
+      "case": "e8",
+      "workers": 16,
+      "calls": 256,
+      "setup_seconds": 0.0035050000296905637,
+      "baseline_rss_kib": 26612,
+      "initialized_rss_kib": 34036,
+      "peak_rss_kib": 33024,
+      "wall_seconds": [
+        0.7330717299482785,
+        0.7237418750301003,
+        0.7330592169892043
+      ],
+      "cpu_seconds": [
+        6.3237362059999995,
+        6.312451761,
+        6.332035754000001
+      ],
+      "median_seconds": 0.7330592169892043,
+      "result_terms": [
+        25,
+        33
+      ],
+      "result_sha256": [
+        "b68540bc6fd9a26a7c3afadf980cd994996295645c6651864d0bcb243a874ccc",
+        "70890cdeb57a5f37e539b90cc1a6f8c3d354bd011f7fdc1879ce4842c699c32f"
+      ]
+    },
+    {
+      "case": "e8",
+      "workers": 32,
+      "calls": 256,
+      "setup_seconds": 0.006306762981694192,
+      "baseline_rss_kib": 26512,
+      "initialized_rss_kib": 41364,
+      "peak_rss_kib": 42956,
+      "wall_seconds": [
+        0.49494273198070005,
+        0.48764597199624404,
+        0.5033676869934425
+      ],
+      "cpu_seconds": [
+        7.320253218,
+        7.231190197000001,
+        7.264811404
+      ],
+      "median_seconds": 0.49494273198070005,
+      "result_terms": [
+        25,
+        33
+      ],
+      "result_sha256": [
+        "b68540bc6fd9a26a7c3afadf980cd994996295645c6651864d0bcb243a874ccc",
+        "70890cdeb57a5f37e539b90cc1a6f8c3d354bd011f7fdc1879ce4842c699c32f"
+      ]
+    }
+  ],
+  "methodology": "Independent native caches per persistent thread. Same fixed number of uncached tensor calls at every worker count. Prepared signed Adams operands and reference calculation outside timing. Thread/library initialization reported separately. Timed calls include Python binding conversions and returned exact maps; exact comparisons occur after timing. Default 600-second per-call timeout. Each row uses a fresh process. No SQLite or index expansion work.",
+  "sha256": {
+    "common/cpp/lie.cpp": "2b2ee1dae06ab18851b68e853ecf7af8450f62bdd01a8edac1e1b4c53a1dcc54",
+    "common/cpp/lie_bridge.c": "072fd276ab6ea4a71c05fab781321d367506a77f044987137567a841b18471ff",
+    "common/cpp/LiE/exports.map": "5ddbf4daaa5aea49651176365da3ea5491592566959c04844f04a8e6572ddd16",
+    "common/cpp/LiE/liblie.so": "165b1433b4bc44a7b2bf4ee39e831cc8958e585479d64299c749535b38a8dd08",
+    "index/cpp/char_decomposition_cache.cpp": "e16685da3fbb8629a021e8d85de41d87f0cdea95d460a2be120525ab22ea7338",
+    "test/benchmark_lie_environments.py": "bd865a1dae5ac4cf7c54c1b5e99e2dafacf00cf8f940ff70ace71b531cb79025",
+    "index/_index_calculation_cpp.cpython-311-x86_64-linux-gnu.so": "5d37f07f15e7a5923bfbd6474fac0baf898350c5aadbe843849ff84e6fde81d2"
+  }
+}

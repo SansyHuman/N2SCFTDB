@@ -175,7 +175,7 @@ Inputs are unchanged, and rational coefficients use GMP throughout.
 
 Compile `index_singlet_project.cpp`, `char_decomposition_cache.cpp` and
 `common/cpp/lie.cpp` alongside `index_expand.cpp`; make nlohmann/json headers
-available and link `-llie -lgmpxx -lgmp -lsqlite3` with the LiE library directory
+available and link `-llie -lgmpxx -lgmp -lsqlite3 -ldl` with the LiE library directory
 and runtime path. The expansion-only build above remains independent of these
 extra dependencies. See [CHARACTER_CACHE.md](CHARACTER_CACHE.md) for paths and
 the shared-cache contract.
@@ -211,7 +211,8 @@ assert result == reference
 ```
 
 When `worker_count` is omitted, existing `form_threads` values select expansion
-workers for either backend. Native LiE projection remains serial and does not
+workers for either backend. Each native cache now owns an isolated LiE runtime,
+so separate caches can calculate concurrently. The projection scheduler remains serial and does not
 use `processes`; the reference retains its Python cache-generation pools.
 Native expansion has a cooperative timeout, and native LiE retains its
 per-calculation timeout. `timeout=None` disables both. The shared character cache
